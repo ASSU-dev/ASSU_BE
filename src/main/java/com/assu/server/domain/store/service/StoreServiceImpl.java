@@ -4,6 +4,7 @@ package com.assu.server.domain.store.service;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import com.assu.server.domain.store.dto.StoreResponseDTO;
+import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.user.repository.PartnershipUsageRepository;
 import jakarta.transaction.Transactional;
@@ -25,13 +26,11 @@ public class StoreServiceImpl implements StoreService {
 
 	@Override
 	@Transactional
-	public StoreResponseDTO.todayBest getTodayBestStore() {
+	public TodayBestResponseDTO getTodayBestStore() {
 		List<String> bestStores = storeRepository.findTodayBestStoreNames();
-
-		return StoreResponseDTO.todayBest.builder()
-			.bestStores(bestStores)
-			.build();
+		return new TodayBestResponseDTO(bestStores);
 	}
+
     @Override
     @Transactional
     public StoreResponseDTO.WeeklyRankResponseDTO getWeeklyRank(Long memberId) {

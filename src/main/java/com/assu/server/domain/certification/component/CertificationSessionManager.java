@@ -1,67 +1,15 @@
 package com.assu.server.domain.certification.component;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-
-import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-//
-// @Slf4j // ⭐️ SLF4j 로그 사용을 위해 추가
-// @Component
-// public class CertificationSessionManager {
-// 	private final Map<Long, Set<Long>> sessionUserMap = new ConcurrentHashMap<>();
-//
-// 	public void openSession(Long sessionId) {
-// 		sessionUserMap.put(sessionId, ConcurrentHashMap.newKeySet());
-// 		// ⭐️ 로그 추가
-// 		log.info("✅ New certification session opened. SessionID: {}", sessionId);
-// 	}
-//
-// 	public void addUserToSession(Long sessionId, Long userId) {
-// 		Set<Long> users = sessionUserMap.computeIfAbsent(sessionId, k -> {
-// 			log.warn("Attempted to add user to a non-existent session. Creating new set for SessionID: {}", k);
-// 			return ConcurrentHashMap.newKeySet();
-// 		});
-//
-// 		boolean isAdded = users.add(userId);
-//
-// 		// ⭐️ 요청하신 멤버 추가 확인 로그
-// 		if (isAdded) {
-// 			log.info("👤 User added to session. SessionID: {}, UserID: {}. Current participants: {}",
-// 				sessionId, userId, users.size());
-// 		} else {
-// 			log.info("👤 User already in session. SessionID: {}, UserID: {}. Current participants: {}",
-// 				sessionId, userId, users.size());
-// 		}
-// 	}
-//
-// 	public int getCurrentUserCount(Long sessionId) {
-// 		return sessionUserMap.getOrDefault(sessionId, Set.of()).size();
-// 	}
-//
-// 	public boolean hasUser(Long sessionId, Long userId) {
-// 		return sessionUserMap.getOrDefault(sessionId, Set.of()).contains(userId);
-// 	}
-//
-// 	public List<Long> snapshotUserIds(Long sessionId) {
-// 		return List.copyOf(sessionUserMap.getOrDefault(sessionId, Set.of()));
-// 	}
-//
-//
-//
-// 	public void removeSession(Long sessionId) {
-// 		sessionUserMap.remove(sessionId);
-// 		// ⭐️ 로그 추가
-// 		log.info("❌ Certification session removed. SessionID: {}", sessionId);
-// 	}
-// }
+
 @Component
 @RequiredArgsConstructor
 public class CertificationSessionManager {

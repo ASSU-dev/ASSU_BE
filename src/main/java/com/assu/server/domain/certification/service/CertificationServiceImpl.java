@@ -3,7 +3,7 @@ package com.assu.server.domain.certification.service;
 import java.time.Duration;
 import java.util.List;
 
-
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.admin.entity.Admin;
@@ -11,9 +11,9 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.admin.service.AdminService;
 import com.assu.server.domain.certification.SessionTimeoutManager;
 import com.assu.server.domain.certification.component.CertificationSessionManager;
-import com.assu.server.domain.certification.converter.CertificationConverter;
+import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
+import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
-import com.assu.server.domain.certification.dto.CertificationRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.entity.AssociateCertification;
@@ -25,9 +25,9 @@ import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.user.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
+
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 // AdminService 참조, 순환 참조 문제 주의
 @Transactional
@@ -49,34 +49,34 @@ public class CertificationServiceImpl implements CertificationService {
 
 
 	@Override
-	public CertificationResponseDTO.getSessionIdResponse getSessionId(
-		CertificationRequestDTO.groupRequest dto, Member member){
+	public CertificationResponseDTO getSessionId(
+		CertificationGroupRequestDTO dto, Member member){
 		Long userId = member.getId();
 
 		// admin id 추출
-		Admin admin = adminRepository.findById(dto.getAdminId()).orElseThrow(
+		Admin admin = adminRepository.findById(dto.adminId()).orElseThrow(
 			() -> new GeneralException(ErrorStatus.NO_SUCH_ADMIN)
 		);
 
 		// store id 추출
-		Store store = storeRepository.findById(dto.getStoreId()).orElseThrow(
+		Store store = storeRepository.findById(dto.storeId()).orElseThrow(
 			() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
 		);
 
 
 		// 세션 생성 및 구독 로직
 		AssociateCertification ownerCertification = associateCertificationRepository.save(
-			CertificationConverter.toAssociateCertification(dto, store, member));
+			dto.toAssociateCertification(store, member));
 		Long sessionId = ownerCertification.getId();
 
 		sessionManager.openSession(sessionId);
 		// 세션 생성 직후 만료 시간을 5분으로 설정
-		timeoutManager.scheduleTimeout(sessionId, Duration.ofMinutes(10));// TODO: 나중에 5분으로 변경
+		timeoutManager.scheduleTimeout(sessionId, Duration.ofMinutes(5));// TODO: 나중에 5분으로 변경
 
-		// 세션 여는 대표자는 제일 먼저 인증
+		// redis 세션에 그룹 인증 요청자 부터 추가
 		sessionManager.addUserToSession(sessionId, userId);
 
-		return CertificationConverter.toSessionIdResponse(sessionId);
+		return new CertificationResponseDTO(sessionId);
 
 	}
 
@@ -85,7 +85,7 @@ public class CertificationServiceImpl implements CertificationService {
 		Long userId = member.getId();
 
 		// 제휴 대상인지 확인하기
-		Long adminId = dto.getAdminId();
+		Long adminId = dto.adminId();
 		Student student = member.getStudentProfile();
 		List<Admin> admins = adminService.findMatchingAdmins(student.getUniversity(), student.getDepartment(), student.getMajor());
 
@@ -98,7 +98,7 @@ public class CertificationServiceImpl implements CertificationService {
 
 
 		// session 존재 여부 확인
-		Long sessionId = dto.getSessionId();
+		Long sessionId = dto.sessionId();
 		AssociateCertification session = associateCertificationRepository.findById(sessionId).orElseThrow(
 			() -> new GeneralException(ErrorStatus.NO_SUCH_SESSION)
 		);
@@ -133,17 +133,13 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
-	public void certificatePersonal(CertificationRequestDTO.personalRequest dto, Member member){
+	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
-		Store store = storeRepository.findById(dto.getStoreId()).orElseThrow(
+		Store store = storeRepository.findById(dto.storeId()).orElseThrow(
 			() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
 		);
 
-		AssociateCertification personalCertificationData = CertificationConverter.toPersonalCertification(dto, store, member);
+		AssociateCertification personalCertificationData = dto.toPersonalCertification(store, member);
 		associateCertificationRepository.save(personalCertificationData);
-
 	}
-
-
-
 }

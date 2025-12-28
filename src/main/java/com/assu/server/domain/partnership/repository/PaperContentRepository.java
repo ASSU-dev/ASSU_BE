@@ -1,15 +1,13 @@
 package com.assu.server.domain.partnership.repository;
 
-import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.List;
-import java.util.Optional;
+import com.assu.server.domain.partnership.entity.PaperContent;
 
 public interface PaperContentRepository extends JpaRepository<PaperContent, Long> {
 
