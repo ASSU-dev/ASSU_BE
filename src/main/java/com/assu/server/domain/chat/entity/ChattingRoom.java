@@ -64,4 +64,11 @@ public class ChattingRoom extends BaseEntity {
     public void setPartner(Partner partner) {
         this.partner = partner;
     }
+
+    public static ChattingRoom toCreateChattingRoom(Admin admin, Partner partner) {
+        return ChattingRoom.builder()
+                .admin(admin)
+                .partner(partner)
+                .build();
+    }
 }

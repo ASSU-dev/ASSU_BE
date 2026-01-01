@@ -5,9 +5,7 @@ import lombok.Setter;
 
 public class BlockRequestDTO {
 
-    @Getter
-    @Setter
-    public static class BlockMemberRequestDTO {
-        private Long opponentId;
-    }
+    public record BlockMemberRequestDTO(
+            Long opponentId
+    ) {}
 }

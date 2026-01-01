@@ -1,5 +1,6 @@
 package com.assu.server.domain.chat.entity;
 
+import com.assu.server.domain.chat.dto.ChatRequestDTO;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.chat.entity.enums.MessageType;
 
@@ -50,5 +51,38 @@ public class Message extends BaseEntity {
     public void markAsRead() {
         this.isRead = true;
         this.unreadCount = 0;
+    }
+
+    public static Message toMessageEntity(
+            ChatRequestDTO.ChatMessageRequestDTO request,
+            ChattingRoom room,
+            Member sender,
+            Member receiver,
+            int unreadForSender
+    ) {
+        return Message.builder()
+                .chattingRoom(room)
+                .sender(sender)
+                .receiver(receiver)
+                .message(request.message())
+                .unreadCount(unreadForSender)
+                .type(MessageType.TEXT)
+                .build();
+    }
+
+    public static Message toGuideMessageEntity(
+            ChatRequestDTO.ChatMessageRequestDTO request,
+            ChattingRoom room,
+            Member sender,
+            Member receiver
+    ) {
+        return Message.builder()
+                .chattingRoom(room)
+                .sender(sender)
+                .receiver(receiver)
+                .message(request.message())
+                .unreadCount(0)
+                .type(MessageType.GUIDE)
+                .build();
     }
 }

@@ -7,21 +7,17 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 public class ChatRequestDTO {
-    @Getter
-    public static class CreateChatRoomRequestDTO {
-        private Long adminId;
-        private Long partnerId;
-    }
 
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class ChatMessageRequestDTO {
-        private Long roomId;
-        private Long senderId;
-        private Long receiverId;
-        private String message;
-        private int unreadCountForSender;
-    }
+    public record CreateChatRoomRequestDTO(
+            Long adminId,
+            Long partnerId
+    ) {}
+
+    public record ChatMessageRequestDTO(
+            Long roomId,
+            Long senderId,
+            Long receiverId,
+            String message
+    ) {}
+
 }
