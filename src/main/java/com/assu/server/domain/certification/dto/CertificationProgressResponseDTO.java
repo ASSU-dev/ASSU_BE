@@ -2,11 +2,6 @@ package com.assu.server.domain.certification.dto;
 
 import java.util.List;
 
-import com.assu.server.domain.certification.entity.AssociateCertification;
-import com.assu.server.domain.certification.entity.enums.SessionStatus;
-import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.store.entity.Store;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CertificationProgressResponseDTO (
