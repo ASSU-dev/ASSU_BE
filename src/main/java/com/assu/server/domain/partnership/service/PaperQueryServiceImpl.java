@@ -69,7 +69,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		);
 
 		// dto 변환
-		List<PaperContentResponseDTO.storePaperContentResponse> contents =
+		List<PaperContentResponseDTO> contents =
 			PartnershipConverter.toContentResponseList(contentList);
 
 
