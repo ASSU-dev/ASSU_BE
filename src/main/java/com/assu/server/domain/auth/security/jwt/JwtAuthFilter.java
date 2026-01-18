@@ -46,12 +46,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final AntPathMatcher PATH = new AntPathMatcher();
     // 공개 경로(필터 우회)
     private static final String[] WHITELIST = {
-            // Swagger 관련 모든 경로
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
-            "/swagger-resources/**", "/webjars/**", "/api-docs/**",
-            "/swagger-ui/index.html", "/swagger-config", "/favicon.ico",
-            "/swagger-ui/swagger-ui-bundle.js", "/swagger-ui/swagger-ui-standalone-preset.js",
-            "/swagger-ui/swagger-ui.css", "/swagger-ui/**/**",
+            "/swagger-resources/**", "/webjars/**",
             // Auth (로그아웃/탈퇴/리프레시 제외)
             "/auth/phone-verification/check-and-send",
             "/auth/phone-verification/verify",
@@ -72,30 +68,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        String method = request.getMethod();
-        
-        log.debug("[JwtFilter] Checking URI: {} Method: {}", uri, method);
-        
-        if ("OPTIONS".equalsIgnoreCase(method))
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()))
             return true; // CORS preflight 우회
-            
         if (PATH.match("/auth/tokens/refresh", uri))
             return false; // 토큰 재발급은 필터 적용
-            
-        for (String p : WHITELIST) {
-            if (PATH.match(p, uri)) {
-                log.debug("[JwtFilter] Whitelisted path matched: {} for URI: {}", p, uri);
+        for (String p : WHITELIST)
+            if (PATH.match(p, uri))
                 return true; // 나머지 공개 경로 우회
-            }
-        }
-        
-        log.debug("[JwtFilter] Filter will be applied to URI: {}", uri);
         return false; // 보호 자원은 필터 적용
     }
 
     /**
      * Authorization 헤더가 존재하고 Bearer 포맷인지 확인한다.
-     * 
+     *
      * @throws CustomAuthException 헤더 누락/형식 오류
      */
     private static void requireBearerAuthorizationHeader(String authorizationHeader) {
@@ -160,7 +145,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 chain.doFilter(request, response);
                 return;
             } catch (Exception exception) {
-                log.error("[JwtFilter] 재발급 경로 인증 중 예외 발생 - URI: {}, Message: {}", requestUri, exception.getMessage(), exception);
+                log.error("인증 과정 중, 예상치 못한 예외 발생: {}", exception.getMessage(), exception);
                 throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
             }
         }
@@ -182,7 +167,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             chain.doFilter(request, response);
         } catch (Exception exception) {
-            log.error("[JwtFilter] 인증 과정 중 예외 발생 - URI: {}, Message: {}", requestUri, exception.getMessage(), exception);
+            log.error("인증 과정 중, 예상치 못한 예외 발생: {}", exception.getMessage(), exception);
             throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
         }
     }
