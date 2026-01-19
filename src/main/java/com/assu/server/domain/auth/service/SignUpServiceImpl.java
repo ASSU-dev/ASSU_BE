@@ -87,6 +87,8 @@ public class SignUpServiceImpl implements SignUpService {
                 Member.builder()
                         .phoneNum(req.phoneNumber())
                         .isPhoneVerified(true)
+                        .isLocationTermAgreed(req.locationAgree())
+                        .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.STUDENT)
                         .isActivated(ActivationStatus.ACTIVE)
                         .build());
@@ -131,6 +133,8 @@ public class SignUpServiceImpl implements SignUpService {
                 Member.builder()
                         .phoneNum(req.phoneNumber())
                         .isPhoneVerified(true)
+                        .isLocationTermAgreed(req.locationAgree())
+                        .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.PARTNER)
                         .isActivated(ActivationStatus.ACTIVE) // Todo 초기에 SUSPEND 로직 추가해야함, 허가 후 ACTIVE
                         .build());
@@ -210,6 +214,8 @@ public class SignUpServiceImpl implements SignUpService {
                 Member.builder()
                         .phoneNum(req.phoneNumber())
                         .isPhoneVerified(true)
+                        .isLocationTermAgreed(req.locationAgree())
+                        .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.ADMIN)
                         .isActivated(ActivationStatus.ACTIVE) // Todo 초기에 SUSPEND 로직 추가해야함, 허가 후 ACTIVE
                         .build());
