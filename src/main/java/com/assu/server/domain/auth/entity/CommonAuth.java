@@ -33,10 +33,8 @@ public class CommonAuth extends BaseEntity {
     private String email;
 
     @Column(name = "password", length = 255, nullable = false)
-    private String password; // 해시 저장
-
-    @Column(name = "is_email_verified", nullable = false)
-    private Boolean isEmailVerified = Boolean.FALSE;
+    @NotNull
+    private String hashedPassword;
 
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
