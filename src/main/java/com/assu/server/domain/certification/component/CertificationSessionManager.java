@@ -18,13 +18,7 @@ public class CertificationSessionManager {
 	private static final String ID_COUNTER_KEY = "certification:id:seq";
 	private static final String SESSION_INIT_MARKER = "STATUS_OPEN";
 
-	private String getKey(Long sessionId) {
-		return "certification:session:" + sessionId;
-	}
 
-	private String getInfoKey(Long sessionId) {
-		return "certification:info:" + sessionId;
-	}
 
 	public Long openSession(Long storeId, Integer peopleNumber) {
 		Long newSessionId = redisTemplate.opsForValue().increment(ID_COUNTER_KEY);
@@ -72,5 +66,13 @@ public class CertificationSessionManager {
 	public void removeSession(Long sessionId) {
 		redisTemplate.delete(getKey(sessionId));
 		redisTemplate.delete(getInfoKey(sessionId));
+	}
+
+	private String getKey(Long sessionId) {
+		return "certification:session:" + sessionId;
+	}
+
+	private String getInfoKey(Long sessionId) {
+		return "certification:info:" + sessionId;
 	}
 }
