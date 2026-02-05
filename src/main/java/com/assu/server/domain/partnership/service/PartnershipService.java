@@ -1,6 +1,7 @@
 package com.assu.server.domain.partnership.service;
 
 import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,7 +16,7 @@ public interface PartnershipService {
             Long memberId
     );
     
-    void recordPartnershipUsage(PartnershipRequestDTO.finalRequest dto, Member member);
+    void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member);
 
     // 제휴업체/관리자 맺은 제휴 리스트
     List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long partnerId);
