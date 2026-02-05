@@ -4,15 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
-import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-// AmqpConfig.java (새 파일, 적절한 패키지: com.assu.server.infra.mq 등)
 @Configuration
 public class AmqpConfig {
     public static final String EXCHANGE = "notif.ex";

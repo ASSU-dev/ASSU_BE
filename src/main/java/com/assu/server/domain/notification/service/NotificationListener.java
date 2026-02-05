@@ -22,63 +22,69 @@ public class NotificationListener {
     private final OutboxStatusService outboxStatus;
 
     @RabbitListener(queues = AmqpConfig.QUEUE, ackMode = "MANUAL")
-    public void onMessage(@Payload NotificationMessageDTO payload,
+    public void onMessage(@Payload NotificationMessageDTO notificationMessageDTO,
                           Channel ch,
                           @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws Exception {
 
-        final Long outboxId = safeParseLong(payload.getIdempotencyKey());
+        final Long outboxId = safeParseLong(notificationMessageDTO.idempotencyKey());
 
         try {
-            // 0) Outbox 선확인: 이미 처리되었으면 중복 전송/SELECT 자체를 스킵
-            if (outboxId != null && outboxStatus.isAlreadySent(outboxId)) {
-                log.debug("[Notify] already-sent outboxId={}, ACK", outboxId);
+            if (isDuplicateMessage(outboxId)) {
                 ch.basicAck(tag, false);
                 return;
             }
 
-            // 1) 전송
-            FcmClient.FcmResult result = fcmClient.sendToMemberId(
-                    payload.getReceiverId(), payload.getTitle(), payload.getBody(), payload.getData());
-
-            // 2) 성공 처리
-            if (outboxId != null) outboxStatus.markSent(outboxId);
+            sendNotification(notificationMessageDTO, outboxId);
             ch.basicAck(tag, false);
 
-            // 3) 관측용 로그
-            log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
-                    outboxId, payload.getReceiverId(),
-                    result.successCount(), result.failureCount(), result.invalidTokens());
-
-        } catch (FirebaseMessagingException fme) {
-            boolean permanent = isPermanent(fme);
-            log.error("[Notify] FCM failure outboxId={} memberId={} permanent={} http={} code={} root={}",
-                    outboxId, payload.getReceiverId(), permanent,
-                    FcmClient.httpStatusOf(fme), fme.getMessagingErrorCode(), rootSummary(fme), fme);
-
-            if (outboxId != null) outboxStatus.markFailed(outboxId);
-            ch.basicNack(tag, false, false); // requeue 금지(지연 재시도 큐 권장)
-
-        } catch (java.net.UnknownHostException | javax.net.ssl.SSLHandshakeException e) {
-            // 환경 문제(DNS/CA)는 영구 취급(루프 방지)
-            log.error("[Notify] ENV failure outboxId={} memberId={} root={}",
-                    outboxId, payload.getReceiverId(), rootSummary(e), e);
-            if (outboxId != null) outboxStatus.markFailed(outboxId);
-            ch.basicNack(tag, false, false);
-
-        } catch (java.util.concurrent.TimeoutException | java.net.SocketTimeoutException e) {
-            // 타임아웃 → 일시 장애. 그래도 requeue(true)는 쓰지 않음
-            log.warn("[Notify] TIMEOUT outboxId={} memberId={} root={}",
-                    outboxId, payload.getReceiverId(), rootSummary(e), e);
-            if (outboxId != null) outboxStatus.markFailed(outboxId);
-            ch.basicNack(tag, false, false);
-
         } catch (Exception e) {
-            // 알 수 없는 오류 → DLQ
-            log.error("[Notify] UNKNOWN failure outboxId={} memberId={} root={}",
-                    outboxId, payload.getReceiverId(), rootSummary(e), e);
-            if (outboxId != null) outboxStatus.markFailed(outboxId);
+            handleException(e, outboxId, notificationMessageDTO.receiverId());
             ch.basicNack(tag, false, false);
         }
+    }
+
+    private boolean isDuplicateMessage(Long outboxId) {
+        if (outboxId != null && outboxStatus.isAlreadySent(outboxId)) {
+            log.debug("[Notify] already-sent outboxId={}, ACK", outboxId);
+            return true;
+        }
+        return false;
+    }
+
+    private void sendNotification(NotificationMessageDTO dto, Long outboxId) 
+            throws FirebaseMessagingException, java.util.concurrent.TimeoutException, 
+                   InterruptedException, java.util.concurrent.ExecutionException {
+        FcmClient.FcmResult result = fcmClient.sendToMemberId(
+                dto.receiverId(), dto.title(), dto.body(), dto.data());
+
+        if (outboxId != null) outboxStatus.markSent(outboxId);
+
+        log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
+                outboxId, dto.receiverId(), result.successCount(), result.failureCount(), result.invalidTokens());
+    }
+
+    private void handleException(Exception e, Long outboxId, Long memberId) {
+        if (outboxId != null) outboxStatus.markFailed(outboxId);
+
+        if (e instanceof FirebaseMessagingException fme) {
+            handleFcmException(fme, outboxId, memberId);
+        } else if (e instanceof java.net.UnknownHostException || e instanceof javax.net.ssl.SSLHandshakeException) {
+            log.error("[Notify] ENV failure outboxId={} memberId={} root={} [type=network]",
+                    outboxId, memberId, rootSummary(e), e);
+        } else if (e instanceof java.util.concurrent.TimeoutException || e instanceof java.net.SocketTimeoutException) {
+            log.warn("[Notify] TIMEOUT failure outboxId={} memberId={} root={} [type=timeout]",
+                    outboxId, memberId, rootSummary(e), e);
+        } else {
+            log.error("[Notify] UNKNOWN failure outboxId={} memberId={} root={} [type=unknown]",
+                    outboxId, memberId, rootSummary(e), e);
+        }
+    }
+
+    private void handleFcmException(FirebaseMessagingException fme, Long outboxId, Long memberId) {
+        boolean permanent = isPermanent(fme);
+        log.error("[Notify] FCM failure outboxId={} memberId={} root={} [permanent={} http={} code={}]",
+                outboxId, memberId, rootSummary(fme),
+                permanent, FcmClient.httpStatusOf(fme), fme.getMessagingErrorCode(), fme);
     }
 
     private boolean isPermanent(FirebaseMessagingException fme) {

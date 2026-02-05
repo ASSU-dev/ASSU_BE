@@ -1,11 +1,14 @@
 package com.assu.server.infra.firebase;
 
+import com.assu.server.domain.deviceToken.entity.DeviceToken;
 import com.assu.server.domain.deviceToken.repository.DeviceTokenRepository;
+import com.assu.server.domain.deviceToken.service.DeviceTokenService;
 import com.google.api.core.ApiFuture;
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -22,8 +25,8 @@ public class FcmClient {
 
     private final FirebaseMessaging messaging;
     private final DeviceTokenRepository tokenRepo;
+    private final DeviceTokenService deviceTokenService;
 
-    // 운영에서 3s는 다소 공격적 — 5s 정도 권장
     private static final Duration SEND_TIMEOUT = Duration.ofSeconds(5);
 
     /**
@@ -31,13 +34,15 @@ public class FcmClient {
      * - 실패 토큰(UNREGISTERED/INVALID_ARGUMENT)은 즉시 비활성화
      * - 결과 요약을 반환
      */
+
     public FcmResult sendToMemberId(Long memberId, String title, String body, Map<String, String> data)
             throws TimeoutException, InterruptedException, FirebaseMessagingException, ExecutionException {
         if (memberId == null) throw new IllegalArgumentException("receiverId is null");
 
         // 1) 토큰 조회
-        List<String> tokens = tokenRepo.findActiveTokensByMemberId(memberId);
-        if (tokens == null || tokens.isEmpty()) {
+        List<DeviceToken> activeTokens = tokenRepo.findAllByMemberIdAndActiveTrue(memberId);
+        List<String> tokens = activeTokens.stream().map(DeviceToken::getToken).toList();
+        if (tokens.isEmpty()) {
             return FcmResult.empty();
         }
 
@@ -93,7 +98,7 @@ public class FcmClient {
 
             if (!invalidTokens.isEmpty()) {
                 try {
-                    tokenRepo.deactivateTokens(invalidTokens); // UPDATE ... SET active=0 WHERE token IN (...)
+                    deviceTokenService.deactivateTokens(invalidTokens);
                 } catch (Exception e) {
                     log.error("[FCM] deactivateTokens failed size={} memberId={} root={}",
                             invalidTokens.size(), memberId, rootSummary(e), e);
@@ -107,7 +112,7 @@ public class FcmClient {
             throw te;
 
         } catch (ExecutionException ee) {
-            // ★ 핵심: Future가 싸서 던진 예외를 원형으로 복원
+            // Future가 싸서 던진 예외를 원형으로 복원
             Throwable c = ee.getCause();
             if (c instanceof FirebaseMessagingException fme) {
                 log.error("[FCM] FirebaseMessagingException memberId={} http={} code={} root={}",
@@ -132,7 +137,7 @@ public class FcmClient {
     private String rootSummary(Throwable t) {
         if (t == null) return "null";
         Throwable r = t; while (r.getCause() != null) r = r.getCause();
-        return r.getClass().getName() + ": " + String.valueOf(r.getMessage());
+        return r.getClass().getName() + ": " + r.getMessage();
     }
 
     public record FcmResult(int successCount, int failureCount, List<String> invalidTokens) {

@@ -11,14 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.data.domain.Pageable;
+
 import java.nio.file.AccessDeniedException;
-import java.util.HashMap;
 import java.util.Map;
 
 @Tag(name = "Notification", description = "알림 API")
@@ -26,8 +22,8 @@ import java.util.Map;
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
-    private final NotificationQueryService query;
-    private final NotificationCommandService command;
+    private final NotificationQueryService notificationQueryService;
+    private final NotificationCommandService notificationCommandService;
 
     @Operation(
             summary = "알림 목록 조회 API",
@@ -44,7 +40,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size
     ) {
-        Map<String, Object> body = query.getNotifications(status, page, size, pd.getMemberId());
+        Map<String, Object> body = notificationQueryService.getNotifications(status, page, size, pd.getMemberId());
         return BaseResponse.onSuccess(SuccessStatus._OK, body);
     }
 
@@ -54,10 +50,10 @@ public class NotificationController {
                     "- 알림 아이디에 해당하는 알림을 읽음 처리합니다.\n"+
                     "  - notification-id: Path Variable, Long\n"
     )
-    @PostMapping("/{notification-id}/read")
+    @PostMapping("/{notificationId}/read")
     public BaseResponse<String> markRead(@AuthenticationPrincipal PrincipalDetails pd,
-                                         @PathVariable("notification-id") Long notificationId) throws AccessDeniedException {
-        command.markRead(notificationId, pd.getMemberId());
+                                         @PathVariable("notificationId") Long notificationId) throws AccessDeniedException {
+        notificationCommandService.markRead(notificationId, pd.getMemberId());
         return BaseResponse.onSuccess(SuccessStatus._OK,
                 "The notification has been marked as read successfully. id=" + notificationId);
     }
@@ -68,8 +64,8 @@ public class NotificationController {
                     "- deviceToken을 등록한 이후에 사용 가능합니다."
     )
     @PostMapping("/queue")
-    public BaseResponse<String> queue(@Valid @RequestBody QueueNotificationRequest req) {
-        command.queue(req);
+    public BaseResponse<String> queue(@Valid @RequestBody QueueNotificationRequestDTO req) {
+        notificationCommandService.queue(req);
         return BaseResponse.onSuccess(SuccessStatus._OK, "Notification delivery succeeded.");
     }
 
@@ -83,12 +79,12 @@ public class NotificationController {
                     "  - ADMIN_ALL: CHAT + PARTNER_SUGGESTION + PARTNER_PROPOSAL을 함께 토글"
     )
     @PutMapping("/{type}")
-    public BaseResponse<NotificationSettingsResponse> toggle(
+    public BaseResponse<NotificationSettingsResponseDTO> toggle(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable("type") NotificationType type
     ) {
-        Map<String, Boolean> settings = command.toggle(pd.getMemberId(), type);
-        return BaseResponse.onSuccess(SuccessStatus._OK, new NotificationSettingsResponse(settings));
+        Map<String, Boolean> settings = notificationCommandService.toggle(pd.getMemberId(), type);
+        return BaseResponse.onSuccess(SuccessStatus._OK, new NotificationSettingsResponseDTO(settings));
     }
 
     @Operation(
@@ -97,10 +93,10 @@ public class NotificationController {
                     "- 현재 로그인 사용자의 알림 설정 상태를 반환합니다.\n"
     )
     @GetMapping("/settings")
-    public BaseResponse<NotificationSettingsResponse> getSettings(
+    public BaseResponse<NotificationSettingsResponseDTO> getSettings(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        NotificationSettingsResponse res = query.loadSettings(pd.getMemberId());
+        NotificationSettingsResponseDTO res = notificationQueryService.loadSettings(pd.getMemberId());
         return BaseResponse.onSuccess(SuccessStatus._OK, res);
     }
 
@@ -112,7 +108,7 @@ public class NotificationController {
     )
     @GetMapping("/unread-exists")
     public BaseResponse<Boolean> unreadExists(@AuthenticationPrincipal PrincipalDetails pd) {
-        boolean exists = query.hasUnread(pd.getMemberId());
+        boolean exists = notificationQueryService.hasUnread(pd.getMemberId());
         return BaseResponse.onSuccess(SuccessStatus._OK, exists);
     }
 }

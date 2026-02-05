@@ -104,6 +104,11 @@ public enum ErrorStatus implements BaseErrorCode {
     PROFILE_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "PROFILE_4001", "존재하지 않는 프로필 이미지입니다."),
     PROFILE_IMAGE_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "PROFILE_4002", "지원하지 않는 이미지 형식입니다."),
     PROFILE_IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "PROFILE_4003", "허용된 크기를 초과한 이미지입니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "PROFILE_4004", "파일 크기가 허용 범위를 초과했습니다."),
+    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "PROFILE_4005", "허용되지 않는 파일 형식입니다."),
+    INVALID_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "PROFILE_4006", "유효하지 않은 Content-Type입니다."),
+    INVALID_FILE_NAME(HttpStatus.BAD_REQUEST, "PROFILE_4007", "유효하지 않은 파일명입니다."),
+
 
     // Suggestion 관련 에러
     NO_SUCH_SUGGESTION(HttpStatus.NOT_FOUND, "SUGGESTION_4001", "존재하지 않는 건의글입니다."),

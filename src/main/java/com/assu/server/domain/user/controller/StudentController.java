@@ -1,28 +1,27 @@
 package com.assu.server.domain.user.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.user.dto.StudentResponseDTO;
+import com.assu.server.domain.user.service.StudentService;
 import com.assu.server.global.apiPayload.BaseResponse;
+import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import com.assu.server.domain.user.dto.StudentResponseDTO;
-import com.assu.server.domain.user.service.StudentService;
-import com.assu.server.global.apiPayload.BaseResponse;
-import com.assu.server.global.apiPayload.code.status.SuccessStatus;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @Tag(name = "유저 관련 api", description = "유저와 관련된 로직을 처리하는 api")
@@ -45,10 +44,10 @@ public class StudentController {
 			"  - 해당 storeId, storeName 반환"+
 			"  - 해당 월에 사용한 제휴 수 반환"
 	)
-	public ResponseEntity<BaseResponse<StudentResponseDTO.myPartnership>> getMyPartnership(
+	public ResponseEntity<BaseResponse<StudentResponseDTO.MyPartnership>> getMyPartnership(
 		@PathVariable int year, @PathVariable int month, @AuthenticationPrincipal PrincipalDetails pd
 	){
-		StudentResponseDTO.myPartnership result = studentService.getMyPartnership(pd.getId(), year, month);
+		StudentResponseDTO.MyPartnership result = studentService.getMyPartnership(pd.getId(), year, month);
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.PARTNERSHIP_HISTORY_SUCCESS, result));
 	}
@@ -67,7 +66,7 @@ public class StudentController {
 			"  - StudentResponseTO.UsageDetailDTO 객체 반환 \n"
 
 	)
-	public ResponseEntity<BaseResponse<Page<StudentResponseDTO.UsageDetailDTO>>> getUnreviewedUsage(
+	public ResponseEntity<BaseResponse<Page<StudentResponseDTO.UsageDetail>>> getUnreviewedUsage(
 		@AuthenticationPrincipal PrincipalDetails pd,
 		Pageable pageable
 	){
