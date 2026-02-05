@@ -1,5 +1,7 @@
 package com.assu.server.domain.partnership.service;
 
+import static com.assu.server.domain.partnership.dto.PaperContentResponseDTO.*;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -69,8 +71,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		);
 
 		// dto 변환
-		List<PaperContentResponseDTO> contents =
-			PartnershipConverter.toContentResponseList(contentList);
+		List<PaperContentResponseDTO> contents = toContentResponseList(contentList);
 
 
 		return new PaperResponseDTO(contents, store.getName(), store.getId());
