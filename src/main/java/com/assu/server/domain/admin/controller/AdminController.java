@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Admin", description = "관리자 API")
+@Tag(name = "Admin", description = "관리자 관련 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/admin")
@@ -34,9 +34,9 @@ public class AdminController {
                     "  - `partnerUrl` (String): 제휴업체 카카오맵 URL\n" +
                     "  - `partnerPhone` (String): 제휴업체 전화번호\n")
     @GetMapping("/partner-recommend")
-    public BaseResponse<AdminResponseDTO.RandomPartnerResponseDTO> randomPartnerRecommend(
+    public BaseResponse<AdminResponseDTO> randomPartnerRecommend(
             @AuthenticationPrincipal PrincipalDetails pd
-            ) {
+    ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, adminService.suggestRandomPartner(pd.getId()));
     }
 }

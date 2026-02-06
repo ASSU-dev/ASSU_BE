@@ -4,12 +4,14 @@ import com.assu.server.domain.map.dto.MapResponseDTO;
 import com.assu.server.global.config.KakaoLocalClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PlaceSearchServiceImpl implements PlaceSearchService {
 
     private final KakaoLocalClient kakaoLocalClient;

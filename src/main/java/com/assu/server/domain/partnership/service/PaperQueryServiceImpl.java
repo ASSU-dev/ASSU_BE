@@ -1,5 +1,7 @@
 package com.assu.server.domain.partnership.service;
 
+import static com.assu.server.domain.partnership.dto.PaperContentResponseDTO.*;
+
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -36,7 +38,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 	private final StoreRepository storeRepository;
 
 	@Override
-	public PaperResponseDTO.partnershipContent getStorePaperContent(Long storeId, Member member){
+	public PaperResponseDTO getStorePaperContent(Long storeId, Member member){
 
 		// 역할이 학생이 아닌 경우 : 이미 type별로 ui를 분기 시켜놔서 그럴일 없을 것 같긴 하지만 혹시 몰라서 처리함
 		if(member.getRole() != UserRole.STUDENT)
@@ -60,7 +62,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		List<PaperContent> contentList = paperList.stream()
 			.flatMap(paper->
 				contentRepository.findByPaperId(paper.getId()).stream()
-				).toList();
+			).toList();
 
 
 
@@ -69,15 +71,10 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		);
 
 		// dto 변환
-		List<PaperContentResponseDTO.storePaperContentResponse> contents =
-			PartnershipConverter.toContentResponseList(contentList);
+		List<PaperContentResponseDTO> contents = toContentResponseList(contentList);
 
-		// partnershipContent DTO 생성
-		return PaperResponseDTO.partnershipContent.builder()
-			.storeName(store.getName())
-			.storeId(storeId)
-			.contents(contents)
-			.build();
+
+		return new PaperResponseDTO(contents, store.getName(), store.getId());
 
 
 	}

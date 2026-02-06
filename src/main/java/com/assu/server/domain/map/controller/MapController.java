@@ -34,6 +34,7 @@ public class MapController {
                     "- 경도, 위도 순서로 입력한 Viewport 객체 입력.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+
                     "\n**Request Body:**\n" +
+                    "  - `viewport` 객체 (JSON, required): 공간인덱싱을 위한 경도, 위도 객체\n" +
                     "  - `lng1` (double): 좌 상단 경도\n" +
                     "  - `lat1` (double): 좌 상단 위도\n" +
                     "  - `lng2` (double): 우 상단 경도\n" +
@@ -88,7 +89,7 @@ public class MapController {
                     "    - `phoneNumber` (String): 관리자 전화번호\n")
     @GetMapping("/nearby")
     public BaseResponse<?> getLocations(
-            @ModelAttribute MapRequestDTO.ViewOnMapDTO viewport,
+            @ModelAttribute MapRequestDTO viewport,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         Long memberId = pd.getMember().getId();
@@ -109,7 +110,7 @@ public class MapController {
                     "- 검색어(searchKeyword) 입력.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+
                     "\n**Request Parts:**\n" +
-                    "  - `searchKeyword` (String): 검색어\n" +
+                    "  - `searchKeyword` (String, required): 검색어\n" +
                     "\n**Response:**\n" +
                     "  - `User`: 가게 조회\n" +
                     "    - `storeId` (Long): 가게 ID\n" +
@@ -187,7 +188,7 @@ public class MapController {
                     "- limit을 통해 Map 객체 수 제한.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+
                     "\n**Request Parts:**\n" +
-                    "  - `searchKeyword` (String): 검색어\n" +
+                    "  - `searchKeyword` (String, required): 검색어\n" +
                     " - `limit` (Integer): 결과 객체 수\n" +
                     "\n**Response:**\n" +
                     "  - `placeId` (String): kakao place ID\n" +

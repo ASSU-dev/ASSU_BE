@@ -5,8 +5,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partnership.dto.PaperResponseDTO;
 import com.assu.server.domain.partnership.service.PaperQueryService;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -21,7 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@Tag(name = "제휴 관련 내용 '조회' api", description = "상세 설명")
+@Tag(name = "Paper", description = "제휴 제안서 조회 api")
 @RequiredArgsConstructor
 public class PaperController {
 
@@ -32,10 +30,10 @@ public class PaperController {
 	@Parameters({
 		@Parameter(name = "storeId", description = "QR에서 추출한 storeId를 입력해주세요")
 	})
-	public ResponseEntity<BaseResponse<PaperResponseDTO.partnershipContent>> getStorePaperContent(@PathVariable Long storeId,
+	public ResponseEntity<BaseResponse<PaperResponseDTO>> getStorePaperContent(@PathVariable Long storeId,
 		@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		PaperResponseDTO.partnershipContent result = paperQueryService.getStorePaperContent(storeId, pd.getMember());
+		PaperResponseDTO result = paperQueryService.getStorePaperContent(storeId, pd.getMember());
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.PAPER_STORE_HISTORY_SUCCESS, result));
 	}

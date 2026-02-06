@@ -1,31 +1,19 @@
 package com.assu.server.domain.partnership.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import com.assu.server.domain.admin.entity.Admin;
+import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.chat.dto.ChatRequestDTO;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.service.ChatService;
-import org.springframework.stereotype.Service;
-
+import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.partnership.converter.PartnershipConverter;
-import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
-import com.assu.server.domain.user.entity.PartnershipUsage;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.repository.PartnershipUsageRepository;
-import com.assu.server.domain.user.repository.StudentRepository;
-
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import com.assu.server.domain.admin.entity.Admin;
-import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.partnership.converter.PartnershipConverter;
+import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -35,14 +23,21 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.user.entity.PartnershipUsage;
+import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.user.repository.PartnershipUsageRepository;
+import com.assu.server.domain.user.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import java.time.LocalDateTime;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,13 +52,19 @@ public class PartnershipServiceImpl implements PartnershipService {
     private final NotificationCommandService notificationService;
     private final ChatService chatService;
     private final ChatRepository chatRepository;
-
+    private final PaperRepository paperRepository;
+    private final PaperContentRepository paperContentRepository;
+    private final GoodsRepository goodsRepository;
+    private final AdminRepository adminRepository;
+    private final PartnerRepository partnerRepository;
+    private final StoreRepository storeRepository;
+    private final AmazonS3Manager amazonS3Manager;
 
     @Override
     @Transactional
-    public void recordPartnershipUsage(PartnershipRequestDTO.finalRequest dto, Member member) {
+    public void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member) {
         // 1. 제휴 내용(PaperContent) 조회
-        PaperContent content = contentRepository.findById(dto.getContentId()).orElseThrow(
+        PaperContent content = contentRepository.findById(dto.contentId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_CONTENT)
         );
         Long paperId = content.getPaper().getId();
@@ -73,8 +74,8 @@ public class PartnershipServiceImpl implements PartnershipService {
         // 요청자 본인 ID 추가
         uniqueUserIds.add(member.getId());
         // DTO에 포함된 사용자 ID들 추가 (null일 경우 무시)
-        if (dto.getUserIds() != null) {
-            uniqueUserIds.addAll(dto.getUserIds());
+        if (dto.userIds() != null) {
+            uniqueUserIds.addAll(dto.userIds());
         }
 
         // 3. 모든 학생 정보를 DB에서 한 번의 쿼리로 조회 (N+1 문제 해결)
@@ -84,31 +85,21 @@ public class PartnershipServiceImpl implements PartnershipService {
         List<PartnershipUsage> usages = studentsToUpdate.stream()
             .map(student -> {
                 student.setStamp();
-                return PartnershipConverter.toPartnershipUsage(dto, student, paperId);
+                return dto.toPartnershipUsage(student, paperId);
             })
             .collect(Collectors.toList());
 
         // 5. 생성된 모든 Usage 기록을 한 번에 저장
         partnershipUsageRepository.saveAll(usages);
-        Store store = storeRepository.findById(dto.getStoreId()).orElseThrow(
+        Store store = storeRepository.findById(dto.storeId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
         );
         Partner partner = store.getPartner();
         Long partnerId = partner.getId();
-        notificationService.sendOrder(partnerId, 0L, dto.getTableNumber(), dto.getPartnershipContent());
+        notificationService.sendOrder(partnerId, 0L, dto.tableNumber(), dto.partnershipContent());
 
         // @Transactional 환경에서는 studentsToUpdate의 변경 사항(스탬프)이 자동으로 DB에 반영됩니다.
     }
-
-    private final PaperRepository paperRepository;
-    private final PaperContentRepository paperContentRepository;
-    private final GoodsRepository goodsRepository;
-
-    private final AdminRepository adminRepository;
-    private final PartnerRepository partnerRepository;
-    private final StoreRepository storeRepository;
-
-    private final AmazonS3Manager amazonS3Manager;
 
     @Override
     @Transactional
@@ -171,7 +162,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long adminId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all
@@ -186,7 +177,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long partnerId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all
@@ -201,7 +192,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PartnershipResponseDTO.GetPartnershipDetailResponseDTO getPartnership(Long partnershipId) {
         Paper paper = paperRepository.findById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
@@ -216,21 +207,13 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<PartnershipResponseDTO.SuspendedPaperDTO> getSuspendedPapers(Long adminId) {
         List<Paper> suspendedPapers =
                 paperRepository.findAllSuspendedByAdminWithNoPartner(ActivationStatus.SUSPEND, adminId);
 
         return suspendedPapers.stream()
-                .map(paper -> PartnershipResponseDTO.SuspendedPaperDTO.builder()
-                        .paperId(paper.getId())
-                        .partnerName(
-                                paper.getPartner() != null
-                                        ? paper.getPartner().getName()
-                                        : (paper.getStore() != null ? paper.getStore().getName() : "미등록")
-                        )
-                        .createdAt(paper.getCreatedAt())
-                        .build())
+                .map(PartnershipConverter::toSuspendedPaperDTO)
                 .toList();
     }
 
@@ -282,12 +265,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             notificationService.sendChat(partnerId, chattingRoom.getId(), admin.getName(), guideMessage);
         }
 
-        return PartnershipResponseDTO.UpdateResponseDTO.builder()
-                .partnershipId(paper.getId())
-                .prevStatus(prev == null ? null : prev.name())
-                .newStatus(next.name())
-                .changedAt(LocalDateTime.now())
-                .build();
+        return PartnershipConverter.toUpdateResponseDTO(paper, prev, next);
     }
 
     @Override
@@ -372,14 +350,7 @@ public class PartnershipServiceImpl implements PartnershipService {
                 ? null
                 :amazonS3Manager.generatePresignedUrl(paper.getContractImageKey());
 
-        return PartnershipResponseDTO.ManualPartnershipResponseDTO.builder()
-                .storeId(store.getId())
-                .storeCreated(created)
-                .storeActivated(reactivated)
-                .status(store.getIsActivate() == null ? null : store.getIsActivate().name())
-                .contractImageUrl(url)
-                .partnership(partnership)
-                .build();
+        return PartnershipConverter.toManualPartnershipResponseDTO(store, created, reactivated, url, partnership);
     }
 
     @Override
@@ -450,11 +421,10 @@ public class PartnershipServiceImpl implements PartnershipService {
                 storeRepository.delete(store);
             }
         }
-
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO checkPartnershipWithPartner(Long adminId, Long partnerId) {
 
         Partner partner = partnerRepository.findById(partnerId)
@@ -477,18 +447,11 @@ public class PartnershipServiceImpl implements PartnershipService {
             }
         }
 
-        return PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO.builder()
-                .paperId(paperId)
-                .isPartnered(isPartnered)
-                .status(status)
-                .partnerId(partner.getId())
-                .partnerName(partner.getName())
-                .partnerAddress(partner.getAddress())
-                .build();
+        return PartnershipConverter.toAdminPartnershipWithPartnerResponseDTO(partner, paperId, isPartnered, status);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO checkPartnershipWithAdmin(Long partnerId, Long adminId) {
 
         Admin admin = adminRepository.findById(adminId)
@@ -511,14 +474,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             }
         }
 
-        return PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO.builder()
-                .paperId(paperId)
-                .isPartnered(isPartnered)
-                .status(status)
-                .adminId(admin.getId())
-                .adminName(admin.getName())
-                .adminAddress(admin.getOfficeAddress())
-                .build();
+        return PartnershipConverter.toPartnerPartnershipWithAdminResponseDTO(admin, paperId, isPartnered, status);
     }
 
     private List<PartnershipResponseDTO.WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {

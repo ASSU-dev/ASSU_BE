@@ -1,8 +1,9 @@
 package com.assu.server.domain.partnership.dto;
 import java.util.List;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
-import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
@@ -11,20 +12,13 @@ import lombok.*;
 
 import java.time.LocalDate;
 
+@Schema(description = "제휴 제안 요청")
 public class PartnershipRequestDTO {
-    @Getter
-    public static class finalRequest{
-        Long storeId;
-        String tableNumber;
-        String adminName;
-        String placeName;
-        String partnershipContent;
-        Long contentId;
-        Long discount;
-        List<Long> userIds;
-    }
 
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class WritePartnershipRequestDTO {
         private Long paperId;
         private LocalDate partnershipPeriodStart;
@@ -33,6 +27,9 @@ public class PartnershipRequestDTO {
     }
 
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PartnershipOptionRequestDTO {
         private OptionType optionType;
         private CriterionType criterionType;
@@ -43,10 +40,12 @@ public class PartnershipRequestDTO {
         private Long discountRate;
         private String note;
         private List<PartnershipGoodsRequestDTO> goods;
-
     }
 
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class PartnershipGoodsRequestDTO {
         private String goodsName;
     }
@@ -54,6 +53,7 @@ public class PartnershipRequestDTO {
     @Getter
     @Setter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class UpdateRequestDTO {
         private String status;
     }
@@ -61,6 +61,7 @@ public class PartnershipRequestDTO {
     @Getter
     @Setter
     @NoArgsConstructor
+    @AllArgsConstructor
     public static class ManualPartnershipRequestDTO {
         private String storeName;
         @NotNull private SelectedPlacePayload selectedPlace;
@@ -71,6 +72,9 @@ public class PartnershipRequestDTO {
     }
 
     @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class CreateDraftRequestDTO {
         private Long partnerId;
     }

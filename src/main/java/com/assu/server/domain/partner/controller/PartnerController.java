@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Partner", description = "제휴업체 API")
+@Tag(name = "Partner", description = "제휴업체 관련 API")
 @RestController
 @RequestMapping("/partner")
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class PartnerController {
                     "  - `adminUrl` (String): 관리자 카카오맵 URL\n" +
                     "  - `adminPhone` (String): 관리자 전화번호\n")
     @GetMapping("/admin-recommend")
-    public BaseResponse<PartnerResponseDTO.RandomAdminResponseDTO> randomAdminRecommend(
+    public BaseResponse<PartnerResponseDTO> randomAdminRecommend(
             @AuthenticationPrincipal PrincipalDetails pd
             ){
         return BaseResponse.onSuccess(SuccessStatus._OK, partnerService.getRandomAdmin(pd.getId()));

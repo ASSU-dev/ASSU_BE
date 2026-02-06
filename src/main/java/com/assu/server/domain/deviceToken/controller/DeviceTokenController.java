@@ -21,7 +21,7 @@ public class DeviceTokenController {
     @Operation(
             summary = "Device Token 등록 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed8092864ac5a1ddc88d07?source=copy_link)\n" +
-                    "- device Token을 등록하고 등록된 Token의 ID를 반환합니다.\n" +
+                    "- Device Token을 등록하고 등록된 Token의 ID를 반환합니다.\n" +
                     "  - 'token': Request Param, String\n"
     )
     @PostMapping
@@ -34,11 +34,11 @@ public class DeviceTokenController {
             summary = "Device Token 등록 해제 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed80b8b26be9e01d24c929?source=copy_link)\n" +
                     "- 로그아웃/탈퇴 시 호출해 device Token 등록을 해제합니다. 자신의 토큰만 해제가 가능합니다.\n"+
-                    "  - 'token-id': Path Variavle, Long\n"
+                    "  - 'token-id': Path Variable, Long\n"
     )
-    @DeleteMapping("/{token-id}")
+    @DeleteMapping("/{tokenId}")
     public BaseResponse<String> unregister(@AuthenticationPrincipal PrincipalDetails pd,
-                                           @PathVariable("token-id") Long tokenId) {
+                                           @PathVariable("tokenId") Long tokenId) {
         service.unregister(tokenId, pd.getId());
         return BaseResponse.onSuccess(
                 SuccessStatus._OK,

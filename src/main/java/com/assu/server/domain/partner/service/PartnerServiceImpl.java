@@ -10,6 +10,7 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,13 +18,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PartnerServiceImpl implements PartnerService {
 
     private final PartnerRepository partnerRepository;
     private final AdminRepository adminRepository;
 
     @Override
-    public PartnerResponseDTO.RandomAdminResponseDTO getRandomAdmin(Long partnerId) {
+    public PartnerResponseDTO getRandomAdmin(Long partnerId) {
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
 
@@ -42,19 +44,10 @@ public class PartnerServiceImpl implements PartnerService {
         List<Admin> picked = adminRepository.findPartnerWithOffset(partner.getId(), offset, limit);
 
         List<PartnerResponseDTO.AdminLiteDTO> admins = picked.stream()
-                .map(a -> PartnerResponseDTO.AdminLiteDTO.builder()
-                        .adminId(a.getId())
-                        .adminAddress(a.getOfficeAddress())
-                        .adminDetailAddress(a.getDetailAddress())
-                        .adminName(a.getName())
-                        .adminUrl(a.getMember().getProfileUrl())
-                        .adminPhone(a.getMember().getPhoneNum())
-                        .build())
+                .map(PartnerResponseDTO.AdminLiteDTO::from)
                 .collect(Collectors.toList());
 
-        return PartnerResponseDTO.RandomAdminResponseDTO.builder()
-                .admins(admins)
-                .build();
+        return new PartnerResponseDTO(admins);
     }
 
 }
