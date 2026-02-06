@@ -46,8 +46,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
-
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -101,9 +99,6 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         // @Transactional 환경에서는 studentsToUpdate의 변경 사항(스탬프)이 자동으로 DB에 반영됩니다.
     }
-
-
-
 
     private final PaperRepository paperRepository;
     private final PaperContentRepository paperContentRepository;
@@ -176,6 +171,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
+    @Transactional
     public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long adminId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all
@@ -190,6 +186,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     }
 
     @Override
+    @Transactional
     public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long partnerId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all

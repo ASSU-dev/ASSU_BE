@@ -62,4 +62,35 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                                            @Param("status") ActivationStatus status);
 
     List<Paper> findByStoreIdAndAdminIdAndIsActivated(Long storeId, Long adminId, ActivationStatus isActivated);
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id = :adminId
+          AND p.partner.id IN :partnerIds
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdAndPartnerIdInAndIsActivated(
+            @Param("adminId") Long adminId,
+            @Param("partnerIds") List<Long> partnerIds,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id IN :adminIds
+          AND p.partner.id = :partnerId
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdInAndPartnerIdAndIsActivated(
+            @Param("adminIds") List<Long> adminIds,
+            @Param("partnerId") Long partnerId,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.store.id IN :storeIds
+        ORDER BY p.id DESC
+        """)
+    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds);
 }

@@ -38,6 +38,7 @@ public class PartnershipResponseDTO {
     public static class PartnershipOptionResponseDTO {
         private OptionType optionType;
         private CriterionType criterionType;
+        private Boolean anotherType;
         private Integer people;
         private Long cost;
         private String note;
@@ -88,7 +89,7 @@ public class PartnershipResponseDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CreateDraftResponseDTO {
-        private Long paperId; // 생성된 빈 제안서의 ID
+        private Long paperId;
     }
 
     @Getter
@@ -108,8 +109,8 @@ public class PartnershipResponseDTO {
     @Builder
     public static class AdminPartnershipWithPartnerResponseDTO {
         private Long paperId;
-        private boolean isPartnered; // 제휴 여부
-        private String status; // 제휴 상태
+        private boolean isPartnered;
+        private String status;
         private Long partnerId;
         private String partnerName;
         private String partnerAddress;
@@ -122,8 +123,8 @@ public class PartnershipResponseDTO {
     @Builder
     public static class PartnerPartnershipWithAdminResponseDTO {
         private Long paperId;
-        private boolean isPartnered; // 제휴 여부
-        private String status; // 제휴 상태
+        private boolean isPartnered;
+        private String status;
         private Long adminId;
         private String adminName;
         private String adminAddress;

@@ -9,9 +9,6 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 
 public class MapConverter {
 
-
-
-
 	private static List<String> extractGoods(PaperContent content) {
 		if (content.getOptionType() == OptionType.SERVICE ) {
 			return content.getGoods().stream()

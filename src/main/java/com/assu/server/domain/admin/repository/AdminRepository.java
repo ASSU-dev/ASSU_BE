@@ -64,11 +64,30 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     List<Admin> findAllWithinViewport(@Param("wkt") String wkt);
 
     @Query("""
+        SELECT DISTINCT a
+        FROM Admin a
+        LEFT JOIN FETCH a.member
+        WHERE a.point IS NOT NULL
+          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), a.point) = true
+        """)
+    List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt);
+
+    @Query("""
         select distinct a
         from Admin a
         where lower(a.name) like lower(concat('%', :keyword, '%'))
         """)
     List<Admin> searchAdminByKeyword(
+            @Param("keyword") String keyword
+    );
+
+    @Query("""
+        SELECT DISTINCT a
+        FROM Admin a
+        LEFT JOIN FETCH a.member
+        WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        """)
+    List<Admin> searchAdminByKeywordWithMember(
             @Param("keyword") String keyword
     );
 

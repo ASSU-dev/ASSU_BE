@@ -5,7 +5,6 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 public class MapResponseDTO {
 
@@ -70,17 +69,20 @@ public class MapResponseDTO {
         private String phoneNumber;
     }
 
-    @Getter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class PlaceSuggestionDTO {
-        private String placeId;         // kakao place id
-        private String name;            // place_name
-        private String category;        // category_name or category_group_name
-        private String address;         // 지번 주소
-        private String roadAddress;     // 도로명 주소
-        private String phone;           // 전화
-        private String placeUrl;        // 카카오 상세 URL
-        private Double latitude;        // y
-        private Double longitude;       // x
-        private Integer distance;       // m (좌표바이어스/카테고리 검색 시 제공)
+        private String placeId;
+        private String name;
+        private String category;
+        private String address;
+        private String roadAddress;
+        private String phone;
+        private String placeUrl;
+        private Double latitude;
+        private Double longitude;
+        private Integer distance;
     }
 }

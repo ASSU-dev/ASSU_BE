@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.auth.scheme.internal.S3EndpointResolverAware;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,11 +54,19 @@ public class MapServiceImpl implements MapService {
     public List<MapResponseDTO.PartnerMapResponseDTO> getPartners(MapRequestDTO.ViewOnMapDTO viewport, Long memberId) {
 
         String wkt = toWKT(viewport);
-        List<Partner> partners = partnerRepository.findAllWithinViewport(wkt);
+        List<Partner> partners = partnerRepository.findAllWithinViewportWithMember(wkt);
+
+        if (partners.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> partnerIds = partners.stream().map(Partner::getId).toList();
+        List<Paper> papers = paperRepository.findByAdminIdAndPartnerIdInAndIsActivated(memberId, partnerIds, ActivationStatus.ACTIVE);
+        Map<Long, Paper> partnerIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getPartner().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return partners.stream().map(p -> {
-            Paper active = paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(memberId, p.getId(), ActivationStatus.ACTIVE)
-                    .orElse(null);
+            Paper active = partnerIdToPaper.get(p.getId());
 
             String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
             String url = amazonS3Manager.generatePresignedUrl(key);
@@ -81,11 +90,19 @@ public class MapServiceImpl implements MapService {
     @Override
     public List<MapResponseDTO.AdminMapResponseDTO> getAdmins(MapRequestDTO.ViewOnMapDTO viewport, Long memberId) {
         String wkt = toWKT(viewport);
-        List<Admin> admins = adminRepository.findAllWithinViewport(wkt);
+        List<Admin> admins = adminRepository.findAllWithinViewportWithMember(wkt);
+
+        if (admins.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> adminIds = admins.stream().map(Admin::getId).toList();
+        List<Paper> papers = paperRepository.findByAdminIdInAndPartnerIdAndIsActivated(adminIds, memberId, ActivationStatus.ACTIVE);
+        Map<Long, Paper> adminIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getAdmin().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return admins.stream().map(a -> {
-            Paper active = paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(a.getId(), memberId, ActivationStatus.ACTIVE)
-                    .orElse(null);
+            Paper active = adminIdToPaper.get(a.getId());
 
             String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
             String url = amazonS3Manager.generatePresignedUrl(key);
@@ -110,14 +127,33 @@ public class MapServiceImpl implements MapService {
     public List<MapResponseDTO.StoreMapResponseDTO> getStores(MapRequestDTO.ViewOnMapDTO viewport, Long memberId) {
         final String wkt = toWKT(viewport);
 
-        // 1) 뷰포트 내 매장 조회
-        final List<Store> stores = storeRepository.findAllWithinViewport(wkt);
+        // 1) 뷰포트 내 매장 조회 (Partner, Member fetch join)
+        final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt);
 
-        // 2) 매장별 content는 "있으면 사용, 없으면 null" 전략
+        if (stores.isEmpty()) {
+            return List.of();
+        }
+
+        // 2) Paper 및 Admin 정보 batch 조회
+        List<Long> storeIds = stores.stream().map(Store::getId).toList();
+        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
+        Map<Long, Paper> storeIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
+
+        List<Long> adminIds = papers.stream()
+                .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        List<Admin> admins = adminIds.isEmpty() ? List.of() : adminRepository.findAllById(adminIds);
+        Map<Long, Admin> adminIdToAdmin = admins.stream()
+                .collect(Collectors.toMap(Admin::getId, a -> a));
+
+        // 3) 매장별 DTO 생성
         return stores.stream().map(s -> {
             final boolean hasPartner = (s.getPartner() != null);
 
-            // 2-1) 유효한 paper_content만 조회 (없으면 null 허용)
+            // 3-1) 유효한 paper_content만 조회 (없으면 null 허용)
             final PaperContent content = paperContentRepository.findLatestValidByStoreIdNative(
                     s.getId(),
                     ActivationStatus.ACTIVE.name(),
@@ -127,18 +163,13 @@ public class MapServiceImpl implements MapService {
                     CriterionType.HEADCOUNT.name()
             ).orElse(null);
 
-            // 2-2) admin 정보 (null-safe)
-            final Long adminId = paperRepository.findTopPaperByStoreId(s.getId())
-                    .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
-                    .orElse(null);
+            // 3-2) admin 정보 (null-safe)
+            final Paper paper = storeIdToPaper.get(s.getId());
+            final Long adminId = paper != null && paper.getAdmin() != null ? paper.getAdmin().getId() : null;
+            final String adminName = adminId != null ? adminIdToAdmin.getOrDefault(adminId, null) != null
+                    ? adminIdToAdmin.get(adminId).getName() : null : null;
 
-            String adminName = null;
-            if (adminId != null) {
-                final Admin admin = adminRepository.findById(adminId).orElse(null);
-                adminName = (admin != null ? admin.getName() : null);
-            }
-
-            // 2-3) S3 presigned URL (키가 없으면 null)
+            // 3-3) S3 presigned URL (키가 없으면 null)
             final String key = (s.getPartner() != null && s.getPartner().getMember() != null)
                     ? s.getPartner().getMember().getProfileUrl()
                     : null;
@@ -151,7 +182,7 @@ public class MapServiceImpl implements MapService {
                     ? s.getPartner().getMember().getPhoneNum()
                     : "";
 
-            // 2-4) DTO 빌드 (content null 허용)
+            // 3-4) DTO 빌드 (content null 허용)
             return MapResponseDTO.StoreMapResponseDTO.builder()
                     .storeId(s.getId())
                     .adminId(adminId)
@@ -176,42 +207,54 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<MapResponseDTO.StoreMapResponseDTO> searchStores(String keyword) {
-        List<Store> stores = storeRepository.findByNameContainingIgnoreCaseOrderByIdDesc(keyword);
+        List<Store> stores = storeRepository.findByNameContainingIgnoreCaseOrderByIdDescWithPartner(keyword);
+
+        if (stores.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> storeIds = stores.stream().map(Store::getId).toList();
+        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
+        Map<Long, Paper> storeIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
+
+        List<Long> adminIds = papers.stream()
+                .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        List<Admin> admins = adminIds.isEmpty() ? List.of() : adminRepository.findAllById(adminIds);
+        Map<Long, Admin> adminIdToAdmin = admins.stream()
+                .collect(Collectors.toMap(Admin::getId, a -> a));
 
         return stores.stream().map(s -> {
             boolean hasPartner = s.getPartner() != null;
             PaperContent content = paperContentRepository.findTopByPaperStoreIdOrderByIdDesc(s.getId())
                     .orElse(null);
 
-            String key = (s.getPartner() != null) ? s.getPartner().getMember().getProfileUrl() : null;
+            String key = (s.getPartner() != null && s.getPartner().getMember() != null)
+                    ? s.getPartner().getMember().getProfileUrl() : null;
             String url = amazonS3Manager.generatePresignedUrl(key);
 
-            Long adminId = paperRepository.findTopPaperByStoreId(s.getId())
-                    .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
-                    .orElse(null);
-
-            Admin admin = adminRepository.findById(adminId).orElse(null);
+            Paper paper = storeIdToPaper.get(s.getId());
+            Long adminId = paper != null && paper.getAdmin() != null ? paper.getAdmin().getId() : null;
+            Admin admin = adminId != null ? adminIdToAdmin.get(adminId) : null;
 
             String finalCategory = null;
 
             if (content != null) {
-                // 2. content에 카테고리가 이미 존재하면 그 값을 사용합니다.
                 if (content.getCategory() != null) {
                     finalCategory = content.getCategory();
                 }
-                // 3. 카테고리가 없고, 옵션 타입이 SERVICE인 경우 Goods를 조회합니다.
                 else if (content.getOptionType() == OptionType.SERVICE) {
                     List<Goods> goods = goodsRepository.findByContentId(content.getId());
 
-                    // 4. (가장 중요) goods 리스트가 비어있지 않은지 반드시 확인합니다.
                     if (!goods.isEmpty()) {
                         finalCategory = goods.get(0).getBelonging();
                     }
-                    // goods가 비어있으면 finalCategory는 그대로 null로 유지됩니다.
                 }
             }
 
-            // phoneNumber null-safe 처리 (빈 문자열로 변환)
             String phoneNumber = (s.getPartner() != null
                     && s.getPartner().getMember() != null
                     && s.getPartner().getMember().getPhoneNum() != null)
@@ -223,7 +266,7 @@ public class MapServiceImpl implements MapService {
                     .adminName(admin != null ? admin.getName() : null)
                     .adminId(adminId)
                     .name(s.getName())
-                    .note(content.getNote())
+                    .note(content != null ? content.getNote() : null)
                     .address(s.getAddress() != null ? s.getAddress() : s.getDetailAddress())
                     .rate(s.getRate())
                     .criterionType(content != null ? content.getCriterionType() : null)
@@ -243,17 +286,24 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<MapResponseDTO.PartnerMapResponseDTO> searchPartner(String keyword, Long memberId) {
-        List<Partner> partners = partnerRepository.searchPartnerByKeyword(keyword);
+        List<Partner> partners = partnerRepository.searchPartnerByKeywordWithMember(keyword);
+
+        if (partners.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> partnerIds = partners.stream().map(Partner::getId).toList();
+        List<Paper> papers = paperRepository.findByAdminIdAndPartnerIdInAndIsActivated(memberId, partnerIds, ActivationStatus.ACTIVE);
+        Map<Long, Paper> partnerIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getPartner().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return partners.stream().map(p -> {
-                Paper active = paperRepository
-                                    .findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(memberId, p.getId(), ActivationStatus.ACTIVE)
-                                    .orElse(null);
+            Paper active = partnerIdToPaper.get(p.getId());
 
             String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
             String url = amazonS3Manager.generatePresignedUrl(key);
 
-                return MapResponseDTO.PartnerMapResponseDTO.builder()
+            return MapResponseDTO.PartnerMapResponseDTO.builder()
                     .partnerId(p.getId())
                     .name(p.getName())
                     .address(p.getAddress() != null ? p.getAddress() : p.getDetailAddress())
@@ -271,12 +321,19 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<MapResponseDTO.AdminMapResponseDTO> searchAdmin(String keyword, Long memberId) {
-        List<Admin> admins = adminRepository.searchAdminByKeyword(keyword);
+        List<Admin> admins = adminRepository.searchAdminByKeywordWithMember(keyword);
+
+        if (admins.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> adminIds = admins.stream().map(Admin::getId).toList();
+        List<Paper> papers = paperRepository.findByAdminIdInAndPartnerIdAndIsActivated(adminIds, memberId, ActivationStatus.ACTIVE);
+        Map<Long, Paper> adminIdToPaper = papers.stream()
+                .collect(Collectors.toMap(p -> p.getAdmin().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return admins.stream().map(a -> {
-            Paper active = paperRepository
-                    .findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(a.getId(), memberId, ActivationStatus.ACTIVE)
-                    .orElse(null);
+            Paper active = adminIdToPaper.get(a.getId());
 
             String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
             String url = amazonS3Manager.generatePresignedUrl(key);

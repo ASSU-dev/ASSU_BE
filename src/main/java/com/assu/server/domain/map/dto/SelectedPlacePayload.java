@@ -8,7 +8,6 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class SelectedPlacePayload {
-
     private String placeId;
     private String name;
     private String address;
