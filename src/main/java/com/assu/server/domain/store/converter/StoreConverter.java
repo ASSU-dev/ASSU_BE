@@ -9,18 +9,18 @@ import java.util.stream.Collectors;
 public class StoreConverter {
     // 단건(이번 주) 변환: Row -> Response
     public static StoreResponseDTO.WeeklyRankResponseDTO weeklyRankResponseDTO(StoreRepository.GlobalWeeklyRankRow r) {
-        return StoreResponseDTO.WeeklyRankResponseDTO.builder()
-                .usageCount(r.getUsageCount())
-                .rank(r.getStoreRank())
-                .build();
+        return new StoreResponseDTO.WeeklyRankResponseDTO(
+                r.getStoreRank(),
+                r.getUsageCount()
+        );
     }
 
     // 리스트 아이템 변환용: Row -> WeeklyRankResponseDTO
     public static StoreResponseDTO.WeeklyRankResponseDTO weeklyRankItem(StoreRepository.GlobalWeeklyRankRow r) {
-        return StoreResponseDTO.WeeklyRankResponseDTO.builder()
-                .usageCount(r.getUsageCount())
-                .rank(r.getStoreRank())
-                .build();
+        return new StoreResponseDTO.WeeklyRankResponseDTO(
+                r.getStoreRank(),
+                r.getUsageCount()
+        );
     }
 
     // 리스트 래핑: storeId, storeName, items를 받아 최종 DTO 조립
@@ -31,10 +31,10 @@ public class StoreConverter {
                 .map(StoreConverter::weeklyRankItem)
                 .collect(Collectors.toList());
 
-        return StoreResponseDTO.ListWeeklyRankResponseDTO.builder()
-                .storeId(storeId)
-                .storeName(storeName)
-                .items(items)
-                .build();
+        return new StoreResponseDTO.ListWeeklyRankResponseDTO(
+                storeId,
+                storeName,
+                items
+        );
     }
 }
