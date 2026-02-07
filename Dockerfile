@@ -20,7 +20,7 @@ COPY src src
 RUN ./gradlew bootJar -x test --build-cache --no-daemon
 
 # Stage 3: Final Image
-FROM openjdk:17-jdk-slim
+FROM amazoncorretto:17
 
 ENV TZ=Asia/Seoul
 RUN ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ >/etc/timezone

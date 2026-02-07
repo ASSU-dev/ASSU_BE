@@ -76,7 +76,7 @@ public class StudentController {
 	}
 
 	@Operation(
-		summary = "사용자 stamp 개수 조회 API",
+		summary = "사용자 스탬프 개수 조회 API",
 		description = "# [v1.0 (2025-09-09)](https://www.notion.so/2691197c19ed805c980dd546adee9301?source=copy_link)\n" +
 			"- `multipart/form-data`로 호출합니다.\n" +
 			"- login 필요 "+
