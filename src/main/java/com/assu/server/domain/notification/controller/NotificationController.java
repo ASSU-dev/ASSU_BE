@@ -74,7 +74,7 @@ public class NotificationController {
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/on-off-2511197c19ed80aeb4eed3c502691361?source=copy_link)\n" +
                     "- 토글 형식으로 유형별 알림을 ON/OFF 합니다.\n" +
                     "  - type: Path Variable, NotificationType \n" +
-                    "  - 지원 값: [CHAT / PARTNER_SUGGESTION / PARTNER_PROPOSAL / ORDER / PARTNER_ALL / ADMIN_ALL]\n" +
+                    "  - 지원 값: [CHAT / PARTNER_SUGGESTION / PARTNER_PROPOSAL / ORDER / PARTNER_ALL / ADMIN_ALL / STAMP]\n" +
                     "  - PARTNER_ALL: CHAT + ORDER를 함께 토글\n" +
                     "  - ADMIN_ALL: CHAT + PARTNER_SUGGESTION + PARTNER_PROPOSAL을 함께 토글"
     )

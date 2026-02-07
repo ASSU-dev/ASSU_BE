@@ -20,7 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 @RestController
 @RequiredArgsConstructor
-@Tag(name = "가게 관련 api", description = "가게와 관련된 api")
+@Tag(name = "Store", description = "가게 관련 API")
 @RequestMapping("/store")
 public class StoreController {
 
@@ -39,6 +39,25 @@ public class StoreController {
 	public ResponseEntity<BaseResponse<TodayBestResponseDTO>> getTodayBestStore() {
 		TodayBestResponseDTO result = storeService.getTodayBestStore();
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.BEST_STORE_SUCCESS, result));
+	}
+
+	@GetMapping("/stamp-ranking")
+	@Operation(
+		summary = "스탬프 기준 인기 매장 랭킹 조회 API",
+		description =
+			"# [v1.0 (2026-02-09)](https://clumsy-seeder-416.notion.site/API-3001197c19ed806a99a8fa3e795aba8e?source=copy_link)\n" +
+				"- 하루 동안 스탬프가 많이 적립된 매장 순위를 조회합니다.\n" +
+				"- 최대 10개까지 반환\n" +
+				"- 로그인 필요 없음\n" +
+				"\n**Response:**\n" +
+				"  - `rankings` (List): 매장 랭킹 목록\n" +
+				"  - `storeId` (Long): 매장 ID\n" +
+				"  - `storeName` (String): 매장 이름\n" +
+				"  - `stampCount` (Long): 스탬프 적립 횟수"
+	)
+	public ResponseEntity<BaseResponse<StoreResponseDTO.StampRankingListDTO>> getStampRanking() {
+		StoreResponseDTO.StampRankingListDTO result = storeService.getStampRanking();
+		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, result));
 	}
 
 
@@ -65,7 +84,7 @@ public class StoreController {
     public BaseResponse<List<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRankByPartnerId(
             @AuthenticationPrincipal PrincipalDetails pd
     ){
-        return BaseResponse.onSuccess(SuccessStatus._OK, storeService.getListWeeklyRank(pd.getId()).getItems());
+        return BaseResponse.onSuccess(SuccessStatus._OK, storeService.getListWeeklyRank(pd.getId()).items());
     }
 
 

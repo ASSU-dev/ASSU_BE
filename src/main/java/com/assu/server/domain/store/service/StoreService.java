@@ -8,4 +8,5 @@ public interface StoreService {
 	TodayBestResponseDTO getTodayBestStore();
     StoreResponseDTO.WeeklyRankResponseDTO getWeeklyRank(Long memberId);
     StoreResponseDTO.ListWeeklyRankResponseDTO getListWeeklyRank(Long memberId);
+    StoreResponseDTO.StampRankingListDTO getStampRanking();
 }
