@@ -117,11 +117,13 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
     @Override
     public void sendStamp(Long receiverId) {
-        sendIfEnabled(receiverId, NotificationType.STAMP, null, Map.of());
+        createAndQueue(receiverId, NotificationType.STAMP, 1L, Map.of());
     }
 
     @Override
     public void queue(QueueNotificationRequestDTO req) {
+        System.out.println("Queue called with type: " + req.type() + ", receiverId: " + req.receiverId());
+        
         if (req.type() == null) {
             throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
@@ -132,6 +134,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         final NotificationType type;
         try {
             type = NotificationType.valueOf(req.type().toUpperCase(Locale.ROOT));
+            System.out.println("Parsed type: " + type);
         } catch (IllegalArgumentException e) {
             throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
@@ -171,7 +174,10 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                 sendPartnerProposal(receiverId, proposalId, req.partner_name());
             }
 
-            case STAMP -> sendStamp(receiverId);
+            case STAMP -> {
+                System.out.println("Calling sendStamp for receiverId: " + receiverId);
+                sendStamp(receiverId);
+            }
 
             default -> throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
