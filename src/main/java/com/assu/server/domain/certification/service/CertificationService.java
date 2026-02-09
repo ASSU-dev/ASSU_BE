@@ -1,15 +1,16 @@
 package com.assu.server.domain.certification.service;
 
-import com.assu.server.domain.certification.dto.CertificationRequestDTO;
+import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
+import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.member.entity.Member;
 
 public interface CertificationService {
 
-	CertificationResponseDTO.getSessionIdResponse getSessionId(CertificationRequestDTO.groupRequest dto, Member member);
+	CertificationResponseDTO getSessionId(CertificationGroupRequestDTO dto, Member member);
 
 	void handleCertification(GroupSessionRequest dto, Member member);
 
-	void certificatePersonal(CertificationRequestDTO.personalRequest dto, Member member);
+	void certificatePersonal(CertificationPersonalRequestDTO dto, Member member);
 }

@@ -80,7 +80,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     /**
      * Authorization 헤더가 존재하고 Bearer 포맷인지 확인한다.
-     * 
+     *
      * @throws CustomAuthException 헤더 누락/형식 오류
      */
     private static void requireBearerAuthorizationHeader(String authorizationHeader) {

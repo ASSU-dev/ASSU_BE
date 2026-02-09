@@ -32,10 +32,10 @@ public class PaperController {
 	@Parameters({
 		@Parameter(name = "storeId", description = "QR에서 추출한 storeId를 입력해주세요")
 	})
-	public ResponseEntity<BaseResponse<PaperResponseDTO.partnershipContent>> getStorePaperContent(@PathVariable Long storeId,
+	public ResponseEntity<BaseResponse<PaperResponseDTO>> getStorePaperContent(@PathVariable Long storeId,
 		@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		PaperResponseDTO.partnershipContent result = paperQueryService.getStorePaperContent(storeId, pd.getMember());
+		PaperResponseDTO result = paperQueryService.getStorePaperContent(storeId, pd.getMember());
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.PAPER_STORE_HISTORY_SUCCESS, result));
 	}

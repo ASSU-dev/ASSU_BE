@@ -59,8 +59,8 @@ public class MapServiceImpl implements MapService {
             Paper active = paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(memberId, p.getId(), ActivationStatus.ACTIVE)
                     .orElse(null);
 
-            String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
-            String url = amazonS3Manager.generatePresignedUrl(key);
+            final String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
             return MapResponseDTO.PartnerMapResponseDTO.builder()
                     .partnerId(p.getId())
@@ -72,7 +72,7 @@ public class MapServiceImpl implements MapService {
                     .partnershipEndDate(active != null ? active.getPartnershipPeriodEnd() : null)
                     .latitude(p.getLatitude())
                     .longitude(p.getLongitude())
-                    .profileUrl(url)
+                    .profileUrl(profileUrl)
                     .phoneNumber(p.getMember().getPhoneNum())
                     .build();
         }).toList();
@@ -87,8 +87,8 @@ public class MapServiceImpl implements MapService {
             Paper active = paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(a.getId(), memberId, ActivationStatus.ACTIVE)
                     .orElse(null);
 
-            String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
-            String url = amazonS3Manager.generatePresignedUrl(key);
+            final String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
             return MapResponseDTO.AdminMapResponseDTO.builder()
                     .adminId(a.getId())
@@ -100,7 +100,7 @@ public class MapServiceImpl implements MapService {
                     .partnershipEndDate(active != null ? active.getPartnershipPeriodEnd() : null)
                     .latitude(a.getLatitude())
                     .longitude(a.getLongitude())
-                    .profileUrl(url)
+                    .profileUrl(profileUrl)
                     .phoneNumber(a.getMember().getPhoneNum())
                     .build();
         }).toList();
@@ -139,10 +139,8 @@ public class MapServiceImpl implements MapService {
             }
 
             // 2-3) S3 presigned URL (키가 없으면 null)
-            final String key = (s.getPartner() != null && s.getPartner().getMember() != null)
-                    ? s.getPartner().getMember().getProfileUrl()
-                    : null;
-            final String profileUrl = (key != null ? amazonS3Manager.generatePresignedUrl(key) : null);
+            final String key = (s.getPartner() != null && s.getPartner().getMember() != null) ? s.getPartner().getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
             // phoneNumber null-safe 처리 (빈 문자열로 변환)
             final String phoneNumber = (s.getPartner() != null
@@ -183,8 +181,8 @@ public class MapServiceImpl implements MapService {
             PaperContent content = paperContentRepository.findTopByPaperStoreIdOrderByIdDesc(s.getId())
                     .orElse(null);
 
-            String key = (s.getPartner() != null) ? s.getPartner().getMember().getProfileUrl() : null;
-            String url = amazonS3Manager.generatePresignedUrl(key);
+            final String key = (s.getPartner() != null && s.getPartner().getMember() != null) ? s.getPartner().getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
             Long adminId = paperRepository.findTopPaperByStoreId(s.getId())
                     .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
@@ -235,7 +233,7 @@ public class MapServiceImpl implements MapService {
                     .hasPartner(hasPartner)
                     .latitude(s.getLatitude())
                     .longitude(s.getLongitude())
-                    .profileUrl(url)
+                    .profileUrl(profileUrl)
                     .phoneNumber(phoneNumber)
                     .build();
         }).toList();
@@ -250,8 +248,8 @@ public class MapServiceImpl implements MapService {
                                     .findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(memberId, p.getId(), ActivationStatus.ACTIVE)
                                     .orElse(null);
 
-            String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
-            String url = amazonS3Manager.generatePresignedUrl(key);
+            final String key = (p.getMember() != null) ? p.getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
                 return MapResponseDTO.PartnerMapResponseDTO.builder()
                     .partnerId(p.getId())
@@ -263,7 +261,7 @@ public class MapServiceImpl implements MapService {
                     .partnershipEndDate(active != null ? active.getPartnershipPeriodEnd() : null)
                     .latitude(p.getLatitude())
                     .longitude(p.getLongitude())
-                    .profileUrl(url)
+                    .profileUrl(profileUrl)
                     .phoneNumber(p.getMember().getPhoneNum())
                     .build();
         }).toList();
@@ -278,8 +276,8 @@ public class MapServiceImpl implements MapService {
                     .findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(a.getId(), memberId, ActivationStatus.ACTIVE)
                     .orElse(null);
 
-            String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
-            String url = amazonS3Manager.generatePresignedUrl(key);
+            final String key = (a.getMember() != null) ? a.getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank()) ? amazonS3Manager.generatePresignedUrl(key) : null;
 
             return MapResponseDTO.AdminMapResponseDTO.builder()
                     .adminId(a.getId())
@@ -291,7 +289,7 @@ public class MapServiceImpl implements MapService {
                     .partnershipEndDate(active != null ? active.getPartnershipPeriodEnd() : null)
                     .latitude(a.getLatitude())
                     .longitude(a.getLongitude())
-                    .profileUrl(url)
+                    .profileUrl(profileUrl)
                     .phoneNumber(a.getMember().getPhoneNum())
                     .build();
         }).toList();

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partnership.converter.PartnershipConverter;
+import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
 import com.assu.server.domain.user.entity.PartnershipUsage;
 import com.assu.server.domain.user.entity.Student;
@@ -63,9 +64,9 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional
-    public void recordPartnershipUsage(PartnershipRequestDTO.finalRequest dto, Member member) {
+    public void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member) {
         // 1. 제휴 내용(PaperContent) 조회
-        PaperContent content = contentRepository.findById(dto.getContentId()).orElseThrow(
+        PaperContent content = contentRepository.findById(dto.contentId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_CONTENT)
         );
         Long paperId = content.getPaper().getId();
@@ -75,8 +76,8 @@ public class PartnershipServiceImpl implements PartnershipService {
         // 요청자 본인 ID 추가
         uniqueUserIds.add(member.getId());
         // DTO에 포함된 사용자 ID들 추가 (null일 경우 무시)
-        if (dto.getUserIds() != null) {
-            uniqueUserIds.addAll(dto.getUserIds());
+        if (dto.userIds() != null) {
+            uniqueUserIds.addAll(dto.userIds());
         }
 
         // 3. 모든 학생 정보를 DB에서 한 번의 쿼리로 조회 (N+1 문제 해결)
@@ -86,18 +87,18 @@ public class PartnershipServiceImpl implements PartnershipService {
         List<PartnershipUsage> usages = studentsToUpdate.stream()
             .map(student -> {
                 student.setStamp();
-                return PartnershipConverter.toPartnershipUsage(dto, student, paperId);
+                return dto.toPartnershipUsage(student, paperId);
             })
             .collect(Collectors.toList());
 
         // 5. 생성된 모든 Usage 기록을 한 번에 저장
         partnershipUsageRepository.saveAll(usages);
-        Store store = storeRepository.findById(dto.getStoreId()).orElseThrow(
+        Store store = storeRepository.findById(dto.storeId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
         );
         Partner partner = store.getPartner();
         Long partnerId = partner.getId();
-        notificationService.sendOrder(partnerId, 0L, dto.getTableNumber(), dto.getPartnershipContent());
+        notificationService.sendOrder(partnerId, 0L, dto.tableNumber(), dto.partnershipContent());
 
         // @Transactional 환경에서는 studentsToUpdate의 변경 사항(스탬프)이 자동으로 DB에 반영됩니다.
     }
