@@ -1,44 +1,43 @@
 package com.assu.server.domain.auth.service;
 
-import com.assu.server.domain.auth.dto.common.UserBasicInfo;
-import com.assu.server.domain.auth.dto.login.CommonLoginRequest;
-import com.assu.server.domain.auth.dto.login.LoginResponse;
-import com.assu.server.domain.auth.dto.login.RefreshResponse;
-import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayload;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthRequest;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthResponse;
-import com.assu.server.domain.auth.dto.signup.Tokens;
-import com.assu.server.domain.auth.entity.AuthRealm;
+import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
+import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
+import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
+import com.assu.server.domain.auth.dto.common.TokensDTO;
+import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
+import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
+import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.auth.exception.CustomAuthException;
-import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.Department;
 import com.assu.server.domain.user.entity.enums.EnrollmentStatus;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
 import com.assu.server.domain.user.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class LoginServiceImpl implements LoginService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final SSUAuthService ssuAuthService;
+    private final CommonAuthRepository commonAuthRepository;
     private final StudentRepository studentRepository;
 
-    // 공통/학생/기타 학교까지 모두 여기로 주입
     private final List<RealmAuthAdapter> realmAuthAdapters;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
@@ -50,95 +49,82 @@ public class LoginServiceImpl implements LoginService {
 
     /**
      * 공통(파트너/관리자) 로그인: 이메일/비밀번호 기반.
-     * 1) 인증 성공 시 CommonAuth 조회
+     * 1) 인증 성공 시 CommonAuth 조회 및 탈퇴 회원 복구
      * 2) JWT 발급: username=email, authRealm=COMMON
      */
     @Override
-    public LoginResponse loginCommon(CommonLoginRequest request) {
-        // 공통(파트너/관리자) 로그인: 이메일/비번
+    public LoginResponseDTO loginCommon(CommonLoginRequestDTO request) {
         Authentication authentication = authenticationManager.authenticate(
                 new LoginUsernamePasswordAuthenticationToken(
                         AuthRealm.COMMON,
-                        request.getEmail(),
-                        request.getPassword()));
+                        request.email(),
+                        request.password()
+                )
+        );
 
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
-        // identifier = email
         Member member = adapter.loadMember(authentication.getName());
 
         // 토큰 발급 (Access 미저장, Refresh는 Redis 저장)
-        Tokens tokens = jwtUtil.issueTokens(
+        TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
-                authentication.getName(), // email
+                authentication.getName(),
                 member.getRole(),
-                adapter.authRealmValue() // "COMMON"
+                adapter.authRealmValue()
         );
 
-        return LoginResponse.builder()
-                .memberId(member.getId())
-                .role(member.getRole())
-                .status(member.getIsActivated())
-                .tokens(tokens)
-                .basicInfo(buildUserBasicInfo(member))
-                .build();
+        return LoginResponseDTO.from(member, tokens);
     }
 
     /**
      * 숭실대 학생 로그인: sToken, sIdno 기반.
      * 1) 유세인트 인증으로 학생 정보 확인
-     * 2) 기존 회원 확인
+     * 2) 기존 회원 확인 및 탈퇴 회원 복구
      * 3) Student 정보 업데이트 (유세인트에서 크롤링한 최신 정보로)
      * 4) JWT 발급: username=studentNumber, authRealm=SSU
      */
     @Override
-    @Transactional
-    public LoginResponse loginSsuStudent(StudentTokenAuthPayload request) {
+    public LoginResponseDTO loginSsuStudent(StudentTokenAuthPayloadDTO request) {
         // 1) 유세인트 인증
-        USaintAuthRequest authRequest = USaintAuthRequest.builder()
-                .sToken(request.getSToken())
-                .sIdno(request.getSIdno())
-                .build();
+        USaintAuthRequestDTO authRequest = new USaintAuthRequestDTO(
+                request.sToken(),
+                request.sIdno()
+        );
 
-        USaintAuthResponse authResponse = ssuAuthService.uSaintAuth(authRequest);
+        USaintAuthResponseDTO authResponse = ssuAuthService.uSaintAuth(authRequest);
 
         // 2) 기존 회원 확인
-        String realmStr = request.getUniversity().toString();
+        String realmStr = request.university().toString();
         AuthRealm authRealm = AuthRealm.valueOf(realmStr);
         RealmAuthAdapter adapter = pickAdapter(authRealm);
 
-        Member member = adapter.loadMember(authResponse.getStudentNumber().toString());
+        Member member = adapter.loadMember(authResponse.studentNumber());
 
-        // 3) Student 정보 업데이트 (유세인트에서 크롤링한 최신 정보로)
+        // 3) Student 정보 업데이트
         Student student = member.getStudentProfile();
         if (student == null) {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
 
-        // 유세인트에서 크롤링한 최신 정보로 업데이트
         student.updateStudentInfo(
-                authResponse.getName(),
-                authResponse.getMajor(),
-                parseEnrollmentStatus(authResponse.getEnrollmentStatus()),
-                authResponse.getYearSemester());
+                authResponse.name(),
+                authResponse.major(),
+                parseEnrollmentStatus(authResponse.enrollmentStatus()),
+                authResponse.yearSemester()
+        );
 
         studentRepository.save(student);
 
         // 4) 토큰 발급
-        Tokens tokens = jwtUtil.issueTokens(
+        TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
-                authResponse.getStudentNumber().toString(), // studentNumber
+                authResponse.studentNumber(),
                 member.getRole(),
-                adapter.authRealmValue() // 예: "SSU"
+                adapter.authRealmValue()
         );
 
-        return LoginResponse.builder()
-                .memberId(member.getId())
-                .role(member.getRole())
-                .status(member.getIsActivated())
-                .tokens(tokens)
-                .basicInfo(buildUserBasicInfo(member))
-                .build();
+        return LoginResponseDTO.from(member, tokens);
     }
 
     /**
@@ -152,12 +138,13 @@ public class LoginServiceImpl implements LoginService {
      * 4) 기존 RT 키 삭제(회전), 새 토큰 발급(issueTokens)
      */
     @Override
-    public RefreshResponse refresh(String refreshToken) {
-        Tokens rotated = jwtUtil.rotateRefreshToken(refreshToken);
-        return new RefreshResponse(
-                ((Number) jwtUtil.validateTokenOnlySignature(rotated.getAccessToken()).get("userId")).longValue(),
-                rotated.getAccessToken(),
-                rotated.getRefreshToken());
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RefreshResponseDTO refresh(String refreshToken) {
+        TokensDTO rotated = jwtUtil.rotateRefreshToken(refreshToken);
+
+        Long memberId = ((Number) jwtUtil.validateTokenOnlySignature(rotated.accessToken()).get("userId")).longValue();
+
+        return RefreshResponseDTO.from(memberId, rotated);
     }
 
     private EnrollmentStatus parseEnrollmentStatus(String status) {
@@ -174,43 +161,5 @@ public class LoginServiceImpl implements LoginService {
             // 기본값은 재학으로 설정
             return EnrollmentStatus.ENROLLED;
         }
-    }
-
-    /**
-     * 사용자 기본 정보를 빌드하는 헬퍼 메서드
-     */
-    private UserBasicInfo buildUserBasicInfo(Member member) {
-        UserBasicInfo.UserBasicInfoBuilder builder = UserBasicInfo.builder();
-
-        switch (member.getRole()) {
-            case STUDENT -> {
-                Student student = member.getStudentProfile();
-                if (student != null) {
-                    builder.name(student.getName())
-                            .university(student.getUniversity().getDisplayName())
-                            .department(student.getDepartment().getDisplayName())
-                            .major(student.getMajor().getDisplayName());
-                }
-            }
-            case ADMIN -> {
-                // Admin 엔티티에서 정보 추출
-                var admin = member.getAdminProfile();
-                if (admin != null) {
-                    builder.name(admin.getName())
-                            .university(admin.getUniversity() != null ? admin.getUniversity().getDisplayName() : null)
-                            .department(admin.getDepartment() != null ? admin.getDepartment().getDisplayName() : null)
-                            .major(admin.getMajor() != null ? admin.getMajor().getDisplayName() : null);
-                }
-            }
-            case PARTNER -> {
-                // Partner 엔티티에서 정보 추출 (Partner는 name만 필요)
-                var partner = member.getPartnerProfile();
-                if (partner != null) {
-                    builder.name(partner.getName());
-                }
-            }
-        }
-
-        return builder.build();
     }
 }

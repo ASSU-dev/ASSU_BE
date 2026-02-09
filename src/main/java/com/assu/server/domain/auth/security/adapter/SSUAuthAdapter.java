@@ -1,11 +1,12 @@
 package com.assu.server.domain.auth.security.adapter;
 
-import com.assu.server.domain.auth.entity.AuthRealm;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.entity.SSUAuth;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,7 +18,9 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 public class SSUAuthAdapter implements RealmAuthAdapter {
+
     private final SSUAuthRepository ssuAuthRepository;
+    private final MemberRepository memberRepository;
 
     @Override
     public boolean supports(AuthRealm realm) {
@@ -48,10 +51,13 @@ public class SSUAuthAdapter implements RealmAuthAdapter {
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER))
                 .getMember();
 
-        // 탈퇴된 회원이 다시 로그인하면 복구
+        SSUAuth ssuAuth = member.getSsuAuth();
+        ssuAuth.setAuthenticatedAt(LocalDateTime.now());
+        ssuAuthRepository.save(member.getSsuAuth());
+
         if (member.getDeletedAt() != null) {
             member.setDeletedAt(null);
-            ssuAuthRepository.save(member.getSsuAuth());
+            memberRepository.save(member);
         }
 
         return member;

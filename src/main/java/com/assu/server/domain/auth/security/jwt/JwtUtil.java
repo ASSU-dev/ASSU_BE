@@ -1,7 +1,7 @@
 package com.assu.server.domain.auth.security.jwt;
 
-import com.assu.server.domain.auth.dto.signup.Tokens;
-import com.assu.server.domain.auth.entity.AuthRealm;
+import com.assu.server.domain.auth.dto.common.TokensDTO;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
@@ -102,7 +102,7 @@ public class JwtUtil {
      * @param authRealm COMMON / SSU
      * @return 발급된 토큰 세트
      */
-    public Tokens issueTokens(Long memberId, String username, UserRole role, String authRealm) {
+    public TokensDTO issueTokens(Long memberId, String username, UserRole role, String authRealm) {
         Map<String, Object> baseClaims = new HashMap<>();
         baseClaims.put("userId", memberId);
         baseClaims.put("username", username);
@@ -118,10 +118,7 @@ public class JwtUtil {
         String refreshKey = String.format("refresh:%d:%s", memberId, refreshJti);
         redisTemplate.opsForValue().set(refreshKey, refreshToken, refreshValidSeconds, TimeUnit.SECONDS);
 
-        return Tokens.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
+        return TokensDTO.of(accessToken, refreshToken);
     }
 
     // ───────── 검증 ─────────
@@ -232,7 +229,7 @@ public class JwtUtil {
         AuthRealm realm = AuthRealm.valueOf(authRealmString);
         if (realm == AuthRealm.COMMON) {
             username = member.getCommonAuth().getEmail();
-            password = member.getCommonAuth().getPassword();
+            password = member.getCommonAuth().getHashedPassword();
         } else if (realm == AuthRealm.SSU){
             username = member.getSsuAuth().getStudentNumber();
             password = ""; // 더미 처리
@@ -299,7 +296,7 @@ public class JwtUtil {
      * - 저장된 RT와 일치 여부 확인
      * - 기존 RT 삭제 후 새 토큰 세트 발급
      */
-    public Tokens rotateRefreshToken(String refreshToken) {
+    public TokensDTO rotateRefreshToken(String refreshToken) {
         // 1) Refresh 토큰 서명/만료 검증
         validateRefreshToken(refreshToken);
 

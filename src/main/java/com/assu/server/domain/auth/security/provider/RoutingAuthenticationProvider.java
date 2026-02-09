@@ -1,6 +1,6 @@
 package com.assu.server.domain.auth.security.provider;
 
-import com.assu.server.domain.auth.entity.AuthRealm;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import lombok.RequiredArgsConstructor;
