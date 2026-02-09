@@ -70,6 +70,35 @@ public class MapResponseDTO {
         private String phoneNumber;
     }
 
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class StoreMapResponseV2DTO {
+        private Long storeId;
+        private Long adminId;
+        private String adminName;
+        private String name;
+        private String address;
+        private Integer rate;
+        private CriterionType criterionType;
+        private OptionType optionType;
+        private Integer people;
+        private Long cost;
+        private String category;
+        private String note;
+        private Long discountRate;
+        private boolean hasPartner;
+        private Double latitude;
+        private Double longitude;
+        private String profileUrl;
+        private String phoneNumber;
+        private String partner1;
+        private String partner2;
+        private String benefit1;
+        private String benefit2;
+    }
+
     @Getter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class PlaceSuggestionDTO {
         private String placeId;         // kakao place id

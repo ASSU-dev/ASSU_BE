@@ -19,6 +19,8 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.user.entity.UserPaper;
+import com.assu.server.domain.user.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.config.KakaoLocalClient;
 import com.assu.server.global.exception.DatabaseException;
@@ -36,6 +38,8 @@ import software.amazon.awssdk.services.s3.auth.scheme.internal.S3EndpointResolve
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static reactor.core.publisher.Mono.when;
+
 @Service
 @RequiredArgsConstructor
 public class MapServiceImpl implements MapService {
@@ -48,6 +52,7 @@ public class MapServiceImpl implements MapService {
     private final GeometryFactory geometryFactory;
     private final GoodsRepository goodsRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final UserPaperRepository userPaperRepository;
 
     @Override
     public List<MapResponseDTO.PartnerMapResponseDTO> getPartners(MapRequestDTO.ViewOnMapDTO viewport, Long memberId) {
@@ -170,6 +175,133 @@ public class MapServiceImpl implements MapService {
                     .phoneNumber(phoneNumber)
                     .build();
         }).toList();
+    }
+
+    @Override
+    public List<MapResponseDTO.StoreMapResponseV2DTO> getStoresV2(MapRequestDTO.ViewOnMapDTO viewport, Long memberId) {
+        final String wkt = toWKT(viewport);
+        final List<Store> stores = storeRepository.findAllWithinViewport(wkt);
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, java.time.LocalDate.now());
+
+        return stores.stream().map(s -> {
+            final boolean hasPartner = (s.getPartner() != null);
+
+            // 사용자의 제휴권으로 이 매장에서 받을 수 있는 혜택 수집 (최대 2개)
+            List<PaperContent> benefits = new java.util.ArrayList<>();
+            for (UserPaper userPaper : userPapers) {
+                if (benefits.size() >= 2) break;
+
+                Paper paper = userPaper.getPaper();
+                if (paper.getStore() != null && paper.getStore().getId().equals(s.getId())) {
+                    PaperContent content = paperContentRepository.findLatestValidByStoreIdNative(
+                            s.getId(),
+                            ActivationStatus.ACTIVE.name(),
+                            OptionType.SERVICE.name(),
+                            OptionType.DISCOUNT.name(),
+                            CriterionType.PRICE.name(),
+                            CriterionType.HEADCOUNT.name()
+                    ).orElse(null);
+
+                    if (content != null) {
+                        benefits.add(content);
+                    }
+                }
+            }
+
+            // 혜택 텍스트 생성
+            String partner1 = null;
+            String benefit1 = null;
+            String partner2 = null;
+            String benefit2 = null;
+
+            if (!benefits.isEmpty()) {
+                PaperContent content1 = benefits.get(0);
+                partner1 = content1.getPaper() != null && content1.getPaper().getPartner() != null
+                        ? content1.getPaper().getPartner().getName() : null;
+                benefit1 = generateBenefitText(content1);
+            }
+
+            if (benefits.size() > 1) {
+                PaperContent content2 = benefits.get(1);
+                partner2 = content2.getPaper() != null && content2.getPaper().getPartner() != null
+                        ? content2.getPaper().getPartner().getName() : null;
+                benefit2 = generateBenefitText(content2);
+            }
+
+            // admin 정보
+            final Long adminId = paperRepository.findTopPaperByStoreId(s.getId())
+                    .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
+                    .orElse(null);
+
+            String adminName = null;
+            if (adminId != null) {
+                final Admin admin = adminRepository.findById(adminId).orElse(null);
+                adminName = (admin != null ? admin.getName() : null);
+            }
+
+            // S3 presigned URL
+            final String key = (s.getPartner() != null && s.getPartner().getMember() != null)
+                    ? s.getPartner().getMember().getProfileUrl() : null;
+            final String profileUrl = (key != null && !key.isBlank())
+                    ? amazonS3Manager.generatePresignedUrl(key) : null;
+
+            // phoneNumber
+            final String phoneNumber = (s.getPartner() != null
+                    && s.getPartner().getMember() != null
+                    && s.getPartner().getMember().getPhoneNum() != null)
+                    ? s.getPartner().getMember().getPhoneNum()
+                    : "";
+
+            return MapResponseDTO.StoreMapResponseV2DTO.builder()
+                    .storeId(s.getId())
+                    .adminId(adminId)
+                    .adminName(adminName)
+                    .name(s.getName())
+                    .address(s.getAddress() != null ? s.getAddress() : s.getDetailAddress())
+                    .rate(s.getRate())
+                    .hasPartner(hasPartner)
+                    .latitude(s.getLatitude())
+                    .longitude(s.getLongitude())
+                    .profileUrl(profileUrl)
+                    .phoneNumber(phoneNumber)
+                    .partner1(partner1)
+                    .benefit1(benefit1)
+                    .partner2(partner2)
+                    .benefit2(benefit2)
+                    .build();
+        }).toList();
+    }
+
+    private String generateBenefitText(PaperContent content) {
+        if (content == null) return null;
+
+        OptionType optionType = content.getOptionType();
+        CriterionType criterionType = content.getCriterionType();
+
+        if (optionType == OptionType.SERVICE) {
+            if (criterionType == CriterionType.PRICE) {
+                String cost = content.getCost() != null ? content.getCost().toString() : "-";
+                String gift = content.getCategory() != null ? content.getCategory() : "상품";
+                return cost + "원 이상 구매 시 " + gift + " 증정";
+            } else if (criterionType == CriterionType.HEADCOUNT) {
+                String people = content.getPeople() != null ? content.getPeople().toString() : "-";
+                String gift = content.getCategory() != null ? content.getCategory() : "상품";
+                return people + "명 이상 방문 시 " + gift + " 증정";
+            }
+            return "서비스 혜택";
+        } else if (optionType == OptionType.DISCOUNT) {
+            if (criterionType == CriterionType.PRICE) {
+                String cost = content.getCost() != null ? content.getCost().toString() : "-";
+                String rate = content.getDiscount() != null ? content.getDiscount().toString() : "-";
+                return cost + "원 이상 구매 시 " + rate + "% 할인";
+            } else if (criterionType == CriterionType.HEADCOUNT) {
+                String people = content.getPeople() != null ? content.getPeople().toString() : "-";
+                String rate = content.getDiscount() != null ? content.getDiscount().toString() : "-";
+                return people + "명 이상 방문 시 " + rate + "% 할인";
+            }
+            return "할인 혜택";
+        }
+        return null;
     }
 
     @Override
