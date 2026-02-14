@@ -29,7 +29,7 @@ public class TemporaryQrController {
 	@Operation(
 		summary = "QR 데이터 삽입 API",
 		description =
-			"# [v1.0 (2026-02-03)]\n" +
+			"# # [v1.0 (2026-02-14)](https://clumsy-seeder-416.notion.site/QR-3071197c19ed8079aeb9d0555b9e899f?source=copy_link)\n" +
 				"- 임시 QR 적립 데이터를 저장합니다.\n" +
 				"- 요청 바디(JSON)를 통해 QR 적립 대상 정보를 전달합니다.\n" +
 				"\n**Request Body:**\n" +
