@@ -7,6 +7,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,7 +45,7 @@ public class TemporaryQrController {
 				"\n**Response:**\n" +
 				"  - 성공 시 200(OK)\n"
 	)
-	public ResponseEntity<BaseResponse<Void>> insertQrData(TemporaryQrRequestDTO dto,
+	public ResponseEntity<BaseResponse<Void>> insertQrData(@RequestBody TemporaryQrRequestDTO dto,
 		@AuthenticationPrincipal PrincipalDetails pd){
 		temporaryQrService.insertData(dto, pd.getMember());
 		return ResponseEntity.ok(BaseResponse.onSuccessWithoutData(SuccessStatus._OK));
