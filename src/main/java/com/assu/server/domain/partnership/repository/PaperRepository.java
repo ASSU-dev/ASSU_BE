@@ -1,9 +1,9 @@
 package com.assu.server.domain.partnership.repository;
 
-import com.assu.server.domain.admin.entity.Admin;
-import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partner.entity.Partner;
-import com.assu.server.domain.partnership.entity.Paper;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -11,9 +11,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.partnership.entity.Paper;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 

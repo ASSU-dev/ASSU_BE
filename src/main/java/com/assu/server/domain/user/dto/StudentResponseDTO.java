@@ -1,49 +1,33 @@
 package com.assu.server.domain.user.dto;
 
+import java.util.List;
+
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
-import lombok.*;
 
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 public class StudentResponseDTO {
 
-	@Getter
-	@Builder
-	@AllArgsConstructor
-	@RequiredArgsConstructor
-	public static class myPartnership {
-		private long serviceCount;
-		private List<UsageDetailDTO> details;
-	}
+	public record MyPartnership (
+		long serviceCount,
+		List<UsageDetail> details
+	){}
 
-	@Getter
-	@AllArgsConstructor
-	@Builder
-	public static class UsageDetailDTO {
-		private String adminName;
-		private Long partnershipUsageId;
-		private String storeName;
-		private Long partnerId;
-		private Long storeId;
-		private String usedAt;
-		private String benefitDescription;
-		private boolean isReviewed;
-	}
-   /* @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CheckPartnershipUsageResponseDTO {
-        private Long id;
-        private String place;
-        private LocalDate date;
-        private String partnershipContent;
-        private Boolean isReviewed; //리뷰 작성하기 버튼 활성화 ?
-        private Integer discount; //가격? 비율
-        private LocalDateTime createdAt;
-    }
-    */
+
+	public record UsageDetail (
+		String adminName,
+		Long partnershipUsageId,
+		String storeName,
+		Long partnerId,
+		Long storeId,
+		String usedAt,
+		String benefitDescription,
+		boolean isReviewed
+	){}
 
     @Getter
     @NoArgsConstructor

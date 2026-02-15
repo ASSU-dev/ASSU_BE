@@ -11,19 +11,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DeviceTokenRepository extends JpaRepository<DeviceToken, Long> {
-    @Query("select dt.token from DeviceToken dt where dt.member.id =:memberId and dt.active=true")
-    List<String> findActiveTokensByMemberId(@Param("memberId") Long memberId);
 
-    @Transactional
-    @Modifying
-    @Query("update DeviceToken dt set dt.active = false where dt.token in :tokens")
-    void deactivateTokens(@Param("tokens") List<String> tokens);
+    List<DeviceToken> findAllByMemberIdAndActiveTrue(Long memberId);
 
-    Optional<DeviceToken> findByToken(String token);
+    List<DeviceToken> findAllByTokenIn(List<String> tokens);
 
-    // 같은 회원 + 같은 토큰 있는지 확인
     Optional<DeviceToken> findByMemberIdAndToken(Long memberId, String token);
 
-    // 같은 회원이 가진 모든 토큰 (비활성화용)
-    List<DeviceToken> findAllByMemberId(Long memberId);
 }

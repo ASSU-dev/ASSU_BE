@@ -12,53 +12,49 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class DeviceTokenServiceImpl implements DeviceTokenService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final MemberRepository memberRepository;
 
-    @Transactional
     @Override
-    public Long register(String tokenId, Long memberId) {
+    public Long register(String token, Long memberId) {
         Member member = memberRepository.findMemberById(memberId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
-        // 1) 같은 회원 + 같은 토큰이 이미 있으면 → active = true 로만 복구
-        //    (가장 정확한 쿼리: findByMemberIdAndToken)
-        var sameTokenOpt = deviceTokenRepository.findByMemberIdAndToken(memberId, tokenId);
+        // 1) 같은 회원 + 같은 토큰 → 활성화만 복구
+        Optional<DeviceToken> sameTokenOpt = deviceTokenRepository.findByMemberIdAndToken(memberId, token);
+
         if (sameTokenOpt.isPresent()) {
             DeviceToken exist = sameTokenOpt.get();
             exist.setActive(true);
-            deviceTokenRepository.save(exist);
             return exist.getId();
         }
 
-        // 2) 같은 회원 + 다른 토큰 → 그 회원의 기존 active 토큰 전부 비활성화
-        //    (현재 보유 메서드 활용: 활성 토큰 문자열 가져와 deactivate)
-        var activeTokens = deviceTokenRepository.findActiveTokensByMemberId(memberId);
-        if (!activeTokens.isEmpty()) {
-            // 현재 등록하려는 tokenId 와 다른 것들만 비활성화
-            var toDeactivate = activeTokens.stream()
-                    .filter(t -> !t.equals(tokenId))
-                    .toList();
-            if (!toDeactivate.isEmpty()) {
-                deviceTokenRepository.deactivateTokens(toDeactivate);
-            }
+        // 2) 같은 회원 + 다른 토큰 → 기존 활성 토큰 비활성화
+        List<DeviceToken> activeTokens =
+                deviceTokenRepository.findAllByMemberIdAndActiveTrue(memberId);
+
+        for (DeviceToken deviceToken : activeTokens) {
+                deviceToken.setActive(false);
         }
 
-        // 3) 새 토큰 insert (다른 회원이 같은 토큰을 갖고 있어도 상관 없이 insert)
+        // 3) 신규 토큰 저장
         DeviceToken newToken = DeviceToken.builder()
                 .member(member)
-                .token(tokenId)
+                .token(token)
                 .active(true)
                 .build();
-        deviceTokenRepository.save(newToken);
 
+        deviceTokenRepository.save(newToken);
         return newToken.getId();
     }
 
-    @Transactional
     @Override
     public void unregister(Long tokenId, Long memberId) {
         deviceTokenRepository.findById(tokenId)
@@ -70,5 +66,11 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
                 }, () -> {
                     throw new DatabaseException(ErrorStatus.DEVICE_TOKEN_NOT_FOUND);
                 });
+    }
+
+    @Override
+    public void deactivateTokens(List<String> invalidTokens) {
+        List<DeviceToken> invalidEntities = deviceTokenRepository.findAllByTokenIn(invalidTokens);
+        invalidEntities.forEach(dt -> dt.setActive(false));
     }
 }

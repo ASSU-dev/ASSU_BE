@@ -14,10 +14,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByPhoneNum(String phoneNum);
-
     Optional<Member> findMemberById(Long id);
-    
     List<Member> findByDeletedAtBefore(LocalDateTime deletedAt);
-
-    Member findByAdminProfile(Admin adminProfile);
 }

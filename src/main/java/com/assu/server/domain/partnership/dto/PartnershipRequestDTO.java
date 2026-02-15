@@ -12,17 +12,6 @@ import lombok.*;
 import java.time.LocalDate;
 
 public class PartnershipRequestDTO {
-    @Getter
-    public static class finalRequest{
-        Long storeId;
-        String tableNumber;
-        String adminName;
-        String placeName;
-        String partnershipContent;
-        Long contentId;
-        Long discount;
-        List<Long> userIds;
-    }
 
     @Getter
     public static class WritePartnershipRequestDTO {

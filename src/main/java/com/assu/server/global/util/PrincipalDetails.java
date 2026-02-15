@@ -1,23 +1,20 @@
 package com.assu.server.global.util;
 
-import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.auth.entity.AuthRealm;
-import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.common.enums.UserRole;
-import com.assu.server.domain.member.entity.Member;
-import lombok.Builder;
-import lombok.Getter;
+import java.util.Collection;
+import java.util.List;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.ArrayList;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
+import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.common.enums.UserRole;
+import com.assu.server.domain.member.entity.Member;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 @Getter
 @Builder
@@ -44,7 +41,7 @@ public class PrincipalDetails implements UserDetails {
     @Override
     public String getPassword() {
         // 폼 로그인/DaoAuthenticationProvider를 쓴다면 반드시 반환
-        return member.getCommonAuth().getPassword();
+        return member.getCommonAuth().getHashedPassword();
     }
 
     @Override
