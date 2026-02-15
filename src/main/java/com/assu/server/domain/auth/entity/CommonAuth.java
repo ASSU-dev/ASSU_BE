@@ -3,6 +3,8 @@ package com.assu.server.domain.auth.entity;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.member.entity.Member;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -23,21 +25,24 @@ public class CommonAuth extends BaseEntity {
 
     @Id
     @Column(name = "member_id")
+    @NotNull
     private Long id;
 
     @OneToOne @MapsId
     @JoinColumn(name = "member_id", referencedColumnName = "id")
+    @NotNull
     private Member member;
 
     @Column(name = "email", length = 255, nullable = false)
+    @NotNull
+    @Email
     private String email;
 
     @Column(name = "password", length = 255, nullable = false)
-    private String password; // 해시 저장
-
-    @Column(name = "is_email_verified", nullable = false)
-    private Boolean isEmailVerified = Boolean.FALSE;
+    @NotNull
+    private String hashedPassword;
 
     @Column(name = "last_login_at")
+    @NotNull
     private LocalDateTime lastLoginAt;
 }

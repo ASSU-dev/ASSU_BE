@@ -9,6 +9,7 @@ import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.user.entity.Student;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
@@ -31,22 +32,30 @@ public class Member extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull
     private String phoneNum;
 
+    @NotNull
     private Boolean isPhoneVerified;
 
-    private LocalDateTime phoneVerifiedAt;
+    @NotNull
+    private Boolean isLocationTermAgreed;
 
-    private String profileUrl;
+    @NotNull
+    private Boolean isMarketingTermAgreed;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @JdbcTypeCode(SqlTypes.VARCHAR)
+    @NotNull
     private UserRole role; // STUDENT, ADMIN, PARTNER
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @NotNull
     private ActivationStatus isActivated;  // ACTIVE, INACTIVE, SUSPEND
+
+    private String profileUrl;
 
     // 소프트 삭제를 위한 삭제 시점
     private LocalDateTime deletedAt;
