@@ -2,7 +2,6 @@ package com.assu.server.domain.review.dto;
 
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.review.entity.Review;
-import com.assu.server.domain.review.entity.ReviewPhoto;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.user.entity.Student;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,7 +20,7 @@ public class ReviewRequestDTO {
         @Schema(description = "리뷰 내용", example = "정말 맛있었어요!")
         private String content;
 
-        @Schema(description = "별점 (1-10)", example = "5", minimum = "1", maximum = "10")
+        @Schema(description = "별점 (1-5)", example = "5", minimum = "1", maximum = "5")
         private Integer rate;
 
         @Schema(hidden = true)
@@ -36,8 +35,15 @@ public class ReviewRequestDTO {
         private Long partnershipUsageId;
         private String adminName;
 
-        public Review toEntity(Store store, Partner partner, Student student, String affiliation) {
-                return null;
+            public Review toEntity(Store store, Partner partner, Student student, String affiliation) {
+            return Review.builder()
+                    .rate(this.rate)
+                    .content(this.content)
+                    .store(store)
+                    .partner(partner)
+                    .student(student)
+                    .affiliation(affiliation)
+                    .build();
         }
     }
 }

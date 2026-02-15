@@ -7,8 +7,6 @@ import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.mapping.repository.StudentAdminRepository;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.repository.PaperRepository;
-import com.assu.server.domain.partnership.repository.PartnershipRepository;
-import com.assu.server.domain.user.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import jakarta.transaction.Transactional;
@@ -42,7 +40,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     @Transactional
     public StudentAdminResponseDTO.NewCountAdminResponseDTO getNewStudentCountAdmin(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
-        Long total = studentAdminRepository.countThisMonthByAdminId(memberId);
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
 
         return StudentAdminConverter.newCountAdminResponseDTO(memberId, total, admin.getName());
     }
@@ -56,7 +54,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
 
         return StudentAdminConverter.countUsagePersonDTO(memberId, total, admin.getName());
     }

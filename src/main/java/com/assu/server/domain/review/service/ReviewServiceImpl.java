@@ -46,7 +46,6 @@ public class ReviewServiceImpl implements ReviewService {
     public ReviewResponseDTO.WriteReviewResponseDTO writeReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<MultipartFile> reviewImages) {
         String affiliation = adminNameToAffliation(request.getAdminName());
 
-        // 1. Converter 대신 request.toEntity() 사용
         Review review = createReview(memberId, request.getStoreId(), request, reviewImages, affiliation);
 
         PartnershipUsage pu = partnershipUsageRepository.findById(request.getPartnershipUsageId()).orElseThrow(
@@ -57,7 +56,6 @@ public class ReviewServiceImpl implements ReviewService {
 
         recalcAndUpdateStoreRate(review.getStore().getId());
 
-        // 2. Converter 대신 WriteReviewResponseDTO.from() 사용
         return ReviewResponseDTO.WriteReviewResponseDTO.from(review);
     }
 
@@ -107,7 +105,6 @@ public class ReviewServiceImpl implements ReviewService {
         String year = String.valueOf(now.getYear());
         String month = String.format("%02d", now.getMonthValue());
 
-        // 기존 generateKeyName 방식을 참고하되 더 체계적으로
         return String.format("reviews/images/%s/%s/user%d/review%d_img%d_%s",
                 year, month, memberId, reviewId, imageIndex, UUID.randomUUID());
     }
@@ -122,7 +119,6 @@ public class ReviewServiceImpl implements ReviewService {
             updateReviewImageUrls(review);
         }
 
-        // 4. Page 맵핑 시 메서드 참조 활용 (CheckReviewResponseDTO::from)
         return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
     }
 
@@ -165,7 +161,6 @@ public class ReviewServiceImpl implements ReviewService {
         for (ReviewPhoto reviewPhoto : review.getImageList()) {
             if (reviewPhoto.getKeyName() != null) {
                 String freshUrl = amazonS3Manager.generatePresignedUrl(reviewPhoto.getKeyName());
-                // ReviewPhoto 엔티티에 URL 업데이트 (일시적으로, DB에는 저장하지 않음)
                 reviewPhoto.updatePhotoUrl(freshUrl);
             }
         }
