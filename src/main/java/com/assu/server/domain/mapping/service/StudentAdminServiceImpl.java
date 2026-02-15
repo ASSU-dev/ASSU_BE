@@ -15,6 +15,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,7 +51,12 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     @Transactional
     public StudentAdminResponseDTO.CountUsagePersonResponseDTO getCountUsagePerson(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
-        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
+
+        // 서버 시스템 기준 '오늘'의 시작과 끝 계산 (00:00:00 ~ 익일 00:00:00)
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
 
         return StudentAdminConverter.countUsagePersonDTO(memberId, total, admin.getName());
     }
@@ -59,21 +66,20 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageResponseDTO getCountUsage(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        List<StudentAdminRepository.StoreUsageWithPaper> storeUsages =
+        List<StudentAdminResponseDTO.StoreUsageWithPaper> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
-        //예외 처리
         if (storeUsages.isEmpty()) {
             throw new DatabaseException(ErrorStatus.NO_USAGE_DATA);
         }
 
-        // 첫 번째가 가장 사용량이 많은 업체 (ORDER BY usageCount DESC)
-        var top = storeUsages.get(0);
+        // record의 accessor 메서드 사용 (.paperId())
+        StudentAdminResponseDTO.StoreUsageWithPaper top = storeUsages.get(0);
 
-        Paper paper = paperRepository.findById(top.getPaperId())
+        Paper paper = paperRepository.findById(top.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE));
 
-        return StudentAdminConverter.countUsageResponseDTO(admin, paper, top.getUsageCount());
+        return StudentAdminConverter.countUsageResponseDTO(admin, paper, top.usageCount());
     }
 
     @Override
@@ -81,34 +87,32 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageListResponseDTO getCountUsageList(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        // 🔧 핵심 수정: Paper 정보를 포함한 조회 (N+1 해결)
-        List<StudentAdminRepository.StoreUsageWithPaper> storeUsages =
+        List<StudentAdminResponseDTO.StoreUsageWithPaper> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
         if (storeUsages.isEmpty()) {
-            // 빈 리스트 반환 (선택: 예외 처리도 가능)
             return StudentAdminConverter.countUsageListResponseDTO(List.of());
         }
 
+        // Paper 정보 일괄 조회로 N+1 문제 해결
         List<Long> paperIds = storeUsages.stream()
-                .map(StudentAdminRepository.StoreUsageWithPaper::getPaperId)
+                .map(StudentAdminResponseDTO.StoreUsageWithPaper::paperId)
                 .toList();
 
         Map<Long, Paper> paperMap = paperRepository.findAllById(paperIds).stream()
                 .collect(Collectors.toMap(Paper::getId, paper -> paper));
 
         var items = storeUsages.stream().map(row -> {
-            Paper paper = paperMap.get(row.getPaperId());
+            Paper paper = paperMap.get(row.paperId());
             if (paper == null) {
                 throw new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE);
             }
-            return StudentAdminConverter.countUsageResponseDTO(admin, paper, row.getUsageCount());
+            return StudentAdminConverter.countUsageResponseDTO(admin, paper, row.usageCount());
         }).toList();
 
         return StudentAdminConverter.countUsageListResponseDTO(items);
     }
 
-    //  Admin 조회 중복 제거
     private Admin getAdminOrThrow(Long adminId) {
         return adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));

@@ -2,7 +2,6 @@ package com.assu.server.domain.review.service;
 
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
-import com.assu.server.domain.review.converter.ReviewConverter;
 import com.assu.server.domain.review.dto.ReviewRequestDTO;
 import com.assu.server.domain.review.dto.ReviewResponseDTO;
 import com.assu.server.domain.review.entity.Review;
@@ -43,17 +42,23 @@ public class ReviewServiceImpl implements ReviewService {
     private final PartnershipUsageRepository partnershipUsageRepository;
 
     @Override
+    @Transactional
     public ReviewResponseDTO.WriteReviewResponseDTO writeReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<MultipartFile> reviewImages) {
-        // createReview 메서드 호출로 통합
         String affiliation = adminNameToAffliation(request.getAdminName());
+
+        // 1. Converter 대신 request.toEntity() 사용
         Review review = createReview(memberId, request.getStoreId(), request, reviewImages, affiliation);
+
         PartnershipUsage pu = partnershipUsageRepository.findById(request.getPartnershipUsageId()).orElseThrow(
-            () -> new GeneralException(ErrorStatus.NO_SUCH_USAGE)
+                () -> new GeneralException(ErrorStatus.NO_SUCH_USAGE)
         );
         pu.setIsReviewed(true);
         partnershipUsageRepository.save(pu);
+
         recalcAndUpdateStoreRate(review.getStore().getId());
-        return ReviewConverter.writeReviewResultDTO(review);
+
+        // 2. Converter 대신 WriteReviewResponseDTO.from() 사용
+        return ReviewResponseDTO.WriteReviewResponseDTO.from(review);
     }
 
     private String adminNameToAffliation(String adminName) {
@@ -64,7 +69,6 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private Review createReview(Long memberId, Long storeId, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
-        // 존재여부 검증
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
         Partner partner = partnerRepository.findById(request.getPartnerId())
@@ -72,11 +76,9 @@ public class ReviewServiceImpl implements ReviewService {
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 
-        // 리뷰 엔티티 생성 및 저장
-        Review review = ReviewConverter.toReviewEntity(request, store, partner, student, affiliation);
-        reviewRepository.save(review); // ID 생성을 위해 먼저 저장
+        Review review = request.toEntity(store, partner, student, affiliation);
+        reviewRepository.save(review);
 
-        // 이미지 처리
         if (images != null && !images.isEmpty()) {
             try {
                 for (int i = 0; i < images.size(); i++) {
@@ -111,6 +113,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStudentReview(Long memberId, Pageable pageable) {
         pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Page<Review> reviews = reviewRepository.findByMemberId(memberId, pageable);
@@ -119,7 +122,8 @@ public class ReviewServiceImpl implements ReviewService {
             updateReviewImageUrls(review);
         }
 
-        return ReviewConverter.checkReviewResultDTO(reviews);
+        // 4. Page 맵핑 시 메서드 참조 활용 (CheckReviewResponseDTO::from)
+        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
     }
 
     @Override
@@ -131,18 +135,14 @@ public class ReviewServiceImpl implements ReviewService {
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-        // 신고되지 않은 리뷰와 신고되지 않은 학생이 작성한 리뷰만 조회
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
-                store.getId(),
-                ReportedStatus.NORMAL,
-                ReportedStatus.NORMAL,
-                pageable);
+                store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
         for (Review review : reviews) {
             updateReviewImageUrls(review);
         }
 
-        return ReviewConverter.checkReviewResultDTO(reviews);
+        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
     }
 
     @Override
@@ -152,12 +152,13 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new DatabaseException(ErrorStatus._BAD_REQUEST));
 
         Long storeId = review.getStore().getId();
+        reviewRepository.deleteById(reviewId);
+
         recalcAndUpdateStoreRate(storeId);
 
-        reviewRepository.deleteById(reviewId);
         return ReviewResponseDTO.DeleteReviewResponseDTO.builder()
-            .reviewId(reviewId)
-            .build();
+                .reviewId(reviewId)
+                .build();
     }
 
     private void updateReviewImageUrls(Review review) {
@@ -175,67 +176,41 @@ public class ReviewServiceImpl implements ReviewService {
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
         pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Store store = storeRepository.findById(storeId).orElseThrow(
-            () -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                () -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-        // 신고되지 않은 리뷰와 신고되지 않은 학생이 작성한 리뷰만 조회
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
-                store.getId(),
-                ReportedStatus.NORMAL,
-                ReportedStatus.NORMAL,
-                pageable);
+                store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
         for (Review review : reviews) {
             updateReviewImageUrls(review);
         }
 
-        return ReviewConverter.checkReviewResultDTO(reviews);
+        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
     }
 
     @Override
     @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO standardScore(Long storeId) {
-        // 신고되지 않은 리뷰와 신고되지 않은 학생이 작성한 리뷰만으로 평균 계산
         Float score = reviewRepository.standardScoreWithStatus(storeId, ReportedStatus.NORMAL, ReportedStatus.NORMAL);
-        if(score == null){
-            score = 0f;
-        }
-        return ReviewResponseDTO.StandardScoreResponseDTO.builder()
-            .score(score)
-            .build();
+        return new ReviewResponseDTO.StandardScoreResponseDTO(score == null ? 0f : score);
     }
 
     @Override
     @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO myStoreAverage(Long memberId) {
         Partner partner = partnerRepository.findById(memberId)
-            .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
+                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
-            .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-        // 신고되지 않은 리뷰와 신고되지 않은 학생이 작성한 리뷰만으로 평균 계산
-        Float score = reviewRepository.standardScoreWithStatus(store.getId(), ReportedStatus.NORMAL,
-                ReportedStatus.NORMAL);
-        if (score == null) {
-            score = 0f;
-        }
-        System.out.println(store.getId());
-        return ReviewResponseDTO.StandardScoreResponseDTO
-            .builder()
-            .score(score)
-            .build();
-
+        Float score = reviewRepository.standardScoreWithStatus(store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL);
+        return new ReviewResponseDTO.StandardScoreResponseDTO(score == null ? 0f : score);
     }
 
     private void recalcAndUpdateStoreRate(Long storeId) {
-        // 이 시점에 영속성 컨텍스트의 변경분을 DB로 내보내 평균에 반영
         reviewRepository.flush();
-
-        Float avg = reviewRepository.standardScoreWithStatus(
-                storeId, ReportedStatus.NORMAL, ReportedStatus.NORMAL
-        );
-        if (avg == null) avg = 0f;
-
-        int rounded = (int) (Math.round(avg * 10f) / 10f);
+        Float avg = reviewRepository.standardScoreWithStatus(storeId, ReportedStatus.NORMAL, ReportedStatus.NORMAL);
+        int rounded = (avg == null) ? 0 : (int) (Math.round(avg * 10f) / 10f);
 
         storeRepository.findById(storeId).ifPresent(s -> {
             s.setRate(rounded);

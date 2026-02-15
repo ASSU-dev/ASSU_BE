@@ -19,6 +19,7 @@ public class Student {
     @Id
     private Long id;
 
+    @Setter
     @OneToOne
     @JoinColumn(name = "id") // member_id와 공유
     @MapsId
@@ -45,10 +46,6 @@ public class Student {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private ReportedStatus status = ReportedStatus.NORMAL;
-
-    public void setMember(Member member) {
-        this.member = member;
-    }
 
     public void setStamp() {
         this.stamp++;

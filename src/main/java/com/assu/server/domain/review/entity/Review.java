@@ -58,12 +58,6 @@ public class Review extends BaseEntity {
 	@Builder.Default
 	private ReportedStatus status = ReportedStatus.NORMAL;
 
-	public List<ReviewPhoto> getImageList() {
-		if (imageList == null) {
-			imageList = new ArrayList<>();
-		}
-		return imageList;
-	}
 	public void updateReportedStatus(ReportedStatus status) {
 		this.status = status;
 	}

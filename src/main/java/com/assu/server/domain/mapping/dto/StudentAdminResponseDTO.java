@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 public class StudentAdminResponseDTO {
 
+
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
@@ -56,5 +57,11 @@ public class StudentAdminResponseDTO {
     public static class CountUsageListResponseDTO {
         private List<CountUsageResponseDTO> items; // 사용량 내림차순 정렬됨
     }
+    public record StoreUsageWithPaper(
+            Long paperId,
+            Long storeId,
+            String storeName,
+            Long usageCount
+    ) {}
 
 }

@@ -1,6 +1,10 @@
 package com.assu.server.domain.review.dto;
 
+import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.review.entity.Review;
 import com.assu.server.domain.review.entity.ReviewPhoto;
+import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.user.entity.Student;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,5 +35,9 @@ public class ReviewRequestDTO {
 
         private Long partnershipUsageId;
         private String adminName;
+
+        public Review toEntity(Store store, Partner partner, Student student, String affiliation) {
+                return null;
+        }
     }
 }

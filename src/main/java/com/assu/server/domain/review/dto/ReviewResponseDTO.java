@@ -1,69 +1,92 @@
 package com.assu.server.domain.review.dto;
 
-import lombok.AllArgsConstructor;
+import com.assu.server.domain.review.entity.Review;
+import com.assu.server.domain.review.entity.ReviewPhoto;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class ReviewResponseDTO {
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
+
     @Builder
-    public static class WriteReviewResponseDTO {
-        private Long reviewId; //entity 보고 형 맞추기
-        private String content;
-        private Integer rate;
-        private LocalDateTime createdAt;
-        private Long memberId;
-        private List<String> reviewImageUrls;
-    }
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CheckReviewResponseDTO { //내가 작성한 리뷰
-        private Long reviewId;
-        private Long storeId;
-        private String affiliation; // store 기준 조회시 필요...
-        private String storeName;
-        private String content;
-        private Integer rate;
-        private LocalDateTime createdAt;
-        private List<String> reviewImageUrls;
-    }
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CheckPartnerReviewResponseDTO {//partner의 리뷰 확인
-        private Long reviewId;
-        private Long storeId; //현재 파트너의 가게 아이디
-        private Long reviewerId;
-        private String content;
-        private Integer rate;
-        private LocalDateTime createdAt;
-        private List<String> reviewImageUrls;
+    public record WriteReviewResponseDTO(
+            Long reviewId,
+            String content,
+            Integer rate,
+            LocalDateTime createdAt,
+            Long memberId,
+            List<String> reviewImageUrls
+    ) {
+        public static WriteReviewResponseDTO from(Review review) {
+            return WriteReviewResponseDTO.builder()
+                    .reviewId(review.getId())
+                    .content(review.getContent())
+                    .rate(review.getRate())
+                    .createdAt(review.getCreatedAt())
+                    .memberId(review.getStudent().getId())
+                    .reviewImageUrls(review.getImageList().stream()
+                            .map(ReviewPhoto::getPhotoUrl)
+                            .toList())
+                    .build();
+        }
     }
 
-
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class DeleteReviewResponseDTO {
-        private Long reviewId;
+    public record CheckReviewResponseDTO(
+            Long reviewId,
+            Long storeId,
+            String affiliation,
+            String storeName,
+            String content,
+            Integer rate,
+            LocalDateTime createdAt,
+            List<String> reviewImageUrls
+    ) {
+        public static CheckReviewResponseDTO from(Review review) {
+            return CheckReviewResponseDTO.builder()
+                    .reviewId(review.getId())
+                    .storeId(review.getStore().getId())
+                    .affiliation(review.getAffiliation())
+                    .storeName(review.getStore().getName())
+                    .content(review.getContent())
+                    .rate(review.getRate())
+                    .createdAt(review.getCreatedAt())
+                    .reviewImageUrls(review.getImageList().stream()
+                            .map(ReviewPhoto::getPhotoUrl)
+                            .toList())
+                    .build();
+        }
     }
 
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class StandardScoreResponseDTO {
-        private Float score;
+    public record CheckPartnerReviewResponseDTO(
+            Long reviewId,
+            Long storeId,
+            Long reviewerId,
+            String content,
+            Integer rate,
+            LocalDateTime createdAt,
+            List<String> reviewImageUrls
+    ) {
+        public static CheckPartnerReviewResponseDTO from(Review review) {
+            return CheckPartnerReviewResponseDTO.builder()
+                    .reviewId(review.getId())
+                    .storeId(review.getStore().getId())
+                    .reviewerId(review.getStudent().getId())
+                    .content(review.getContent())
+                    .rate(review.getRate())
+                    .createdAt(review.getCreatedAt())
+                    .reviewImageUrls(review.getImageList().stream()
+                            .map(ReviewPhoto::getPhotoUrl)
+                            .toList())
+                    .build();
+        }
     }
 
+    @Builder
+    public record DeleteReviewResponseDTO(Long reviewId) {}
+
+    @Builder
+    public record StandardScoreResponseDTO(Float score) {}
 }

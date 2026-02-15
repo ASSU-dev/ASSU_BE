@@ -16,15 +16,15 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-@Setter
 public class Admin {
 
     @Id
-    private Long id;  // member_id와 동일
+    @Column(name = "id")
+    private Long id;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     @JoinColumn(name = "id")
     @NotNull
@@ -40,7 +40,7 @@ public class Admin {
 
     private String detailAddress;
 
-    private String signUrl;
+    private String signImageUrl;
 
     @NotNull
     @Builder.Default
@@ -75,9 +75,15 @@ public class Admin {
     @Column(nullable = false)
     private Double longitude;
 
-    public void setMember(Member member) {
+    // --- 비즈니스 로직 및 연관관계 메서드 ---
+
+    /**
+     * @Setter 대신 사용하는 연관 관계 메서드
+     * Member의 ID를 Admin의 PK로 동기화
+     */
+    public void linkMember(Member member) {
         this.member = member;
-        if (member != null && member.getId() != null) {
+        if (member != null) {
             this.id = member.getId();
         }
     }
