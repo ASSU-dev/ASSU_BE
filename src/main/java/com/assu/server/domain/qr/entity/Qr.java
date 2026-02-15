@@ -23,10 +23,10 @@ public class Qr extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	private Long storeId;
-
 	private Long userId;
 
 	@Enumerated(EnumType.STRING)
 	private SortByMethod sort;
+
+	private String adminName;
 }
