@@ -6,6 +6,7 @@ import com.assu.server.domain.review.dto.ReviewRequestDTO;
 import com.assu.server.domain.review.dto.ReviewResponseDTO;
 import com.assu.server.domain.review.entity.Review;
 import com.assu.server.domain.review.entity.ReviewPhoto;
+import com.assu.server.domain.review.exception.CustomReviewException;
 import com.assu.server.domain.review.repository.ReviewRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.user.entity.PartnershipUsage;
@@ -15,7 +16,6 @@ import com.assu.server.domain.user.repository.PartnershipUsageRepository;
 import com.assu.server.domain.user.repository.StudentRepository;
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
-import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import jakarta.transaction.Transactional;
@@ -70,11 +70,11 @@ public class ReviewServiceImpl implements ReviewService {
 
     private Review createReview(Long memberId, Long storeId, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
         Partner partner = partnerRepository.findById(request.getPartnerId())
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Student student = studentRepository.findById(memberId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STUDENT));
 
         Review review = request.toEntity(store, partner, student, affiliation);
         reviewRepository.save(review);
@@ -95,7 +95,7 @@ public class ReviewServiceImpl implements ReviewService {
                     review.getImageList().add(reviewPhoto);
                 }
             } catch (Exception e) {
-                throw new DatabaseException(ErrorStatus.IMAGE_UPLOAD_FAILED);
+                throw new CustomReviewException(ErrorStatus.IMAGE_UPLOAD_FAILED);
             }
         }
 
@@ -131,9 +131,9 @@ public class ReviewServiceImpl implements ReviewService {
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable) {
         pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Partner partner = partnerRepository.findById(memberId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
 
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
@@ -149,7 +149,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional
     public ReviewResponseDTO.DeleteReviewResponseDTO deleteReview(Long reviewId) {
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus._BAD_REQUEST));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus._BAD_REQUEST));
 
         Long storeId = review.getStore().getId();
         reviewRepository.deleteById(reviewId);
@@ -176,7 +176,7 @@ public class ReviewServiceImpl implements ReviewService {
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
         pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Store store = storeRepository.findById(storeId).orElseThrow(
-                () -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                () -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
 
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
@@ -199,9 +199,9 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO myStoreAverage(Long memberId) {
         Partner partner = partnerRepository.findById(memberId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
 
         Float score = reviewRepository.standardScoreWithStatus(store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL);
         return new ReviewResponseDTO.StandardScoreResponseDTO(score == null ? 0f : score);

@@ -4,6 +4,7 @@ package com.assu.server.domain.store.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.assu.server.domain.store.exception.CustomStoreException;
 import org.springframework.stereotype.Service;
 import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
@@ -17,7 +18,6 @@ import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.converter.StoreConverter;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
-import com.assu.server.global.exception.DatabaseException;
 import java.util.Optional;
 
 @Service
@@ -41,7 +41,7 @@ public class StoreServiceImpl implements StoreService {
 
         Optional<Partner> partner = partnerRepository.findById(memberId);
         Store store = storeRepository.findByPartner(partner.orElse(null))
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
         Long storeId = store.getId();
 
         List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyRankForStore(storeId);
@@ -58,7 +58,7 @@ public class StoreServiceImpl implements StoreService {
 
         Optional<Partner> partner = partnerRepository.findById(memberId);
         Store store = storeRepository.findByPartner(partner.orElse(null))
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
+                .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
         Long storeId = store.getId();
 
         List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyTrendLast6Weeks(storeId);
