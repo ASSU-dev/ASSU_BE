@@ -10,7 +10,6 @@ import java.util.List;
 public interface ChatService {
     List<ChatRoomListResultDTO> getChatRoomList(Long memberId);
     ChatResponseDTO.CreateChatRoomResponseDTO createChatRoom(ChatRequestDTO.CreateChatRoomRequestDTO request, Long memberId);
-//    ChatResponseDTO.SendMessageResponseDTO handleMessage(ChatRequestDTO.ChatMessageRequestDTO request);
     MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request);
     ChatResponseDTO.ReadMessageResponseDTO readMessage(Long roomId, Long memberId);
     ChatResponseDTO.ChatHistoryResponseDTO readHistory(Long roomId, Long memberId);

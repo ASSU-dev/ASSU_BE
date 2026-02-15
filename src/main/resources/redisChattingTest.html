@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Redis Pub/Sub 채팅 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: 'Apple SD Gothic Neo', sans-serif; padding: 20px; background-color: #f5f5f5; }
+        .container { display: flex; gap: 20px; max-width: 1000px; margin: 0 auto; }
+        .box {
+            background: white; border-radius: 8px; padding: 20px; width: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 { border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 95%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button {
+            padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;
+            margin-right: 5px;
+        }
+        button.connect { background-color: #4CAF50; color: white; }
+        button.send { background-color: #2196F3; color: white; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        #log {
+            height: 400px; overflow-y: auto; background: #333; color: #fff;
+            padding: 15px; border-radius: 4px; font-family: monospace; font-size: 14px;
+        }
+        .log-msg { margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 2px; }
+        .log-sent { color: #81D4FA; } /* 보낸 메시지 색상 */
+        .log-recv { color: #A5D6A7; } /* 받은 메시지 색상 */
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="box">
+        <h2>🚀 연결 설정</h2>
+        <label>서버 포트 (8080 또는 8081):</label>
+        <input type="number" id="port" value="8080" placeholder="포트 번호">
+        <button class="connect" onclick="connect()">연결하기</button>
+        <button onclick="disconnect()" id="btnDisconnect" disabled>연결 해제</button>
+
+        <hr style="margin: 20px 0;">
+
+        <h2>💬 메시지 전송</h2>
+        <label>채팅방 ID (RoomId):</label>
+        <input type="number" id="roomId" value="1">
+
+        <label>보내는 사람 ID (SenderId):</label>
+        <input type="number" id="senderId" value="100">
+
+        <label>받는 사람 ID (ReceiverId):</label>
+        <input type="number" id="receiverId" value="200">
+
+        <label>메시지 내용:</label>
+        <input type="text" id="message" placeholder="내용을 입력하세요"
+               onkeydown="if(event.isComposing) return; if(event.key==='Enter') sendMessage()">
+
+        <button class="send" onclick="sendMessage()" id="btnSend" disabled>전송 (Send)</button>
+    </div>
+
+    <div class="box">
+        <h2>📜 실시간 로그</h2>
+        <div id="log"></div>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function log(msg, type = '') {
+        const logDiv = document.getElementById("log");
+        const p = document.createElement("div");
+        p.className = "log-msg " + type;
+
+        // 시간 추가
+        const time = new Date().toLocaleTimeString();
+        p.textContent = `[${time}] ${msg}`;
+
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function connect() {
+        const port = document.getElementById('port').value;
+        const roomId = document.getElementById('roomId').value;
+        const receiverId = document.getElementById("senderId").value; // 내 아이디로 큐 구독
+
+        // 1. 엔드포인트 주의: /ws 로 설정됨
+        const socket = new WebSocket("ws://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            log(`✅ 포트 ${port} 서버 연결 성공!`);
+            document.getElementById('btnDisconnect').disabled = false;
+            document.getElementById('btnSend').disabled = false;
+
+            // 2. 채팅방 구독
+            stompClient.subscribe(`/sub/chat/${roomId}`, function (msg) {
+                const body = JSON.parse(msg.body);
+                log(`📨 [채팅수신] ${body.message}`, 'log-recv');
+            });
+
+            // 3. 내 알림 큐 구독 (채팅방 목록 갱신용)
+            // /user/queue/updates 경로로 오는 개인 메시지를 받습니다.
+            stompClient.subscribe(`/user/queue/updates`, function (msg) {
+                const body = JSON.parse(msg.body);
+                log(`🔔 [목록갱신] 방 ${body.roomId} 업데이트 알림 도착!`, 'log-recv');
+            });
+
+            log(`📡 구독 완료: /sub/chat/${roomId} & /user/queue/updates`);
+
+        }, function(error) {
+            log(`❌ 연결 실패: ${error}`);
+        });
+    }
+
+    function disconnect() {
+        if (stompClient !== null) {
+            stompClient.disconnect();
+        }
+        document.getElementById('btnDisconnect').disabled = true;
+        document.getElementById('btnSend').disabled = true;
+        log("Disconnected");
+    }
+
+    function sendMessage() {
+        const roomId = document.getElementById("roomId").value;
+        const senderId = document.getElementById("senderId").value;
+        const receiverId = document.getElementById("receiverId").value;
+        const message = document.getElementById("message").value;
+
+        if (!message) return;
+
+        const payload = {
+            roomId: parseInt(roomId),
+            senderId: parseInt(senderId),
+            receiverId: parseInt(receiverId),
+            message: message
+        };
+
+        stompClient.send("/pub/send", {}, JSON.stringify(payload));
+        log(`📤 [전송] ${message}`, 'log-sent');
+        document.getElementById("message").value = ''; // 입력창 비우기
+    }
+</script>
+</body>
+</html>
