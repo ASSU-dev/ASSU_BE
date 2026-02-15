@@ -3,7 +3,6 @@ package com.assu.server.domain.mapping.converter;
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
-import com.assu.server.domain.user.entity.PartnershipUsage;
 
 import java.util.List;
 
