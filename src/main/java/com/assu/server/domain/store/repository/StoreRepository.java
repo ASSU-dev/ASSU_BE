@@ -115,7 +115,27 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
         """, nativeQuery = true)
     List<Store> findAllWithinViewport(@Param("wkt") String wkt);
 
+    @Query("""
+        SELECT DISTINCT s
+        FROM Store s
+        LEFT JOIN FETCH s.partner p
+        LEFT JOIN FETCH p.member
+        WHERE s.point IS NOT NULL
+          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), s.point) = true
+        """)
+    List<Store> findAllWithinViewportWithPartner(@Param("wkt") String wkt);
+
     List<Store> findByNameContainingIgnoreCaseOrderByIdDesc(String name);
+
+    @Query("""
+        SELECT DISTINCT s
+        FROM Store s
+        LEFT JOIN FETCH s.partner p
+        LEFT JOIN FETCH p.member
+        WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%'))
+        ORDER BY s.id DESC
+        """)
+    List<Store> findByNameContainingIgnoreCaseOrderByIdDescWithPartner(@Param("name") String name);
     Optional<Store> findByName(String name);
     Optional<Store> findById(Long id);
     Optional<Store> findByPartnerId(Long partnerId);

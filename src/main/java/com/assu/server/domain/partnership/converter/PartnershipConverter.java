@@ -12,14 +12,11 @@ import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
-import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.store.entity.Store;
 
 public class PartnershipConverter {
@@ -49,6 +46,7 @@ public class PartnershipConverter {
 						.paper(paper) // 어떤 Paper에 속하는지 연결
 						.optionType(optionDto.getOptionType())
 						.criterionType(optionDto.getCriterionType())
+						.anotherType(optionDto.getAnotherType())
 						.people(optionDto.getPeople())
 						.cost(optionDto.getCost())
 						.category(optionDto.getCategory())
@@ -56,9 +54,6 @@ public class PartnershipConverter {
 						.build())
 				.toList();
     }
-
-
-
 
     public static List<List<Goods>> toGoodsBatches(
             PartnershipRequestDTO.WritePartnershipRequestDTO partnershipRequestDTO
@@ -80,7 +75,6 @@ public class PartnershipConverter {
 				.toList();
     }
 
-
 	public static Paper toPaperForManual(
 		Admin admin, Store store,
 		LocalDate start, LocalDate end,
@@ -96,7 +90,6 @@ public class PartnershipConverter {
 			.build();
 	}
 
-
     public static List<PaperContent> toPaperContentsForManual(
             List<PartnershipRequestDTO.PartnershipOptionRequestDTO> options,
             Paper paper
@@ -108,6 +101,7 @@ public class PartnershipConverter {
                     .paper(paper)
                     .optionType(o.getOptionType())
                     .criterionType(o.getCriterionType())
+                    .anotherType(o.getAnotherType())
 					.note(o.getNote())
                     .people(o.getPeople())
                     .cost(o.getCost())
@@ -133,7 +127,6 @@ public class PartnershipConverter {
         return batch;
     }
 
-
     public static PartnershipResponseDTO.WritePartnershipResponseDTO writePartnershipResultDTO(
             Paper paper,
             List<PaperContent> contents,
@@ -154,6 +147,7 @@ public class PartnershipConverter {
                         PartnershipResponseDTO.PartnershipOptionResponseDTO.builder()
                                 .optionType(pc.getOptionType())
                                 .criterionType(pc.getCriterionType())
+                                .anotherType(pc.getAnotherType())
                                 .people(pc.getPeople())
 								.note(note)
                                 .cost(pc.getCost())
@@ -164,7 +158,6 @@ public class PartnershipConverter {
                 );
             }
         }
-
 
         return PartnershipResponseDTO.WritePartnershipResponseDTO.builder()
                 .partnershipId(paper.getId())
@@ -193,6 +186,80 @@ public class PartnershipConverter {
 	public static PartnershipResponseDTO.CreateDraftResponseDTO toCreateDraftResponseDTO(Paper paper) {
 		return PartnershipResponseDTO.CreateDraftResponseDTO.builder()
 				.paperId(paper.getId())
+				.build();
+	}
+
+	public static PartnershipResponseDTO.SuspendedPaperDTO toSuspendedPaperDTO(Paper paper) {
+		return PartnershipResponseDTO.SuspendedPaperDTO.builder()
+				.paperId(paper.getId())
+				.partnerName(
+						paper.getPartner() != null
+								? paper.getPartner().getName()
+								: (paper.getStore() != null ? paper.getStore().getName() : "미등록")
+				)
+				.createdAt(paper.getCreatedAt())
+				.build();
+	}
+
+	public static PartnershipResponseDTO.UpdateResponseDTO toUpdateResponseDTO(
+			Paper paper,
+			ActivationStatus prevStatus,
+			ActivationStatus nextStatus
+	) {
+		return PartnershipResponseDTO.UpdateResponseDTO.builder()
+				.partnershipId(paper.getId())
+				.prevStatus(prevStatus == null ? null : prevStatus.name())
+				.newStatus(nextStatus.name())
+				.changedAt(LocalDateTime.now())
+				.build();
+	}
+
+	public static PartnershipResponseDTO.ManualPartnershipResponseDTO toManualPartnershipResponseDTO(
+			Store store,
+			boolean storeCreated,
+			boolean storeActivated,
+			String contractImageUrl,
+			PartnershipResponseDTO.WritePartnershipResponseDTO partnership
+	) {
+		return PartnershipResponseDTO.ManualPartnershipResponseDTO.builder()
+				.storeId(store.getId())
+				.storeCreated(storeCreated)
+				.storeActivated(storeActivated)
+				.status(store.getIsActivate() == null ? null : store.getIsActivate().name())
+				.contractImageUrl(contractImageUrl)
+				.partnership(partnership)
+				.build();
+	}
+
+	public static PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO toAdminPartnershipWithPartnerResponseDTO(
+			Partner partner,
+			Long paperId,
+			boolean isPartnered,
+			String status
+	) {
+		return PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO.builder()
+				.paperId(paperId)
+				.isPartnered(isPartnered)
+				.status(status)
+				.partnerId(partner.getId())
+				.partnerName(partner.getName())
+				.partnerAddress(partner.getAddress())
+				.build();
+	}
+
+	public static PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO toPartnerPartnershipWithAdminResponseDTO(
+			Admin admin,
+			Long paperId,
+			boolean isPartnered,
+			String status
+	) {
+		return PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO.builder()
+				.paperId(paperId)
+				.isPartnered(isPartnered)
+				.status(status)
+				.adminId(admin.getId())
+				.adminName(admin.getName())
+				.adminAddress(admin.getOfficeAddress())
 				.build();
 	}
 
@@ -242,6 +309,7 @@ public class PartnershipConverter {
 						PartnershipResponseDTO.PartnershipOptionResponseDTO.builder()
 								.optionType(pc.getOptionType())
 								.criterionType(pc.getCriterionType())
+								.anotherType(pc.getAnotherType())
 								.people(pc.getPeople())
 								.cost(pc.getCost())
 								.note(note)
@@ -255,7 +323,7 @@ public class PartnershipConverter {
 
 		return PartnershipResponseDTO.GetPartnershipDetailResponseDTO.builder()
 				.partnershipId(paper.getId())
-				.updatedAt(mostRecentUpdatedAt) // 가장 최근 UpdatedAt 값 가져오기
+				.updatedAt(mostRecentUpdatedAt)
 				.partnershipPeriodStart(paper.getPartnershipPeriodStart())
 				.partnershipPeriodEnd(paper.getPartnershipPeriodEnd())
 				.adminId(paper.getAdmin()    != null ? paper.getAdmin().getId()     : null)
@@ -264,6 +332,4 @@ public class PartnershipConverter {
 				.options(optionDTOS)
 				.build();
 	}
-
-
 }

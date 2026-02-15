@@ -21,7 +21,6 @@ public class Paper extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-
 	@Setter
 	private LocalDate partnershipPeriodStart; //  LocalDate vs String
 
@@ -31,7 +30,6 @@ public class Paper extends BaseEntity {
 	@Setter
     @Enumerated(EnumType.STRING)
 	private ActivationStatus isActivated;
-
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "admin_id")
