@@ -26,7 +26,9 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
           AND pu.createdAt < :end
         """)
     Long countTodayUsersByAdmin(
-            @Param("adminId") Long adminId
+            @Param("adminId") Long adminId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 
     @Query("""

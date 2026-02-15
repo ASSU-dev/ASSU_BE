@@ -40,7 +40,10 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     @Transactional
     public StudentAdminResponseDTO.NewCountAdminResponseDTO getNewStudentCountAdmin(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
-        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
+
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
 
         return StudentAdminConverter.newCountAdminResponseDTO(memberId, total, admin.getName());
     }
@@ -50,11 +53,10 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsagePersonResponseDTO getCountUsagePerson(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        // 서버 시스템 기준 '오늘'의 시작과 끝 계산 (00:00:00 ~ 익일 00:00:00)
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
 
-        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
 
         return StudentAdminConverter.countUsagePersonDTO(memberId, total, admin.getName());
     }
