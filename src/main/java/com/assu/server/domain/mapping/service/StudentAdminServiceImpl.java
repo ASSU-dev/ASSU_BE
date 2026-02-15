@@ -2,7 +2,6 @@ package com.assu.server.domain.mapping.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.mapping.converter.StudentAdminConverter;
 import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.mapping.repository.StudentAdminRepository;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -33,7 +32,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         Admin admin = getAdminOrThrow(memberId);
         Long total = studentAdminRepository.countAllByAdminId(memberId);
 
-        return StudentAdminConverter.countAdminAuthDTO(memberId, total, admin.getName());
+        return StudentAdminResponseDTO.CountAdminAuthResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
@@ -45,7 +44,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
 
-        return StudentAdminConverter.newCountAdminResponseDTO(memberId, total, admin.getName());
+        return StudentAdminResponseDTO.NewCountAdminResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
@@ -58,7 +57,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
 
         Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
 
-        return StudentAdminConverter.countUsagePersonDTO(memberId, total, admin.getName());
+        return StudentAdminResponseDTO.CountUsagePersonResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
@@ -73,13 +72,12 @@ public class StudentAdminServiceImpl implements StudentAdminService {
             throw new DatabaseException(ErrorStatus.NO_USAGE_DATA);
         }
 
-        // record의 accessor 메서드 사용 (.paperId())
         StudentAdminResponseDTO.StoreUsageWithPaper top = storeUsages.get(0);
 
         Paper paper = paperRepository.findById(top.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE));
 
-        return StudentAdminConverter.countUsageResponseDTO(admin, paper, top.usageCount());
+        return StudentAdminResponseDTO.CountUsageResponseDTO.from(admin, paper, top.usageCount());
     }
 
     @Override
@@ -91,10 +89,9 @@ public class StudentAdminServiceImpl implements StudentAdminService {
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
         if (storeUsages.isEmpty()) {
-            return StudentAdminConverter.countUsageListResponseDTO(List.of());
+            return StudentAdminResponseDTO.CountUsageListResponseDTO.from(List.of());
         }
 
-        // Paper 정보 일괄 조회로 N+1 문제 해결
         List<Long> paperIds = storeUsages.stream()
                 .map(StudentAdminResponseDTO.StoreUsageWithPaper::paperId)
                 .toList();
@@ -102,15 +99,15 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         Map<Long, Paper> paperMap = paperRepository.findAllById(paperIds).stream()
                 .collect(Collectors.toMap(Paper::getId, paper -> paper));
 
-        var items = storeUsages.stream().map(row -> {
+        List<StudentAdminResponseDTO.CountUsageResponseDTO> items = storeUsages.stream().map(row -> {
             Paper paper = paperMap.get(row.paperId());
             if (paper == null) {
                 throw new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE);
             }
-            return StudentAdminConverter.countUsageResponseDTO(admin, paper, row.usageCount());
+            return StudentAdminResponseDTO.CountUsageResponseDTO.from(admin, paper, row.usageCount());
         }).toList();
 
-        return StudentAdminConverter.countUsageListResponseDTO(items);
+        return StudentAdminResponseDTO.CountUsageListResponseDTO.from(items);
     }
 
     private Admin getAdminOrThrow(Long adminId) {
