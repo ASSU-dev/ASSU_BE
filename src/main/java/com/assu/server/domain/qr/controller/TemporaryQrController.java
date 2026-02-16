@@ -63,16 +63,19 @@ public class TemporaryQrController {
 				"\n**Response:**\n" +
 				"  - `adminName` (String): 학생회(관리자) 이름- 만약 앱 리뷰인 경우 \"\" 와 같이 들어가게 됨\n" +
 				"  - `sort` (Enum): 적립 방식 (REVIEW/SUGGEST)\n" +
+				"  - `createdAt` (String): 적립 일시\n" +
 				"\n**Response Example:**\n" +
 				"```json\n" +
 				"[\n" +
 				"  {\n" +
 				"    \"adminName\": \"총학생회\",\n" +
 				"    \"sort\": \"SUGGEST\"\n" +
+				"    \"createdAt\": \"2026-02-03\"\n" +
 				"  },\n" +
 				"  {\n" +
 				"    \"adminName\": \"\",\n" +
 				"    \"sort\": \"REVIEW\"\n" +
+				"    \"createdAt\": \"2026-02-03\"\n" +
 				"  }\n" +
 				"]\n" +
 				"```\n" +
