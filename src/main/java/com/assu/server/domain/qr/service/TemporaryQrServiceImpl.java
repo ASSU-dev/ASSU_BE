@@ -56,7 +56,8 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 			.stream()
 			.map(data -> new TemporaryQrResponseDTO(
 				data.getAdminName(),
-				data.getSort()
+				data.getSort(),
+				data.getCreatedAt().toString()
 			))
 			.collect(Collectors.toList());
 

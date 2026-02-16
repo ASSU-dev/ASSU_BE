@@ -1,6 +1,5 @@
 package com.assu.server.domain.qr.dto;
 
-import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.qr.entity.Qr;
 import com.assu.server.domain.qr.entity.SortByMethod;
 
