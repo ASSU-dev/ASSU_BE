@@ -61,4 +61,18 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                                            @Param("status") ActivationStatus status);
 
     List<Paper> findByStoreIdAndAdminIdAndIsActivated(Long storeId, Long adminId, ActivationStatus isActivated);
+
+    // PaperRepository.java에 추가
+    @Query("""
+    SELECT p
+    FROM Paper p
+    LEFT JOIN FETCH p.admin a
+    WHERE p.store.id IN :storeIds
+      AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+      AND p.partnershipPeriodStart <= CURRENT_DATE
+      AND p.partnershipPeriodEnd >= CURRENT_DATE
+    ORDER BY p.id DESC
+""")
+    List<Paper> findLatestPapersByStoreIds(@Param("storeIds") List<Long> storeIds);
+
 }
