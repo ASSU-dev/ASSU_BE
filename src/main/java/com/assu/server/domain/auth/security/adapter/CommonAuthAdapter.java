@@ -1,22 +1,27 @@
 package com.assu.server.domain.auth.security.adapter;
 
-import com.assu.server.domain.auth.entity.AuthRealm;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Component
 @RequiredArgsConstructor
 public class CommonAuthAdapter implements RealmAuthAdapter {
+
     private final CommonAuthRepository commonAuthRepository;
-    private final PasswordEncoder passwordEncoder; // BCrypt
+    private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public boolean supports(AuthRealm realm) {
@@ -33,7 +38,7 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(ca.getEmail())
-                .password(ca.getPassword()) // BCrypt 해시
+                .password(ca.getHashedPassword()) // BCrypt 해시
                 .authorities(authority)
                 .accountExpired(false).accountLocked(false).credentialsExpired(false)
                 .disabled(!enabled)
@@ -46,10 +51,13 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER))
                 .getMember();
 
-        // 탈퇴된 회원이 다시 로그인하면 복구
+        CommonAuth commonAuth = member.getCommonAuth();
+        commonAuth.setLastLoginAt(LocalDateTime.now());
+        commonAuthRepository.save(commonAuth);
+
         if (member.getDeletedAt() != null) {
             member.setDeletedAt(null);
-            commonAuthRepository.save(member.getCommonAuth());
+            memberRepository.save(member);
         }
 
         return member;
@@ -65,9 +73,10 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
                 CommonAuth.builder()
                         .member(member)
                         .email(email)
-                        .password(hash)
-                        .isEmailVerified(false)
-                        .build());
+                        .hashedPassword(hash)
+                        .lastLoginAt(LocalDateTime.now())
+                        .build()
+        );
     }
 
     @Override

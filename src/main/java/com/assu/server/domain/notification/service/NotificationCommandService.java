@@ -18,4 +18,5 @@ public interface NotificationCommandService {
     void sendPartnerSuggestion(Long receiverId, Long suggestionId);
     void sendOrder(Long receiverId, Long orderId, String tableNum, String paperContent);
     void sendPartnerProposal(Long receiverId, Long proposalId, String partnerName);
+    void sendStamp(Long receiverId);
 }

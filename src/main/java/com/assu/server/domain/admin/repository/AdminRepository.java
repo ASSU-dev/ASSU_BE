@@ -76,6 +76,4 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     List<Admin> searchAdminByKeywordWithMember(
             @Param("keyword") String keyword
     );
-
-	Optional<Admin> findById(Long id);
 }

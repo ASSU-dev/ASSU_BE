@@ -1,12 +1,14 @@
 package com.assu.server.domain.auth.service;
 
-import com.assu.server.domain.auth.dto.login.CommonLoginRequest;
-import com.assu.server.domain.auth.dto.login.LoginResponse;
-import com.assu.server.domain.auth.dto.login.RefreshResponse;
-import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayload;
+import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
+import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
+import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
+import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
 
 public interface LoginService {
-    LoginResponse loginCommon(CommonLoginRequest request);
-    LoginResponse loginSsuStudent(StudentTokenAuthPayload request);
-    RefreshResponse refresh(String refreshToken);
+    LoginResponseDTO loginCommon(CommonLoginRequestDTO request);
+
+    LoginResponseDTO loginSsuStudent(StudentTokenAuthPayloadDTO request);
+
+    RefreshResponseDTO refresh(String refreshToken);
 }

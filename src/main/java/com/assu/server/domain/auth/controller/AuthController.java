@@ -1,24 +1,24 @@
 package com.assu.server.domain.auth.controller;
 
-import com.assu.server.domain.auth.dto.login.CommonLoginRequest;
-import com.assu.server.domain.auth.dto.login.LoginResponse;
-import com.assu.server.domain.auth.dto.login.RefreshResponse;
-import com.assu.server.domain.auth.dto.phone.PhoneAuthRequestDTO;
-import com.assu.server.domain.auth.dto.signup.AdminSignUpRequest;
-import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequest;
-import com.assu.server.domain.auth.dto.signup.SignUpResponse;
-import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequest;
-import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayload;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthRequest;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthResponse;
+import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
+import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
+import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
+import com.assu.server.domain.auth.dto.phone.PhoneAuthSendRequestDTO;
+import com.assu.server.domain.auth.dto.phone.PhoneAuthVerifyRequestDTO;
+import com.assu.server.domain.auth.dto.signup.AdminSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.signup.SignUpResponseDTO;
+import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.dto.email.EmailVerificationCheckRequestDTO;
 import com.assu.server.domain.auth.service.*;
 import com.assu.server.domain.user.entity.enums.University;
-import com.assu.server.domain.auth.dto.verification.VerificationRequestDTO;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -57,9 +57,19 @@ public class AuthController {
     )
     @PostMapping("/phone-verification/check-and-send")
     public BaseResponse<Void> checkPhoneAvailabilityAndSendAuthNumber(
-            @RequestBody @Valid PhoneAuthRequestDTO.PhoneAuthSendRequest request
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "휴대폰 인증번호 발송 요청",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PhoneAuthSendRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            PhoneAuthSendRequestDTO request
     ) {
-        phoneAuthService.checkAndSendAuthNumber(request.getPhoneNumber());
+        phoneAuthService.checkAndSendAuthNumber(request.phoneNumber());
         return BaseResponse.onSuccess(SuccessStatus.SEND_AUTH_NUMBER_SUCCESS, null);
     }
 
@@ -76,16 +86,27 @@ public class AuthController {
     )
     @PostMapping("/phone-verification/verify")
     public BaseResponse<Void> checkAuthNumber(
-            @RequestBody @Valid PhoneAuthRequestDTO.PhoneAuthVerifyRequest request
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "휴대폰 인증번호 검증 요청",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PhoneAuthVerifyRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            PhoneAuthVerifyRequestDTO request
     ) {
         phoneAuthService.verifyAuthNumber(
-                request.getPhoneNumber(),
-                request.getAuthNumber()
+                request.phoneNumber(),
+                request.authNumber()
         );
         return BaseResponse.onSuccess(SuccessStatus.VERIFY_AUTH_NUMBER_SUCCESS, null);
     }
 
-    @Operation(summary = "이메일 형식 및 중복가입 확인 API",
+    @Operation(
+            summary = "이메일 형식 및 중복가입 확인 API",
             description = "# [v1.0 (2025-09-18)](https://clumsy-seeder-416.notion.site/2551197c19ed802d8f6dd373dd045f3a?source=copy_link)\n" +
                     "- 입력한 이메일이 이미 가입된 사용자가 있는지 확인합니다.\n" +
                     "- 중복된 이메일이 있으면 에러를 반환합니다.\n" +
@@ -93,10 +114,22 @@ public class AuthController {
                     "  - `email` (String, required): 확인할 이메일 주소\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 사용 가능 메시지 반환\n" +
-                    "  - 중복 시 404(NOT_FOUND)와 에러 메시지 반환")
+                    "  - 중복 시 404(NOT_FOUND)와 에러 메시지 반환"
+    )
     @PostMapping("/email-verification/check")
     public BaseResponse<Void> checkEmailAvailability(
-            @RequestBody @Valid VerificationRequestDTO.EmailVerificationCheckRequest request) {
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "이메일 중복 확인 요청",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = EmailVerificationCheckRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            EmailVerificationCheckRequestDTO request
+    ) {
         emailAuthService.checkEmailAvailability(request);
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
@@ -126,14 +159,24 @@ public class AuthController {
                     "    - `name` (String): 학생 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
                     "    - `department` (String): 단과대 (한글명)\n" +
-                    "    - `major` (String): 전공/학과 (한글명)")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(schema = @Schema(implementation = StudentTokenSignUpRequest.class)))
+                    "    - `major` (String): 전공/학과 (한글명)"
+    )
     @PostMapping(value = "/students/signup", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public BaseResponse<SignUpResponse> signupStudent(
-            @Valid @RequestBody StudentTokenSignUpRequest request
+    public BaseResponse<SignUpResponseDTO> signupStudent(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "JSON 형식의 학생 유저 가입 정보",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = StudentTokenSignUpRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            StudentTokenSignUpRequestDTO request
     ) {
-        SignUpResponse response;
-        if(request.getStudentTokenAuth().getUniversity().equals(University.SSU)){
+        SignUpResponseDTO response;
+        if(request.studentTokenAuth().university().equals(University.SSU)){
             response = signUpService.signupSsuStudent(request);
         } else {
             response = null;
@@ -141,7 +184,8 @@ public class AuthController {
         return BaseResponse.onSuccess(SuccessStatus._OK, response);
     }
 
-    @Operation(summary = "제휴업체 회원가입 API",
+    @Operation(
+            summary = "제휴업체 회원가입 API",
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `payload`(JSON, PartnerSignUpRequest) + `licenseImage`(파일, 사업자등록증).\n" +
@@ -165,18 +209,37 @@ public class AuthController {
                     "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 업체명\n" +
-                    "    - `university`, `department`, `major`: null (Partner는 해당 없음)")
+                    "    - `university`, `department`, `major`: null (Partner는 해당 없음)"
+    )
     @PostMapping(value = "/partners/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BaseResponse<SignUpResponse> signupPartner(
-            @Valid @RequestPart("request") @Parameter(description = "JSON 형식의 제휴업체 가입 정보",
-                    // 'request' 파트의 content type을 명시적으로 지정
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PartnerSignUpRequest.class))) PartnerSignUpRequest request,
-
-            @RequestPart("licenseImage") @Parameter(description = "사업자등록증 이미지 파일 (Multipart Part)", required = true, content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE, schema = @Schema(type = "string", format = "binary"))) MultipartFile licenseImage) {
+    public BaseResponse<SignUpResponseDTO> signupPartner(
+            @RequestPart("request")
+            @Parameter(
+                    description = "JSON 형식의 제휴업체 가입 정보",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PartnerSignUpRequestDTO.class)
+                    )
+            )
+            @Valid
+            PartnerSignUpRequestDTO request,
+            @RequestPart("licenseImage")
+            @Parameter(
+                    description = "사업자등록증 이미지 파일",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type = "string", format = "binary")
+                    )
+            )
+            MultipartFile licenseImage
+    ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupPartner(request, licenseImage));
     }
 
-    @Operation(summary = "관리자 회원가입 API",
+    @Operation(
+            summary = "관리자 회원가입 API",
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `payload`(JSON, AdminSignUpRequest) + `signImage`(파일, 신분증).\n" +
@@ -204,30 +267,38 @@ public class AuthController {
                     "    - `name` (String): 단체명/관리자 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
                     "    - `department` (String): 단과대 (한글명)\n" +
-                    "    - `major` (String): 전공/학과 (한글명)")
+                    "    - `major` (String): 전공/학과 (한글명)"
+    )
     @PostMapping(value = "/admins/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BaseResponse<SignUpResponse> signupAdmin(
-            @Valid @RequestPart("request")
+    public BaseResponse<SignUpResponseDTO> signupAdmin(
+            @RequestPart("request")
             @Parameter(
                     description = "JSON 형식의 관리자 가입 정보",
-                    // 'request' 파트의 content type을 명시적으로 지정
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = AdminSignUpRequest.class))
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = AdminSignUpRequestDTO.class)
+                    )
             )
-            AdminSignUpRequest request,
+            @Valid
+            AdminSignUpRequestDTO request,
             @RequestPart("signImage")
             @Parameter(
                     description = "인감 이미지 파일 (Multipart Part)",
                     required = true,
-                    content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
-                            schema = @Schema(type = "string", format = "binary"))
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type = "string", format = "binary")
+                    )
             )
-            MultipartFile signImage) {
+            MultipartFile signImage
+    ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupAdmin(request, signImage));
     }
 
-    @Operation(summary = "공통 로그인 API"
-            , description = "# [v1.1 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed811c961be6a474de0e50)\n" +
+    @Operation(
+            summary = "공통 로그인 API",
+            description = "# [v1.1 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed811c961be6a474de0e50)\n" +
                     "- `application/json`로 호출합니다.\n" +
                     "- 바디: `LoginRequest(email, password)`.\n" +
                     "- 처리: 자격 증명 검증 후 Access/Refresh 토큰 발급 및 저장.\n" +
@@ -244,17 +315,28 @@ public class AuthController {
                     "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 업체명/단체명/관리자 이름\n" +
-                    "    - `university`, `department`, `major`: Admin의 경우 한글명, Partner의 경우 null")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(schema = @Schema(implementation = CommonLoginRequest.class)))
+                    "    - `university`, `department`, `major`: Admin의 경우 한글명, Partner의 경우 null"
+    )
     @PostMapping(value = "/commons/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public BaseResponse<LoginResponse> loginCommon(
-            @RequestBody @Valid CommonLoginRequest request
+    public BaseResponse<LoginResponseDTO> loginCommon(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "공통 로그인 요청 (파트너/관리자)",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = CommonLoginRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            CommonLoginRequestDTO request
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, loginService.loginCommon(request));
     }
 
-    @Operation(summary = "학생 로그인 API"
-                , description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80f6b495fa37f8c084a8)\n" +
+    @Operation(
+            summary = "학생 로그인 API",
+            description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80f6b495fa37f8c084a8)\n" +
                     "- `application/json`로 호출합니다.\n" +
                     "- 바디: `StudentTokenLoginRequest(sToken, sIdno, university)`.\n" +
                     "- 처리: 유세인트 인증 → 기존 회원 확인 → JWT 토큰 발급.\n" +
@@ -274,14 +356,24 @@ public class AuthController {
                     "    - `name` (String): 학생 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
                     "    - `department` (String): 단과대 (한글명)\n" +
-                    "    - `major` (String): 전공/학과 (한글명)")
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(schema = @Schema(implementation = StudentTokenAuthPayload.class)))
+                    "    - `major` (String): 전공/학과 (한글명)"
+    )
     @PostMapping(value = "/students/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public BaseResponse<LoginResponse> loginStudent(
-            @RequestBody @Valid StudentTokenAuthPayload request
+    public BaseResponse<LoginResponseDTO> loginStudent(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "학생 토큰 로그인 요청",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = StudentTokenAuthPayloadDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            StudentTokenAuthPayloadDTO request
     ) {
-        LoginResponse response;
-        if(request.getUniversity().equals(University.SSU)){
+        LoginResponseDTO response;
+        if(request.university().equals(University.SSU)){
             response = loginService.loginSsuStudent(request);
         } else {
             response = null;
@@ -301,18 +393,23 @@ public class AuthController {
                     "  - `RefreshToken` (String, required): 리프레시 토큰\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 `RefreshResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `RefreshResponse` 객체 반환\n" +
                     "  - `accessToken` (String): 새로운 액세스 토큰\n" +
                     "  - `refreshToken` (String): 새로운 리프레시 토큰\n" +
-                    "  - `expiresAt` (LocalDateTime): 새 토큰 만료 시각\n" +
-                    "  - 성공 시 200(OK)과 새 토큰/만료시각 반환."
+                    "  - `expiresAt` (LocalDateTime): 새 토큰 만료 시각"
     )
-    @Parameters({
-            @Parameter(name = "Authorization", description = "Access Token (만료 허용). 형식: `Bearer <token>`", required = true, in = ParameterIn.HEADER, schema = @Schema(type = "string")),
-            @Parameter(name = "RefreshToken", description = "Refresh Token", required = true, in = ParameterIn.HEADER, schema = @Schema(type = "string"))
-    })
     @PostMapping("/tokens/refresh")
-    public BaseResponse<RefreshResponse> refreshToken(
-            @RequestHeader("RefreshToken") String refreshToken) {
+    public BaseResponse<RefreshResponseDTO> refreshToken(
+            @Parameter(
+                    name = "RefreshToken",
+                    description = "Refresh Token",
+                    required = true,
+                    in = ParameterIn.HEADER,
+                    schema = @Schema(type = "string")
+            )
+            @RequestHeader("RefreshToken")
+            String refreshToken
+    ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, loginService.refresh(refreshToken));
     }
 
@@ -326,16 +423,20 @@ public class AuthController {
     )
     @PostMapping("/logout")
     public BaseResponse<Void> logout(
+            @Parameter(
+                    name = "Authorization",
+                    description = "Access Token. 형식: `Bearer <token>`",
+                    required = true,
+                    in = ParameterIn.HEADER,
+                    schema = @Schema(type = "string")
+            )
             @RequestHeader("Authorization")
-            @Parameter(name = "Authorization", description = "Access Token. 형식: `Bearer <token>`", required = true,
-                            in = ParameterIn.HEADER, schema = @Schema(type = "string"))
             String authorization
     ) {
         logoutService.logout(authorization);
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 
-    // 숭실대 인증 및 개인정보 조회
     @Operation(
             summary = "숭실대 유세인트 인증 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/23a1197c19ed808d9266e641e5c4ea14?source=copy_link)\n" +
@@ -347,15 +448,21 @@ public class AuthController {
                     "  3) 유세인트 포털 페이지 접근 및 HTML 파싱\n" +
                     "  4) 이름, 학번, 소속, 학적 상태, 학년/학기 정보 추출\n" +
                     "  5) 소속 문자열을 전공 Enum(`Major`)으로 매핑\n" +
-                    "  6) 인증 결과를 `USaintAuthResponse` DTO로 반환\n"
-    )
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            required = true,
-            content = @Content(schema = @Schema(implementation = USaintAuthRequest.class))
+                    "  6) 인증 결과를 `USaintAuthResponse` DTO로 반환"
     )
     @PostMapping(value = "/students/ssu-verify", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public BaseResponse<USaintAuthResponse> ssuAuth(
-            @RequestBody @Valid USaintAuthRequest request
+    public BaseResponse<USaintAuthResponseDTO> ssuAuth(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "유세인트 인증 요청",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = USaintAuthRequestDTO.class)
+                    )
+            )
+            @RequestBody
+            @Valid
+            USaintAuthRequestDTO request
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, ssuAuthService.uSaintAuth(request));
     }
@@ -374,13 +481,17 @@ public class AuthController {
     )
     @PatchMapping("/withdraw")
     public BaseResponse<Void> withdrawMember(
+            @Parameter(
+                    name = "Authorization",
+                    description = "Access Token. 형식: `Bearer <token>`",
+                    required = true,
+                    in = ParameterIn.HEADER,
+                    schema = @Schema(type = "string")
+            )
             @RequestHeader("Authorization")
-            @Parameter(name = "Authorization", description = "Access Token. 형식: `Bearer <token>`", required = true,
-                    in = ParameterIn.HEADER, schema = @Schema(type = "string"))
             String authorization
     ) {
         withdrawalService.withdrawCurrentUser(authorization);
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
-
 }

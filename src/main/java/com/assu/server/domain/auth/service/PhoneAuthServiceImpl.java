@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
@@ -24,13 +25,14 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final Duration AUTH_CODE_TTL = Duration.ofMinutes(5); // 인증번호 5분 유효
 
     @Override
+    @Transactional(readOnly = true)
     public void checkAndSendAuthNumber(String phoneNumber) {
         boolean exists = memberRepository.existsByPhoneNum(phoneNumber);
 
         if (exists) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
-
+        
         String authNumber = RandomNumberUtil.generateSixDigit();
         redisTemplate.opsForValue().set(phoneNumber, authNumber, AUTH_CODE_TTL);
 
@@ -40,6 +42,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         // 실패 처리
         if (!response.getResult_code().equals("1")) {
+            redisTemplate.delete(phoneNumber);
             throw new CustomAuthException(ErrorStatus.FAILED_TO_SEND_SMS);
         }
     }
@@ -53,7 +56,6 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
             throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
         }
 
-        // 인증 성공 시 Redis에서 삭제(Optional)
         redisTemplate.delete(phoneNumber);
     }
 }

@@ -54,13 +54,13 @@ public class StudentController {
 
 	@GetMapping("/usage")
 	@Operation(
-		summary = "월별 제휴 사용내역 조회 API",
+		summary = "리뷰되지 않은 제휴 사용내역 조회 API",
 		description = "# [v1.0 (2025-09-10)](https://www.notion.so/_-24c1197c19ed809a9d81e8f928e8355f?source=copy_link)\n" +
 			"- `multipart/form-data`로 호출합니다.\n" +
 			"\n**Request:**\n" +
 			"  - page : (Int, required) 이상의 정수 \n" +
 			"  - size : (Int, required) 기본 값 10 \n" +
-			"  - sort : (String, required) createdAt,desc 문자열로 입력\n" +
+			"  - sort : (String, required) createdAt/desc 문자열로 입력\n" +
 			"\n**Response:**\n" +
 			"  - 성공 시 리뷰 되지 않은 partnership Usage 내역 반환 \n"+
 			"  - StudentResponseTO.UsageDetailDTO 객체 반환 \n"
@@ -76,7 +76,7 @@ public class StudentController {
 	}
 
 	@Operation(
-		summary = "사용자 stamp 개수 조회 API",
+		summary = "사용자 스탬프 개수 조회 API",
 		description = "# [v1.0 (2025-09-09)](https://www.notion.so/2691197c19ed805c980dd546adee9301?source=copy_link)\n" +
 			"- `multipart/form-data`로 호출합니다.\n" +
 			"- login 필요 "+

@@ -11,10 +11,19 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
-import com.assu.server.domain.partnership.converter.PartnershipConverter;
+import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
+import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
@@ -103,15 +112,15 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional
-    public PartnershipResponseDTO.WritePartnershipResponseDTO updatePartnership(
-            PartnershipRequestDTO.WritePartnershipRequestDTO request,
+    public WritePartnershipResponseDTO updatePartnership(
+            WritePartnershipRequestDTO request,
             Long memberId
     ) {
         if (request == null || memberId == null) {
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
         }
 
-        Paper paper = paperRepository.findById(request.getPaperId())
+        Paper paper = paperRepository.findById(request.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
 
         Partner partner = partnerRepository.findById(memberId)
@@ -123,19 +132,19 @@ public class PartnershipServiceImpl implements PartnershipService {
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-        PartnershipConverter.updatePaperFromDto(paper, request);
+        request.updatePaper(paper);
 
-        List<PaperContent> existingContents = paperContentRepository.findByPaperId(request.getPaperId());
+        List<PaperContent> existingContents = paperContentRepository.findByPaperId(request.paperId());
         if (!existingContents.isEmpty()) {
             List<Long> contentIds = existingContents.stream().map(PaperContent::getId).toList();
             goodsRepository.deleteAllByContentIds(contentIds);
             paperContentRepository.deleteAll(existingContents);
         }
 
-        List<PaperContent> newContents = PartnershipConverter.toPaperContents(request, paper);
+        List<PaperContent> newContents = request.toPaperContents(paper);
         newContents = newContents.isEmpty() ? newContents : paperContentRepository.saveAll(newContents);
 
-        List<List<Goods>> requestGoodsBatches = PartnershipConverter.toGoodsBatches(request);
+        List<List<Goods>> requestGoodsBatches = request.toGoodsBatches();
 
         List<List<Goods>> attachedGoodsBatches = new ArrayList<>();
         List<Goods> toPersist = new ArrayList<>();
@@ -158,12 +167,12 @@ public class PartnershipServiceImpl implements PartnershipService {
             goodsRepository.saveAll(toPersist);
         }
 
-        return PartnershipConverter.writePartnershipResultDTO(paper, newContents, attachedGoodsBatches);
+        return WritePartnershipResponseDTO.of(paper, newContents, attachedGoodsBatches);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long adminId) {
+    public List<WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long adminId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all
                 ? paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, sort)
@@ -178,7 +187,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PartnershipResponseDTO.WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long partnerId) {
+    public List<WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long partnerId) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
         List<Paper> papers = all
                 ? paperRepository.findByPartner_IdAndIsActivated(partnerId, ActivationStatus.ACTIVE, sort)
@@ -193,7 +202,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public PartnershipResponseDTO.GetPartnershipDetailResponseDTO getPartnership(Long partnershipId) {
+    public PartnershipDetailResponseDTO getPartnership(Long partnershipId) {
         Paper paper = paperRepository.findById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
 
@@ -203,32 +212,32 @@ public class PartnershipServiceImpl implements PartnershipService {
                 .map(pc -> pc.getGoods() == null ? Collections.<Goods>emptyList() : pc.getGoods())
                 .toList();
 
-        return PartnershipConverter.getPartnershipResultDTO(paper, contents, goodsBatches);
+        return PartnershipDetailResponseDTO.of(paper, contents, goodsBatches);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PartnershipResponseDTO.SuspendedPaperDTO> getSuspendedPapers(Long adminId) {
+    public List<SuspendedPaperResponseDTO> getSuspendedPapers(Long adminId) {
         List<Paper> suspendedPapers =
                 paperRepository.findAllSuspendedByAdminWithNoPartner(ActivationStatus.SUSPEND, adminId);
 
         return suspendedPapers.stream()
-                .map(PartnershipConverter::toSuspendedPaperDTO)
+                .map(SuspendedPaperResponseDTO::of)
                 .toList();
     }
 
     @Override
     @Transactional
-    public PartnershipResponseDTO.UpdateResponseDTO updatePartnershipStatus(Long partnershipId, PartnershipRequestDTO.UpdateRequestDTO request) {
+    public PartnershipStatusUpdateResponseDTO updatePartnershipStatus(Long partnershipId, PartnershipStatusUpdateRequestDTO request) {
         Paper paper = paperRepository.findById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
 
-        if(request == null || request.getStatus() == null){
+        if(request == null || request.status() == null){
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
         }
 
         ActivationStatus prev = paper.getIsActivated();
-        ActivationStatus next = parseStatus(request.getStatus());
+        ActivationStatus next = parseStatus(request.status());
 
         paper.setIsActivated(next);
 
@@ -265,13 +274,13 @@ public class PartnershipServiceImpl implements PartnershipService {
             notificationService.sendChat(partnerId, chattingRoom.getId(), admin.getName(), guideMessage);
         }
 
-        return PartnershipConverter.toUpdateResponseDTO(paper, prev, next);
+        return PartnershipStatusUpdateResponseDTO.of(paper, prev, next);
     }
 
     @Override
     @Transactional
-    public PartnershipResponseDTO.ManualPartnershipResponseDTO createManualPartnership(
-            PartnershipRequestDTO.ManualPartnershipRequestDTO request,
+    public ManualPartnershipResponseDTO createManualPartnership(
+            ManualPartnershipRequestDTO request,
             Long adminId,
             MultipartFile contractImage) {
 
@@ -281,10 +290,10 @@ public class PartnershipServiceImpl implements PartnershipService {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
-        String address = pickDisplayAddress(request.getSelectedPlace().getRoadAddress(), request.getSelectedPlace().getAddress());
+        String address = pickDisplayAddress(request.selectedPlace().getRoadAddress(), request.selectedPlace().getAddress());
 
         Store store = storeRepository
-                .findByNameAndAddressAndDetailAddress(request.getStoreName(), address, request.getStoreDetailAddress())
+                .findByNameAndAddressAndDetailAddress(request.storeName(), address, request.storeDetailAddress())
                 .orElse(null);
 
         boolean created = false;
@@ -292,9 +301,9 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         if (store == null) {
             store = Store.builder()
-                    .name(request.getStoreName())
+                    .name(request.storeName())
                     .address(address)
-                    .detailAddress(request.getStoreDetailAddress())
+                    .detailAddress(request.storeDetailAddress())
                     .rate(0)
                     .isActivate(ActivationStatus.SUSPEND)
                     .build();
@@ -305,12 +314,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             reactivated = true;
         }
 
-        Paper paper = PartnershipConverter.toPaperForManual(
-                admin, store,
-                request.getPartnershipPeriodStart(),
-                request.getPartnershipPeriodEnd(),
-                ActivationStatus.SUSPEND
-        );
+        Paper paper = request.toPaper(admin, store, ActivationStatus.SUSPEND);
         paper = paperRepository.save(paper);
 
         if (contractImage != null && !contractImage.isEmpty()) {
@@ -325,15 +329,15 @@ public class PartnershipServiceImpl implements PartnershipService {
         }
 
         List<PaperContent> savedContents = new ArrayList<>();
-        if (request.getOptions() != null && !request.getOptions().isEmpty()) {
-            List<PaperContent> contents = PartnershipConverter.toPaperContentsForManual(request.getOptions(), paper);
+        if (request.options() != null && !request.options().isEmpty()) {
+            List<PaperContent> contents = request.toPaperContents(paper);
             savedContents = paperContentRepository.saveAll(contents);
 
             List<Goods> toPersist = new ArrayList<>();
             for (int i = 0; i < savedContents.size(); i++) {
-                var opt = request.getOptions().get(i);
+                var opt = request.options().get(i);
                 var content = savedContents.get(i);
-                var batch = PartnershipConverter.toGoodsForContent(opt, content);
+                var batch = opt.toGoods(content);
                 if (!batch.isEmpty()) toPersist.addAll(batch);
             }
             if (!toPersist.isEmpty()) goodsRepository.saveAll(toPersist);
@@ -344,26 +348,26 @@ public class PartnershipServiceImpl implements PartnershipService {
                 .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
                 .toList();
 
-        var partnership = PartnershipConverter.writePartnershipResultDTO(paper, contentsWithGoods, goodsBatches);
+        var partnership = WritePartnershipResponseDTO.of(paper, contentsWithGoods, goodsBatches);
 
         String url = (paper.getContractImageKey() == null)
                 ? null
-                :amazonS3Manager.generatePresignedUrl(paper.getContractImageKey());
+                : amazonS3Manager.generatePresignedUrl(paper.getContractImageKey());
 
-        return PartnershipConverter.toManualPartnershipResponseDTO(store, created, reactivated, url, partnership);
+        return ManualPartnershipResponseDTO.of(store, created, reactivated, url, partnership);
     }
 
     @Override
     @Transactional
-    public PartnershipResponseDTO.CreateDraftResponseDTO createDraftPartnership(PartnershipRequestDTO.CreateDraftRequestDTO request, Long adminId) {
+    public PartnershipDraftResponseDTO createDraftPartnership(PartnershipDraftRequestDTO request, Long adminId) {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-        Partner partner = partnerRepository.findById(request.getPartnerId())
+        Partner partner = partnerRepository.findById(request.partnerId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-        Paper draftPaper = PartnershipConverter.toDraftPaperEntity(admin, partner, store);
+        Paper draftPaper = request.toDraftPaper(admin, partner, store);
         paperRepository.save(draftPaper);
 
         notificationService.sendPartnerProposal(partner.getId(), draftPaper.getId(), admin.getName());
@@ -383,7 +387,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         chatService.sendGuideMessage(guideMessageRequest);
         notificationService.sendChat(partner.getId(), chattingRoom.getId(), admin.getName(), guideMessage);
 
-        return PartnershipConverter.toCreateDraftResponseDTO(draftPaper);
+        return PartnershipDraftResponseDTO.of(draftPaper);
     }
 
     @Override
@@ -425,7 +429,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO checkPartnershipWithPartner(Long adminId, Long partnerId) {
+    public AdminPartnershipCheckResponseDTO checkPartnershipWithPartner(Long adminId, Long partnerId) {
 
         Partner partner = partnerRepository.findById(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
@@ -447,12 +451,12 @@ public class PartnershipServiceImpl implements PartnershipService {
             }
         }
 
-        return PartnershipConverter.toAdminPartnershipWithPartnerResponseDTO(partner, paperId, isPartnered, status);
+        return AdminPartnershipCheckResponseDTO.of(partner, paperId, isPartnered, status);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO checkPartnershipWithAdmin(Long partnerId, Long adminId) {
+    public PartnerPartnershipCheckResponseDTO checkPartnershipWithAdmin(Long partnerId, Long adminId) {
 
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
@@ -474,10 +478,10 @@ public class PartnershipServiceImpl implements PartnershipService {
             }
         }
 
-        return PartnershipConverter.toPartnerPartnershipWithAdminResponseDTO(admin, paperId, isPartnered, status);
+        return PartnerPartnershipCheckResponseDTO.of(admin, paperId, isPartnered, status);
     }
 
-    private List<PartnershipResponseDTO.WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {
+    private List<WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {
         if (papers == null || papers.isEmpty()) return List.of();
 
         List<Long> paperIds = papers.stream().map(Paper::getId).toList();
@@ -486,13 +490,13 @@ public class PartnershipServiceImpl implements PartnershipService {
         Map<Long, List<PaperContent>> byPaperId = allContents.stream()
                 .collect(Collectors.groupingBy(pc -> pc.getPaper().getId()));
 
-        List<PartnershipResponseDTO.WritePartnershipResponseDTO> result = new ArrayList<>(papers.size());
+        List<WritePartnershipResponseDTO> result = new ArrayList<>(papers.size());
         for (Paper p : papers) {
             List<PaperContent> contents = byPaperId.getOrDefault(p.getId(), List.of());
             List<List<Goods>> goodsBatches = contents.stream()
                     .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
                     .toList();
-            result.add(PartnershipConverter.writePartnershipResultDTO(p, contents, goodsBatches));
+            result.add(WritePartnershipResponseDTO.of(p, contents, goodsBatches));
         }
         return result;
     }

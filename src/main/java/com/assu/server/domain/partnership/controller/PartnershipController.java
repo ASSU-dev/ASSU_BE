@@ -17,9 +17,19 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
+import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.service.PartnershipService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -60,10 +70,10 @@ public class PartnershipController {
             "  - 실패: 적절한 에러 코드 및 메시지"
     )
 	public ResponseEntity<BaseResponse<Void>> finalPartnershipRequest(
-		@AuthenticationPrincipal PrincipalDetails pd,@RequestBody PartnershipFinalRequestDTO dto
+		@AuthenticationPrincipal PrincipalDetails pd, @RequestBody PartnershipFinalRequestDTO dto
 	) {
 
-		partnershipService.recordPartnershipUsage(dto,pd.getMember());
+		partnershipService.recordPartnershipUsage(dto, pd.getMember());
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.USER_PAPER_REQUEST_SUCCESS, null));
 	}
@@ -80,8 +90,8 @@ public class PartnershipController {
                     "  - 성공 시 200(OK)과 `CreateDraftResponse` 객체 반환.\n" +
                     "  - `paperId` (Long): 생성된 제안서 ID\n")
     @PostMapping("/proposal/draft")
-    public BaseResponse<PartnershipResponseDTO.CreateDraftResponseDTO> createDraftPartnership(
-            @RequestBody PartnershipRequestDTO.CreateDraftRequestDTO request,
+    public BaseResponse<PartnershipDraftResponseDTO> createDraftPartnership(
+            @RequestBody PartnershipDraftRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createDraftPartnership(request, pd.getId()));
@@ -153,8 +163,8 @@ public class PartnershipController {
                     "        - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "        - `goodsName` (String): 서비스 제공 항목명\n")
     @PostMapping(value = "/passivity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BaseResponse<PartnershipResponseDTO.ManualPartnershipResponseDTO> createManualPartnership(
-            @RequestPart("request") @Parameter PartnershipRequestDTO.ManualPartnershipRequestDTO request,
+    public BaseResponse<ManualPartnershipResponseDTO> createManualPartnership(
+            @RequestPart("request") @Parameter ManualPartnershipRequestDTO request,
             @RequestPart(value = "contractImage")
             @Parameter(
                     description = "계약서 이미지 파일",
@@ -214,8 +224,8 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @PatchMapping("/proposal")
-    public BaseResponse<PartnershipResponseDTO.WritePartnershipResponseDTO> updatePartnership(
-            @RequestBody PartnershipRequestDTO.WritePartnershipRequestDTO request,
+    public BaseResponse<WritePartnershipResponseDTO> updatePartnership(
+            @RequestBody WritePartnershipRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
     ){
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId()));
@@ -238,9 +248,9 @@ public class PartnershipController {
                     "  - `newStatus` (String): 제안서의 이전 상태\n"+
                     "  - `changedAt` (LocalDateTime): 상태 변경 시간\n")
     @PatchMapping("/{partnershipId}/status")
-    public BaseResponse<PartnershipResponseDTO.UpdateResponseDTO> updatePartnershipStatus(
+    public BaseResponse<PartnershipStatusUpdateResponseDTO> updatePartnershipStatus(
             @PathVariable("partnershipId") @Parameter(required = true) Long partnershipId,
-            @RequestBody PartnershipRequestDTO.UpdateRequestDTO request
+            @RequestBody PartnershipStatusUpdateRequestDTO request
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnershipStatus(partnershipId, request));
     }
@@ -274,7 +284,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/{partnershipId}")
-    public BaseResponse<PartnershipResponseDTO.GetPartnershipDetailResponseDTO> getPartnership(
+    public BaseResponse<PartnershipDetailResponseDTO> getPartnership(
             @PathVariable @Parameter(required = true) Long partnershipId
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getPartnership(partnershipId));
@@ -326,7 +336,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/admin")
-    public BaseResponse<List<PartnershipResponseDTO.WritePartnershipResponseDTO>> listForAdmin(
+    public BaseResponse<List<WritePartnershipResponseDTO>> listForAdmin(
             @RequestParam(name = "all", defaultValue = "false") boolean all,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -364,7 +374,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/partner")
-    public BaseResponse<List<PartnershipResponseDTO.WritePartnershipResponseDTO>> listForPartner(
+    public BaseResponse<List<WritePartnershipResponseDTO>> listForPartner(
             @RequestParam(name = "all", defaultValue = "false") boolean all,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -381,7 +391,7 @@ public class PartnershipController {
                     "  - `partnerName` (String): 제휴업체 이름\n"+
                     "  - `createdAt` (LocalDateTime): 제휴 생성 일자\n")
     @GetMapping("/suspended")
-    public BaseResponse<List<PartnershipResponseDTO.SuspendedPaperDTO>> suspendPartnership(
+    public BaseResponse<List<SuspendedPaperResponseDTO>> suspendPartnership(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getSuspendedPapers(pd.getId()));
@@ -403,7 +413,7 @@ public class PartnershipController {
                     "  - `partnerName` (String): 제휴업체 이름\n"+
                     "  - `partnerAddress` (String): 제휴업체 주소\n")
     @GetMapping("/check/admin/{partnerId}")
-    public BaseResponse<PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO> checkAdminPartnership(
+    public BaseResponse<AdminPartnershipCheckResponseDTO> checkAdminPartnership(
             @PathVariable @Parameter(required = true) Long partnerId,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -426,7 +436,7 @@ public class PartnershipController {
                     "  - `adminName` (String): 관리자 이름\n"+
                     "  - `adminAddress` (String): 관리자 주소\n")
     @GetMapping("/check/partner/{adminId}")
-    public BaseResponse<PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO> checkPartnerPartnership(
+    public BaseResponse<PartnerPartnershipCheckResponseDTO> checkPartnerPartnership(
             @PathVariable @Parameter(required = true) Long adminId,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {

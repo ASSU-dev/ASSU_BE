@@ -3,7 +3,6 @@ package com.assu.server.domain.auth.service;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 public class LogoutServiceImpl implements LogoutService {
 
     private final JwtUtil jwtUtil;
-    private final RedisTemplate<String,String> redisTemplate;
 
     @Override
     public void logout(String authorization) {

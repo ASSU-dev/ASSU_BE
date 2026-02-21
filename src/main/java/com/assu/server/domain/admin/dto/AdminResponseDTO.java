@@ -2,16 +2,17 @@ package com.assu.server.domain.admin.dto;
 
 import com.assu.server.domain.partner.entity.Partner;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 public record AdminResponseDTO (
         @Schema(description = "제휴업체 ID", example = "101")
-        Long partnerId,
+        @NotNull Long partnerId,
 
         @Schema(description = "제휴업체 이름", example = "역전할머니 맥주 숭실대점")
-        String partnerName,
+        @NotNull String partnerName,
 
         @Schema(description = "제휴업체 주소", example = "서울특별시 동작구")
-        String partnerAddress,
+        @NotNull String partnerAddress,
 
         @Schema(description = "제휴업체 상세주소", example = "2층 201호")
         String partnerDetailAddress,

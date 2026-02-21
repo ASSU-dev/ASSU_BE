@@ -116,7 +116,14 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     }
 
     @Override
+    public void sendStamp(Long receiverId) {
+        createAndQueue(receiverId, NotificationType.STAMP, 1L, Map.of());
+    }
+
+    @Override
     public void queue(QueueNotificationRequestDTO req) {
+        System.out.println("Queue called with type: " + req.type() + ", receiverId: " + req.receiverId());
+        
         if (req.type() == null) {
             throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
@@ -127,6 +134,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         final NotificationType type;
         try {
             type = NotificationType.valueOf(req.type().toUpperCase(Locale.ROOT));
+            System.out.println("Parsed type: " + type);
         } catch (IllegalArgumentException e) {
             throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
@@ -166,19 +174,28 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                 sendPartnerProposal(receiverId, proposalId, req.partner_name());
             }
 
+            case STAMP -> {
+                System.out.println("Calling sendStamp for receiverId: " + receiverId);
+                sendStamp(receiverId);
+            }
+
             default -> throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
         }
     }
 
     // Helper methods
     private Notification createNotification(Member member, NotificationType type, Long refId, Map<String, Object> ctx) {
+        String deeplink = refId != null 
+                ? "/" + type.name().toLowerCase() + "/" + refId
+                : "/" + type.name().toLowerCase();
+        
         return Notification.builder()
                 .receiver(member)
                 .type(type)
                 .refId(refId)
                 .title(getTitle(type))
                 .messagePreview(getPreview(type, ctx))
-                .deeplink("/" + type.name().toLowerCase() + "/" + refId)
+                .deeplink(deeplink)
                 .build();
     }
 
@@ -188,6 +205,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
             case ORDER -> "주문 알림";
             case PARTNER_SUGGESTION -> "제휴 건의";
             case PARTNER_PROPOSAL -> "제휴 제안";
+            case STAMP -> "스탬프 10개 달성! 이벤트 응모 완료 🎁";
             default -> "알림";
         };
     }
@@ -198,20 +216,10 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
             case ORDER -> ctx.get("table_num") + "번 테이블에서 주문";
             case PARTNER_SUGGESTION -> "새로운 제휴 건의가 도착했습니다";
             case PARTNER_PROPOSAL -> ctx.get("partner_name") + "에서 제휴 제안";
+            case STAMP -> "스탬프 10개가 모두 적립되어\n기프티콘 증정 이벤트에 자동으로 응모되었어요.";
             default -> "새로운 알림";
         };
     }
-
-    private Map<String, String> buildFcmData(Notification n) {
-        return Map.of(
-                "type", n.getType().name(),
-                "refId", String.valueOf(n.getRefId()),
-                "deeplink", n.getDeeplink() == null ? "" : n.getDeeplink(),
-                "notificationId", String.valueOf(n.getId())
-        );
-    }
-
-
 
     @Override
     public boolean isEnabled(Long memberId, NotificationType type) {
@@ -235,9 +243,11 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     }
 
     private Map<String, Boolean> buildToggleResult(Long memberId, UserRole role) {
-        EnumSet<NotificationType> visibleTypes = role == UserRole.ADMIN
-                ? EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL)
-                : EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
+        EnumSet<NotificationType> visibleTypes = switch(role) {
+            case ADMIN -> EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL);
+            case PARTNER -> EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
+            case STUDENT -> EnumSet.of(NotificationType.STAMP);
+        };
 
         Map<String, Boolean> result = new LinkedHashMap<>();
         visibleTypes.forEach(t -> result.put(t.name(), true));
@@ -250,4 +260,5 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
         return result;
     }
+
 }

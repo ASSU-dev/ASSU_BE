@@ -66,6 +66,46 @@ public interface PaperContentRepository extends JpaRepository<PaperContent, Long
             @Param("headcount") String headcount
     );
 
+    @Query(value = """
+WITH ranked_content AS (
+  SELECT pc.*,
+         ROW_NUMBER() OVER (
+           PARTITION BY p.store_id
+           ORDER BY
+             CASE pc.option_type
+               WHEN :service THEN 0 ELSE 1 END,
+             CASE pc.criterion_type
+               WHEN :price THEN 0
+               WHEN :headcount THEN 1
+               ELSE 2 END,
+             pc.updated_at DESC,
+             pc.id DESC
+         ) AS rn
+  FROM paper_content pc
+  JOIN paper p ON p.id = pc.paper_id
+  WHERE p.store_id IN :storeIds
+    AND p.id IN :userPaperIds  -- 대장님이 추가하신 핵심 조건!
+    AND p.is_activated = :active
+    AND CURRENT_DATE BETWEEN p.partnership_period_start AND p.partnership_period_end
+    AND (
+         (pc.option_type = :service AND
+           ((pc.criterion_type = :price AND pc.cost IS NOT NULL)
+         OR  (pc.criterion_type = :headcount AND pc.cost IS NOT NULL AND pc.people IS NOT NULL)))
+      OR (pc.option_type = :discount AND pc.discount IS NOT NULL)
+    )
+)
+SELECT * FROM ranked_content WHERE rn <= 2
+""", nativeQuery = true)
+    List<PaperContent> findLatestValidByStoreIdInNativeMax2(
+            @Param("storeIds") List<Long> storeIds,
+            @Param("active") String active,
+            @Param("service") String service,
+            @Param("discount") String discount,
+            @Param("price") String price,
+            @Param("headcount") String headcount,
+            @Param("userPaperIds") List<Long> userPaperIds // 수정된 부분: 이름과 타입 변경
+    );
+
     Optional<PaperContent> findTopByPaperIdOrderByIdDesc(Long paperId);
 
     @Query(value = """

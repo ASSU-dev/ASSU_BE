@@ -38,7 +38,7 @@ public class Admin {
     @Column(name = "detail", length = 255)
     private String detailAddress;
 
-    private String signUrl;
+    private String signImageUrl;
 
     private Boolean isSignVerified;
 
@@ -60,7 +60,7 @@ public class Admin {
     private double latitude;
     private double longitude;
 
-    public void setMember(Member member) {
+    public void updateMember(Member member) {
         this.member = member;
     }
 }

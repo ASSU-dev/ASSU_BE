@@ -1,8 +1,11 @@
 package com.assu.server.domain.map.controller;
 
 import com.assu.server.domain.common.enums.UserRole;
+import com.assu.server.domain.map.dto.AdminMapResponseDTO;
 import com.assu.server.domain.map.dto.MapRequestDTO;
-import com.assu.server.domain.map.dto.MapResponseDTO;
+import com.assu.server.domain.map.dto.PartnerMapResponseDTO;
+import com.assu.server.domain.map.dto.PlaceSuggestionDTO;
+import com.assu.server.domain.map.dto.StoreMapResponseDTO;
 import com.assu.server.domain.map.service.MapService;
 import com.assu.server.domain.map.service.PlaceSearchService;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -104,6 +107,19 @@ public class MapController {
     }
 
     @Operation(
+            summary = "주변 장소 조회 API",
+            description = "공간 인덱싱에 들어갈 좌표 4개를 경도, 위도 순서로 입력해주세요 (user -> store 조회 / admin -> partner 조회 / partner -> admin 조회)"
+    )
+    @GetMapping("/nearby/v2")
+    public BaseResponse<?> getLocationsV2(
+            @ModelAttribute MapRequestDTO viewport,
+            @AuthenticationPrincipal PrincipalDetails pd
+    ) {
+        Long memberId = pd.getMember().getId();
+        return BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStoresV2(viewport, memberId));
+    }
+
+    @Operation(
             summary = "검색어 기반 장소 조회 API",
             description = "# [v1.3 (2025-01-04)](https://clumsy-seeder-416.notion.site/2591197c19ed8017adf1f3d711bab3d4)\n" +
                     "- 로그인한 유저의 역할과 검색어에 따라 Map 객체를 반환합니다.\n" +
@@ -165,15 +181,15 @@ public class MapController {
 
         return switch (role) {
             case STUDENT -> {
-                List<MapResponseDTO.StoreMapResponseDTO> list = mapService.searchStores(keyword);
+                List<StoreMapResponseDTO> list = mapService.searchStores(keyword);
                 yield BaseResponse.onSuccess(SuccessStatus._OK, list);
             }
             case ADMIN -> {
-                List<MapResponseDTO.PartnerMapResponseDTO> list = mapService.searchPartner(keyword, memberId);
+                List<PartnerMapResponseDTO> list = mapService.searchPartner(keyword, memberId);
                 yield BaseResponse.onSuccess(SuccessStatus._OK, list);
             }
             case PARTNER -> {
-                List<MapResponseDTO.AdminMapResponseDTO> list = mapService.searchAdmin(keyword, memberId);
+                List<AdminMapResponseDTO> list = mapService.searchAdmin(keyword, memberId);
                 yield BaseResponse.onSuccess(SuccessStatus._OK, list);
             }
             default -> BaseResponse.onFailure(ErrorStatus._BAD_REQUEST, null);
@@ -202,11 +218,11 @@ public class MapController {
                     "  - `longitude` (Double): 장소 경도\n" +
                     "  - `distance` (Integer): 장소의 m 좌표 (좌표바이어스/카테고리 검색 시 제공)\n")
     @GetMapping("/place")
-    public BaseResponse<List<MapResponseDTO.PlaceSuggestionDTO>> search(
+    public BaseResponse<List<PlaceSuggestionDTO>> search(
             @RequestParam("searchKeyword") String query,
             @RequestParam(value = "limit", required = false) Integer size
     ) {
-        List<MapResponseDTO.PlaceSuggestionDTO> list = placeSearchService.unifiedSearch(query, size);
+        List<PlaceSuggestionDTO> list = placeSearchService.unifiedSearch(query, size);
         return BaseResponse.onSuccess(SuccessStatus._OK, list);
     }
 
