@@ -46,6 +46,19 @@ public class MapController {
     }
 
     @Operation(
+            summary = "주변 장소 조회 API",
+            description = "공간 인덱싱에 들어갈 좌표 4개를 경도, 위도 순서로 입력해주세요 (user -> store 조회 / admin -> partner 조회 / partner -> admin 조회)"
+    )
+    @GetMapping("/nearby/v2")
+    public BaseResponse<?> getLocationsV2(
+            @ModelAttribute MapRequestDTO.ViewOnMapDTO viewport,
+            @AuthenticationPrincipal PrincipalDetails pd
+    ) {
+        Long memberId = pd.getMember().getId();
+        return BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStoresV2(viewport, memberId));
+    }
+
+    @Operation(
             summary = "검색어 기반 장소 조회 API",
             description = "검색어를 입력해주세요. (user → store 전체조회 / admin → partner 전체조회 / partner → admin 전체조회)"
     )
