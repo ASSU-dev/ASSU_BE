@@ -1,10 +1,7 @@
 package com.assu.server.domain.partner.repository;
 
-import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -38,20 +35,22 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
     Partner findUnpartneredActiveByAdminWithOffset(@Param("adminId") Long adminId,
                                                    @Param("offset") int offset);
 
-    @Query(value = """
-        SELECT p.*
-        FROM partner p
+    @Query("""
+        SELECT DISTINCT p
+        FROM Partner p
+        LEFT JOIN FETCH p.member
         WHERE p.point IS NOT NULL
-          AND ST_Contains(ST_GeomFromText(:wkt, 4326), p.point)
-        """, nativeQuery = true)
-    List<Partner> findAllWithinViewport(@Param("wkt") String wkt);
+          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), p.point) = true
+        """)
+    List<Partner> findAllWithinViewportWithMember(@Param("wkt") String wkt);
 
     @Query("""
-        select distinct p
-        from Partner p
-        where lower(p.name) like lower(concat('%', :keyword, '%'))
+        SELECT DISTINCT p
+        FROM Partner p
+        LEFT JOIN FETCH p.member
+        WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
         """)
-    List<Partner> searchPartnerByKeyword(
+    List<Partner> searchPartnerByKeywordWithMember(
             @Param("keyword") String keyword
     );
 

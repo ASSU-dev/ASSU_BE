@@ -1,32 +1,30 @@
 package com.assu.server.domain.partner.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.assu.server.domain.admin.entity.Admin;
 
 import java.util.List;
 
-public class PartnerResponseDTO {
+public record PartnerResponseDTO (
+        List<AdminLiteDTO> admins
+){
 
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class RandomAdminResponseDTO {
-        private List<AdminLiteDTO> admins;
-    }
-
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class AdminLiteDTO {
-        private Long adminId;
-        private String adminAddress;
-        private String adminDetailAddress;
-        private String adminName;
-        private String adminUrl;
-        private String adminPhone;
+    public record AdminLiteDTO(
+            Long adminId,
+            String adminAddress,
+            String adminDetailAddress,
+            String adminName,
+            String adminUrl,
+            String adminPhone
+    ) {
+        public static AdminLiteDTO from(Admin admin) {
+            return new AdminLiteDTO(
+                    admin.getId(),
+                    admin.getOfficeAddress(),
+                    admin.getDetailAddress(),
+                    admin.getName(),
+                    admin.getMember() != null ? admin.getMember().getProfileUrl() : null,
+                    admin.getMember() != null ? admin.getMember().getPhoneNum() : null
+            );
+        }
     }
 }

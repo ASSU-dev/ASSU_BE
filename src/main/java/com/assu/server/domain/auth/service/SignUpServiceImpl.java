@@ -247,7 +247,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .name(info.name())
                         .officeAddress(address)
                         .detailAddress(info.detailAddress())
-                        .signUrl(signUrl)
+                        .signImageUrl(signUrl)
                         .point(point)
                         .latitude(lat)
                         .longitude(lng)

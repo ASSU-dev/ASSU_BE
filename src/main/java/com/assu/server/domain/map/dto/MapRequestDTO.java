@@ -1,30 +1,38 @@
 package com.assu.server.domain.map.dto;
 
-import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
-public class MapRequestDTO {
+public record MapRequestDTO(
+        @Schema(description = "화면 좌상단 경도")
+        @NotNull(message = "경도를 입력해주세요.")
+        double lng1,
 
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    public static class ViewOnMapDTO {
-        private double lng1;
-        private double lat1;
-        private double lng2;
-        private double lat2;
-        private double lng3;
-        private double lat3;
-        private double lng4;
-        private double lat4;
-    }
+        @Schema(description = "화면 좌상단 위도")
+        @NotNull(message = "위도를 입력해주세요.")
+        double lat1,
 
-    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class ConfirmRequest {
-        private String placeId;
-        private String name;
-        private String address;     // 지번
-        private String roadAddress; // 도로명
-        private Double longitude;   // x
-        private Double latitude;    // y
-    }
-}
+        @Schema(description = "화면 우상단 경도")
+        @NotNull(message = "경도를 입력해주세요.")
+        double lng2,
+
+        @Schema(description = "화면 우상단 위도")
+        @NotNull(message = "위도를 입력해주세요.")
+        double lat2,
+
+        @Schema(description = "화면 우하단 경도")
+        @NotNull(message = "경도를 입력해주세요.")
+        double lng3,
+
+        @Schema(description = "화면 우하단 위도")
+        @NotNull(message = "위도를 입력해주세요.")
+        double lat3,
+
+        @Schema(description = "화면 좌하단 경도")
+        @NotNull(message = "경도를 입력해주세요.")
+        double lng4,
+
+        @Schema(description = "화면 좌하단 위도")
+        @NotNull(message = "위도를 입력해주세요.")
+        double lat4
+) {}

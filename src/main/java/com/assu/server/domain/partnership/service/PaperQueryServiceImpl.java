@@ -11,7 +11,6 @@ import com.assu.server.domain.admin.service.AdminService;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
-import com.assu.server.domain.partnership.converter.PartnershipConverter;
 import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.dto.PaperResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -73,9 +72,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		// dto 변환
 		List<PaperContentResponseDTO> contents = toContentResponseList(contentList);
 
-
 		return new PaperResponseDTO(contents, store.getName(), store.getId());
-
 
 	}
 

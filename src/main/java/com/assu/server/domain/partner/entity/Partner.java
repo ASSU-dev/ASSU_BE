@@ -2,11 +2,7 @@ package com.assu.server.domain.partner.entity;
 
 
 import com.assu.server.domain.member.entity.Member;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -30,10 +26,13 @@ public class Partner {
     @JoinColumn(name = "id")
     private Member member;
 
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
+    @Column(name = "address", length = 255, nullable = false)
     private String address;
 
+    @Column(name = "detail_address", length = 255)
     private String detailAddress;
 
     private String licenseUrl;
