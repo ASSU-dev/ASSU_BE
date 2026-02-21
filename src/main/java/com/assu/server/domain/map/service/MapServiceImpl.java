@@ -183,30 +183,58 @@ public class MapServiceImpl implements MapService {
         final List<Store> stores = storeRepository.findAllWithinViewport(wkt);
         final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, java.time.LocalDate.now());
 
+        // 모든 매장 ID 수집
+        List<Long> storeIds = stores.stream().map(Store::getId).toList();
+
+        // 빈 화면(매장 없음) 방어 코드
+        if (storeIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        // 사용자가 가진 Paper ID 수집 (쿼리에 파라미터로 넘기기 위해 위치를 위로 올림!)
+        List<Long> userPaperIds = userPapers.stream()
+                .map(up -> up.getPaper().getId())
+                .toList();
+
+        // 일괄 조회 1: 모든 매장의 PaperContent (내 혜택 기준 매장당 최대 2개)
+        List<PaperContent> allContents;
+        if (userPaperIds.isEmpty()) {
+            // 방어 코드: 사용자가 가진 혜택이 없다면 IN () 에러 방지를 위해 쿼리 실행 없이 빈 리스트 할당
+            allContents = java.util.Collections.emptyList();
+        } else {
+            allContents = paperContentRepository.findLatestValidByStoreIdInNativeMax2(
+                    storeIds,
+                    ActivationStatus.ACTIVE.name(),
+                    OptionType.SERVICE.name(),
+                    OptionType.DISCOUNT.name(),
+                    CriterionType.PRICE.name(),
+                    CriterionType.HEADCOUNT.name(),
+                    userPaperIds // ⭐️ 새로 추가된 파라미터 전달!
+            );
+        }
+
+        // 일괄 조회 2: 모든 매장의 Paper와 Admin 정보 (Fetch Join)
+        List<Paper> allPapers = paperRepository.findLatestPapersByStoreIds(storeIds);
+
+        // 매장별 Paper 매핑 (매장당 최신 1개)
+        java.util.Map<Long, Paper> paperByStore = allPapers.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        p -> p.getStore().getId(),
+                        p -> p,
+                        (existing, replacement) -> existing // 이미 키가 있으면 기존 값(최신) 유지
+                ));
+
+        // 매장별로 PaperContent 그룹화
+        java.util.Map<Long, List<PaperContent>> contentsByStore = allContents.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        pc -> pc.getPaper().getStore().getId()
+                ));
+
         return stores.stream().map(s -> {
             final boolean hasPartner = (s.getPartner() != null);
 
-            // 사용자의 제휴권으로 이 매장에서 받을 수 있는 혜택 수집 (최대 2개)
-            List<PaperContent> benefits = new java.util.ArrayList<>();
-            for (UserPaper userPaper : userPapers) {
-                if (benefits.size() >= 2) break;
-
-                Paper paper = userPaper.getPaper();
-                if (paper.getStore() != null && paper.getStore().getId().equals(s.getId())) {
-                    PaperContent content = paperContentRepository.findLatestValidByStoreIdNative(
-                            s.getId(),
-                            ActivationStatus.ACTIVE.name(),
-                            OptionType.SERVICE.name(),
-                            OptionType.DISCOUNT.name(),
-                            CriterionType.PRICE.name(),
-                            CriterionType.HEADCOUNT.name()
-                    ).orElse(null);
-
-                    if (content != null) {
-                        benefits.add(content);
-                    }
-                }
-            }
+            // ⭐️ DB에서 이미 '내 혜택 중 상위 2개'만 가져왔으므로 filter와 limit이 필요 없음! 꺼내기만 하면 끝.
+            List<PaperContent> benefits = contentsByStore.getOrDefault(s.getId(), java.util.Collections.emptyList());
 
             // 혜택 텍스트 생성
             String partner1 = null;
@@ -228,15 +256,13 @@ public class MapServiceImpl implements MapService {
                 benefit2 = generateBenefitText(content2);
             }
 
-            // admin 정보
-            final Long adminId = paperRepository.findTopPaperByStoreId(s.getId())
-                    .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
-                    .orElse(null);
-
+            Paper paper = paperByStore.get(s.getId());
+            Long adminId = null;
             String adminName = null;
-            if (adminId != null) {
-                final Admin admin = adminRepository.findById(adminId).orElse(null);
-                adminName = (admin != null ? admin.getName() : null);
+            if (paper != null && paper.getAdmin() != null) {
+                adminId = paper.getAdmin().getId();
+                String name = paper.getAdmin().getName();
+                adminName = (name != null) ? name : ""; // Null이면 빈 문자열로 덮어쓰기!
             }
 
             // S3 presigned URL
