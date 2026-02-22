@@ -1,7 +1,5 @@
 package com.assu.server.domain.chat.service;
 
-import com.assu.server.domain.chat.converter.BlockConverter;
-import com.assu.server.domain.chat.converter.ChatConverter;
 import com.assu.server.domain.chat.dto.BlockResponseDTO;
 import com.assu.server.domain.chat.entity.Block;
 import com.assu.server.domain.chat.repository.BlockRepository;
@@ -15,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +56,7 @@ public class BlockServiceImpl implements BlockService {
 
         blockRepository.save(block);
 
-        return BlockConverter.toBlockDTO(blockedId,  blockedName);
+        return BlockResponseDTO.BlockMemberDTO.of(blockedId,  blockedName);
     }
 
     @Override
@@ -81,10 +78,10 @@ public class BlockServiceImpl implements BlockService {
         }
 
         if (blockRepository.existsBlockRelationBetween(blocker, blocked)) {
-            return BlockConverter.toCheckBlockDTO(blockedId, blockedName, true);
+            return BlockResponseDTO.CheckBlockMemberDTO.of(blockedId, blockedName, true);
         }
         else  {
-            return BlockConverter.toCheckBlockDTO(blockedId, blockedName, false);
+            return BlockResponseDTO.CheckBlockMemberDTO.of(blockedId, blockedName, false);
         }
     }
 
@@ -108,7 +105,7 @@ public class BlockServiceImpl implements BlockService {
 
         // Transactional 환경에서는 Dirty-checking으로 delete 쿼리가 나갑니다.
         blockRepository.deleteByBlockerAndBlocked(blocker, blocked);
-        return BlockConverter.toBlockDTO(blockedId, blockedName);
+        return BlockResponseDTO.BlockMemberDTO.of(blockedId, blockedName);
     }
 
     @Transactional
@@ -119,6 +116,6 @@ public class BlockServiceImpl implements BlockService {
 
         List<Block> blockList = blockRepository.findByBlocker(blocker);
 
-        return BlockConverter.toBlockedMemberListDTO(blockList);
+        return BlockResponseDTO.BlockMemberDTO.fromList(blockList);
     }
 }
