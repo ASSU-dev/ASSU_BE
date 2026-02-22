@@ -89,6 +89,19 @@ public class StudentController {
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStamp(pd.getId()));
     }
+	@Operation(
+			summary = "스탬프 적립 및 이벤트 응모 API",
+			description = "- 호출 시 사용자의 스탬프가 1개 적립됩니다.\n" +
+					"- 스탬프가 10개가 되는 시점에 자동으로 알림 서비스(`sendStamp`)가 호출되어 이벤트에 응모됩니다."
+	)
+	@PostMapping("/stamp")
+	public BaseResponse<String> earnStamp(
+			@AuthenticationPrincipal PrincipalDetails pd
+	) {
+		// ServiceImpl에 새로 만든 로직 호출
+		studentService.addStamp(pd.getId());
+		return BaseResponse.onSuccess(SuccessStatus._OK, "스탬프 적립 및 이벤트 체크 완료");
+	}
 
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",

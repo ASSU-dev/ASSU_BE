@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import com.assu.server.domain.notification.repository.NotificationRepository;
+import com.assu.server.domain.notification.service.NotificationCommandService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -45,8 +47,7 @@ public class StudentServiceImpl implements StudentService {
 	private final GoodsRepository goodsRepository;
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
-	private final NotificationService notificationService;
-
+	private final NotificationCommandService notificationCommandService;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -225,6 +226,18 @@ public class StudentServiceImpl implements StudentService {
 					.build();
 
 			userPaperRepository.save(up);
+		}
+	}
+	@Transactional
+	public void addStamp(Long memberId) {
+		Student student = studentRepository.findById(memberId)
+				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+
+		student.setStamp();
+
+		if (student.getStamp() == 10) {
+			notificationCommandService.sendStamp(memberId);
+
 		}
 	}
 
