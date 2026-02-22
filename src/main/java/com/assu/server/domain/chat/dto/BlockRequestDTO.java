@@ -1,13 +1,14 @@
 package com.assu.server.domain.chat.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import org.jetbrains.annotations.NotNull;
 
 public class BlockRequestDTO {
 
-    @Getter
-    @Setter
-    public static class BlockMemberRequestDTO {
-        private Long opponentId;
-    }
+    @Schema(description = "채팅 차단 DTO")
+    public record BlockMemberRequestDTO(
+            @Schema(description = "차단할 사용자 ID", example = "12")
+            @NotNull
+            Long opponentId
+    ) {}
 }

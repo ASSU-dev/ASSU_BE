@@ -2,15 +2,14 @@ package com.assu.server.domain.chat.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.chat.converter.ChatConverter;
 import com.assu.server.domain.chat.dto.*;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
+import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
@@ -48,14 +47,14 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatRoomListResultDTO> getChatRoomList(Long memberId) {
 
         List<ChatRoomListResultDTO> chatRoomList = chatRepository.findChattingRoomsByMemberId(memberId);
-        return ChatConverter.toChatRoomListResultDTO(chatRoomList);
+        return ChatRoomListResultDTO.ofList(chatRoomList);
     }
 
     @Override
     public ChatResponseDTO.CreateChatRoomResponseDTO createChatRoom(ChatRequestDTO.CreateChatRoomRequestDTO request, Long memberId) {
 
-        Long adminId = request.getAdminId();
-        Long partnerId = request.getPartnerId();
+        Long adminId = request.adminId();
+        Long partnerId = request.partnerId();
 
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
@@ -72,7 +71,7 @@ public class ChatServiceImpl implements ChatService {
         boolean isExist = chatRepository.checkChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
 
         if(!isExist) {
-            ChattingRoom room = ChatConverter.toCreateChattingRoom(admin, partner);
+            ChattingRoom room = ChattingRoom.of(admin, partner);
 
             room.updateStatus(ActivationStatus.ACTIVE);
 
@@ -83,10 +82,10 @@ public class ChatServiceImpl implements ChatService {
                     admin.getName()
             );
             ChattingRoom savedRoom = chatRepository.save(room);
-            return ChatConverter.toCreateChatRoomIdDTO(savedRoom);
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
         } else {
             ChattingRoom existChatRoom = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
-            return ChatConverter.toEnterChatRoomDTO(existChatRoom);
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existChatRoom);
         }
     }
 
@@ -115,41 +114,40 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request) {
         // 1. 유효성 검사 (기존 로직)
-        ChattingRoom room = chatRepository.findById(request.getRoomId())
+        ChattingRoom room = chatRepository.findById(request.roomId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
-        Member sender = memberRepository.findById(request.getSenderId())
+        Member sender = memberRepository.findById(request.senderId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
-        Member receiver = memberRepository.findById(request.getReceiverId())
+        Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
         // 2. 컨트롤러에서 가져온 비즈니스 로직 (접속 확인)
-        boolean receiverInRoom = presenceTracker.isInRoom(request.getReceiverId(), request.getRoomId());
+        boolean receiverInRoom = presenceTracker.isInRoom(request.receiverId(), request.roomId());
         int unreadForSender = receiverInRoom ? 0 : 1;
-        request.setUnreadCountForSender(unreadForSender);
 
         // 3. 메시지 저장 (기존 로직)
-        Message message = ChatConverter.toMessageEntity(request, room, sender, receiver);
+        Message message = Message.toMessageEntity(request, room, sender, receiver, unreadForSender);
         Message saved = messageRepository.saveAndFlush(message);
         log.info("saved message id={}, roomId={}, senderId={}, receiverId={}",
                 saved.getId(), room.getId(), sender.getId(), receiver.getId());
 
-        ChatResponseDTO.SendMessageResponseDTO savedDTO = ChatConverter.toSendMessageDTO(saved);
+        ChatResponseDTO.SendMessageResponseDTO savedDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
 
         // 4. 컨트롤러에서 가져온 비즈니스 로직 (수신자 부재 시)
         if (!receiverInRoom) {
             // 4-1. 안 읽은 수 계산
             Long totalUnreadCount = messageRepository.countUnreadMessagesByRoomAndReceiver(
-                    request.getRoomId(),
-                    request.getReceiverId()
+                    request.roomId(),
+                    request.receiverId()
             );
 
             // 4-2. 채팅방 목록 업데이트 DTO 생성
-            ChatRoomUpdateDTO updateDTO = ChatRoomUpdateDTO.builder()
-                    .roomId(request.getRoomId())
-                    .lastMessage(savedDTO.message())
-                    .lastMessageTime(savedDTO.sentAt())
-                    .unreadCount(totalUnreadCount)
-                    .build();
+            ChatRoomUpdateDTO updateDTO = ChatRoomUpdateDTO.of(
+                    request.roomId(),
+                    savedDTO.message(),
+                    savedDTO.sentAt(),
+                    totalUnreadCount
+            );
 
             // 4-3. 발신자 이름 찾기 (기존 컨트롤러 로직)
             String senderName;
@@ -160,10 +158,10 @@ public class ChatServiceImpl implements ChatService {
             }
 
             // 4-4. 알림 전송
-            notificationCommandService.sendChat(request.getReceiverId(), request.getRoomId(), senderName, request.getMessage());
+            notificationCommandService.sendChat(request.receiverId(), request.roomId(), senderName, request.message());
 
             // 5. [업데이트 포함] 결과 반환
-            return MessageHandlingResult.withUpdates(savedDTO, updateDTO, request.getReceiverId());
+            return MessageHandlingResult.withUpdates(savedDTO, updateDTO, request.receiverId());
         }
 
         // 5. [일반 메시지] 결과 반환
@@ -175,18 +173,18 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public ChatResponseDTO.SendMessageResponseDTO sendGuideMessage(ChatRequestDTO.ChatMessageRequestDTO request) {
         // 유효성 검사
-        ChattingRoom room = chatRepository.findById(request.getRoomId())
+        ChattingRoom room = chatRepository.findById(request.roomId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
-        Member sender = memberRepository.findById(request.getSenderId())
+        Member sender = memberRepository.findById(request.senderId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
-        Member receiver = memberRepository.findById(request.getReceiverId())
+        Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
-        Message message = ChatConverter.toGuideMessageEntity(request, room, sender, receiver);
+        Message message = Message.toGuideMessageEntity(request, room, sender, receiver);
         Message saved = messageRepository.saveAndFlush(message);
 
-        ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatConverter.toSendMessageDTO(saved);
-        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.getRoomId(), responseDTO);
+        ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
+        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.roomId(), responseDTO);
 
         return responseDTO;
     }
@@ -215,7 +213,7 @@ public class ChatServiceImpl implements ChatService {
 
         List<ChatMessageDTO> allMessages = messageRepository.findAllMessagesByRoomAndMemberId(room.getId(), memberId);
 
-        return ChatConverter.toChatHistoryDTO(room.getId(), allMessages);
+        return ChatResponseDTO.ChatHistoryResponseDTO.of(room.getId(), allMessages);
     }
 
     @Override

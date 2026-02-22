@@ -1,23 +1,20 @@
 package com.assu.server.domain.chat.controller;
 
 import com.assu.server.domain.chat.dto.*;
-import com.assu.server.domain.chat.repository.MessageRepository;
+import com.assu.server.domain.chat.redis.ChattingRedisPublisher;
 import com.assu.server.domain.chat.service.BlockService;
 import com.assu.server.domain.chat.service.ChatService;
-import com.assu.server.domain.member.repository.MemberRepository;
-import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
-import com.assu.server.global.util.PresenceTracker;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import com.assu.server.global.apiPayload.BaseResponse;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
 
@@ -28,16 +25,13 @@ import java.util.List;
 public class ChatController {
     private final ChatService chatService;
     private final SimpMessagingTemplate simpMessagingTemplate;
-//    private final PresenceTracker presenceTracker;
-//    private final MessageRepository messageRepository;
-//    private final MemberRepository memberRepository;
     private final BlockService blockService;
-//    private final NotificationCommandService notificationCommandService;
+    private final ChattingRedisPublisher chattingRedisPublisher;
 
     @Operation(
             summary = "채팅방을 생성하는 API",
             description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed80c38871ec77deced713) 채팅방을 생성합니다.\n"+
-                    "- storeId: Request Body, Long\n" +
+                    "- adminId: Request Body, Long\n" +
                     "- partnerId: Request Body, Long\n"
     )
     @PostMapping("/rooms")
@@ -53,7 +47,7 @@ public class ChatController {
             description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/API-1d71197c19ed819f8f70fb437e9ce62b?p=2241197c19ed816993c3c5ae17d6f099&pm=s) 채팅방 목록을 조회합니다.\n"
     )
     @GetMapping("/rooms")
-    public BaseResponse<List<com.assu.server.domain.chat.dto.ChatRoomListResultDTO>> getChatRoomList(
+    public BaseResponse<List<ChatRoomListResultDTO>> getChatRoomList(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         Long memberId = pd.getMember().getId();
@@ -66,69 +60,20 @@ public class ChatController {
                     "- roomId: Request Body, Long\n" +
                     "- senderId: Request Body, Long\n"+
                     "- receiverId: Request Body, Long\n" +
-                    "- message: Request Body, String\n"
+                    "- message: Request Body, String\n" +
+                    "- unreadCountForSender: Request Body, int\n"
     )
     @MessageMapping("/send")
     public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
-
-        // 1. 서비스 호출 (모든 비즈니스 로직 위임)
+        // 1. 서비스 호출
         MessageHandlingResult result = chatService.handleMessage(request);
-
         // 2. [항상 전송] 채팅방 메시지 전송
-        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.getRoomId(), result.sendMessageResponseDTO());
-
+        chattingRedisPublisher.publishChatMessage(request.roomId(), result.sendMessageResponseDTO());
         // 3. [조건부 전송] 채팅방 목록 업데이트 전송
         if (result.hasRoomUpdates()) {
-            simpMessagingTemplate.convertAndSendToUser(
-                    result.receiverId().toString(),
-                    "/queue/updates",
-                    result.chatRoomUpdateDTO()
-            );
+            chattingRedisPublisher.publishChatRoomUpdate(result.receiverId(), result.chatRoomUpdateDTO());
         }
     }
-
-//    @Transactional
-//    @MessageMapping("/send")
-//    public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
-//        // 먼저 접속 여부 확인 후 unreadCount 계산
-//        boolean receiverInRoom = presenceTracker.isInRoom(request.getReceiverId(), request.getRoomId());
-//        int unreadForSender = receiverInRoom ? 0 : 1;
-//        request.setUnreadCountForSender(unreadForSender);
-//
-//        ChatResponseDTO.SendMessageResponseDTO saved = chatService.handleMessage(request);
-//        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.getRoomId(), saved);
-//
-//        if (!receiverInRoom) {
-//            Long totalUnreadCount = messageRepository.countUnreadMessagesByRoomAndReceiver(
-//                    request.getRoomId(),
-//                    request.getReceiverId()
-//            );
-//
-//            ChatRoomUpdateDTO updateDTO = ChatRoomUpdateDTO.builder()
-//                    .roomId(request.getRoomId())
-//                    .lastMessage(saved.message())
-//                    .lastMessageTime(saved.sentAt())
-//                    .unreadCount(totalUnreadCount)
-//                    .build();
-//
-//            simpMessagingTemplate.convertAndSendToUser(
-//                    request.getReceiverId().toString(),
-//                    "/queue/updates",
-//                    updateDTO
-//            );
-//            Member sender = memberRepository.findById(request.getSenderId()).orElse(null);
-//            String senderName;
-//            if (sender.getRole()== UserRole.ADMIN) {
-//                senderName = sender.getAdminProfile().getName();
-//            } else {
-//                senderName = sender.getPartnerProfile().getName();
-//            }
-//
-//            log.info(">>>>>>>>메시지 전송은 될걸");
-//            notificationCommandService.sendChat(request.getReceiverId(), request.getRoomId(), senderName, request.getMessage());
-//            log.info(">>>>>>>>알림이 가나");
-//        }
-//    }
 
     @Operation(
             summary = "메시지 읽음 처리 API",
@@ -178,8 +123,8 @@ public class ChatController {
     @Operation(
             summary = "상대방을 차단하는 API" +
                     "상대방을 차단합니다. 메시지를 주고받을 수 없습니다.",
-            description = "# [v1.0 (2025-09-25)]() 상대방을 차단합니다.\n"+
-                    "- memberId: Request Body, Long\n"
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed804ba3dbf57ba36860c4) 상대방을 차단합니다.\n"+
+                    "- opponentId: Request Body, Long\n"
     )
     @PostMapping("/block")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> block(
@@ -187,14 +132,14 @@ public class ChatController {
             @RequestBody BlockRequestDTO.BlockMemberRequestDTO request
             ) {
         Long memberId = pd.getMember().getId();
-        return BaseResponse.onSuccess(SuccessStatus._OK, blockService.blockMember(memberId, request.getOpponentId()));
+        return BaseResponse.onSuccess(SuccessStatus._OK, blockService.blockMember(memberId, request.opponentId()));
     }
 
     @Operation(
             summary = "상대방을 차단했는지 확인하는 API" +
                     "상대방을 차단했는지 여부를 알려줍니다.",
-            description = "# [v1.0 (2025-09-25)]() 상대방을 차단했는지 검사합니다.\n"+
-                    "- memberId: Request Body, Long\n"
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80769521eab9660ac53f) 상대방을 차단했는지 검사합니다.\n"+
+                    "- opponentId: Request Body, Long\n"
     )
     @GetMapping("/check/block/{opponentId}")
     public BaseResponse<BlockResponseDTO.CheckBlockMemberDTO> checkBlock(
@@ -208,8 +153,8 @@ public class ChatController {
     @Operation(
             summary = "상대방을 차단 해제하는 API" +
                     "상대방을 차단해제합니다. 앞으로 다시 메시지를 주고받을 수 있습니다.",
-            description = "# [v1.0 (2025-09-25)]() 상대방을 차단 해제합니다.\n"+
-                    "- memberId: Request Body, Long\n"
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80b6a93fcbe277fc934c?pvs=74) 상대방을 차단 해제합니다.\n"+
+                    "- opponentId: Request Body, Long\n"
     )
     @DeleteMapping("/unblock")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> unblock(
@@ -223,8 +168,7 @@ public class ChatController {
     @Operation(
             summary = "차단한 대상을 조회합니다." +
                     "본인이 차단한 대상을 모두 조회합니다.",
-            description = "# [v1.0 (2025-09-25)]() 차단한 대상을 조회합니다..\n"+
-                    "- memberId: Request Body, Long\n"
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f) 차단한 대상을 조회합니다..\n"
     )
     @GetMapping("/blockList")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
