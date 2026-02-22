@@ -17,7 +17,7 @@ public class ChatResponseDTO {
             String partnerViewName,
             Boolean isNew
     ) {
-        public static CreateChatRoomResponseDTO toCreateChatRoomIdDTO(ChattingRoom room) {
+        public static CreateChatRoomResponseDTO fromNewRoom(ChattingRoom room) {
             return new CreateChatRoomResponseDTO(
                     room.getId(),
                     room.getPartner().getName(),
@@ -25,7 +25,7 @@ public class ChatResponseDTO {
                     true
             );
         }
-        public static CreateChatRoomResponseDTO toEnterChatRoomDTO(ChattingRoom room) {
+        public static CreateChatRoomResponseDTO fromExistingRoom(ChattingRoom room) {
             return new CreateChatRoomResponseDTO(
                     room.getId(),
                     room.getPartner().getName(),
@@ -47,13 +47,8 @@ public class ChatResponseDTO {
         LocalDateTime sentAt,
         Integer unreadCountForSender
     ) {
-        public SendMessageResponseDTO withUnreadCountForSender(Integer count) {
-            return new SendMessageResponseDTO(
-                    messageId, roomId, senderId, receiverId, message, messageType, sentAt, count
-            );
-        }
 
-        public static SendMessageResponseDTO toSendMessageDTO(
+        public static SendMessageResponseDTO from(
                 Message message
         ) {
             return new SendMessageResponseDTO(
@@ -85,7 +80,7 @@ public class ChatResponseDTO {
             Long roomId,
             List<ChatMessageDTO> messages
     ) {
-        public static ChatHistoryResponseDTO toChatHistoryDTO(
+        public static ChatHistoryResponseDTO of(
                 Long roomId,
                 List<ChatMessageDTO> messages) {
             return new ChatHistoryResponseDTO(

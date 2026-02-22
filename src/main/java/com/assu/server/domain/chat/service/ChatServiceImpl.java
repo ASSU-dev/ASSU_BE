@@ -47,7 +47,7 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatRoomListResultDTO> getChatRoomList(Long memberId) {
 
         List<ChatRoomListResultDTO> chatRoomList = chatRepository.findChattingRoomsByMemberId(memberId);
-        return ChatRoomListResultDTO.toChatRoomListResultDTO(chatRoomList);
+        return ChatRoomListResultDTO.ofList(chatRoomList);
     }
 
     @Override
@@ -71,7 +71,7 @@ public class ChatServiceImpl implements ChatService {
         boolean isExist = chatRepository.checkChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
 
         if(!isExist) {
-            ChattingRoom room = ChattingRoom.toCreateChattingRoom(admin, partner);
+            ChattingRoom room = ChattingRoom.of(admin, partner);
 
             room.updateStatus(ActivationStatus.ACTIVE);
 
@@ -82,10 +82,10 @@ public class ChatServiceImpl implements ChatService {
                     admin.getName()
             );
             ChattingRoom savedRoom = chatRepository.save(room);
-            return ChatResponseDTO.CreateChatRoomResponseDTO.toCreateChatRoomIdDTO(savedRoom);
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
         } else {
             ChattingRoom existChatRoom = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
-            return ChatResponseDTO.CreateChatRoomResponseDTO.toEnterChatRoomDTO(existChatRoom);
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existChatRoom);
         }
     }
 
@@ -131,7 +131,7 @@ public class ChatServiceImpl implements ChatService {
         log.info("saved message id={}, roomId={}, senderId={}, receiverId={}",
                 saved.getId(), room.getId(), sender.getId(), receiver.getId());
 
-        ChatResponseDTO.SendMessageResponseDTO savedDTO = ChatResponseDTO.SendMessageResponseDTO.toSendMessageDTO(saved);
+        ChatResponseDTO.SendMessageResponseDTO savedDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
 
         // 4. 컨트롤러에서 가져온 비즈니스 로직 (수신자 부재 시)
         if (!receiverInRoom) {
@@ -142,11 +142,12 @@ public class ChatServiceImpl implements ChatService {
             );
 
             // 4-2. 채팅방 목록 업데이트 DTO 생성
-            ChatRoomUpdateDTO updateDTO = ChatRoomUpdateDTO.toChatRoomUpdateDTO(
+            ChatRoomUpdateDTO updateDTO = ChatRoomUpdateDTO.of(
                     request.roomId(),
                     savedDTO.message(),
                     savedDTO.sentAt(),
-                    totalUnreadCount);
+                    totalUnreadCount
+            );
 
             // 4-3. 발신자 이름 찾기 (기존 컨트롤러 로직)
             String senderName;
@@ -182,7 +183,7 @@ public class ChatServiceImpl implements ChatService {
         Message message = Message.toGuideMessageEntity(request, room, sender, receiver);
         Message saved = messageRepository.saveAndFlush(message);
 
-        ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.toSendMessageDTO(saved);
+        ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
         simpMessagingTemplate.convertAndSend("/sub/chat/" + request.roomId(), responseDTO);
 
         return responseDTO;
@@ -212,7 +213,7 @@ public class ChatServiceImpl implements ChatService {
 
         List<ChatMessageDTO> allMessages = messageRepository.findAllMessagesByRoomAndMemberId(room.getId(), memberId);
 
-        return ChatResponseDTO.ChatHistoryResponseDTO.toChatHistoryDTO(room.getId(), allMessages);
+        return ChatResponseDTO.ChatHistoryResponseDTO.of(room.getId(), allMessages);
     }
 
     @Override

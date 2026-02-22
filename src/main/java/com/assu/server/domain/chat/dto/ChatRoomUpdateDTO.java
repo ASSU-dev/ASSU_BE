@@ -8,7 +8,7 @@ public record ChatRoomUpdateDTO(
         LocalDateTime lastMessageTime,
         Long unreadCount // 해당 채팅방의 총 안읽은 메시지 수
 ) {
-    public static ChatRoomUpdateDTO toChatRoomUpdateDTO(
+    public static ChatRoomUpdateDTO of(
             Long roomId,
             String lastMessage,
             LocalDateTime lastMessageTime,

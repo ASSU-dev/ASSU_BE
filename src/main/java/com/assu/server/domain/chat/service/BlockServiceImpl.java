@@ -56,7 +56,7 @@ public class BlockServiceImpl implements BlockService {
 
         blockRepository.save(block);
 
-        return BlockResponseDTO.BlockMemberDTO.toBlockDTO(blockedId,  blockedName);
+        return BlockResponseDTO.BlockMemberDTO.of(blockedId,  blockedName);
     }
 
     @Override
@@ -78,10 +78,10 @@ public class BlockServiceImpl implements BlockService {
         }
 
         if (blockRepository.existsBlockRelationBetween(blocker, blocked)) {
-            return BlockResponseDTO.CheckBlockMemberDTO.toCheckBlockDTO(blockedId, blockedName, true);
+            return BlockResponseDTO.CheckBlockMemberDTO.of(blockedId, blockedName, true);
         }
         else  {
-            return BlockResponseDTO.CheckBlockMemberDTO.toCheckBlockDTO(blockedId, blockedName, false);
+            return BlockResponseDTO.CheckBlockMemberDTO.of(blockedId, blockedName, false);
         }
     }
 
@@ -105,7 +105,7 @@ public class BlockServiceImpl implements BlockService {
 
         // Transactional 환경에서는 Dirty-checking으로 delete 쿼리가 나갑니다.
         blockRepository.deleteByBlockerAndBlocked(blocker, blocked);
-        return BlockResponseDTO.BlockMemberDTO.toBlockDTO(blockedId, blockedName);
+        return BlockResponseDTO.BlockMemberDTO.of(blockedId, blockedName);
     }
 
     @Transactional
@@ -116,6 +116,6 @@ public class BlockServiceImpl implements BlockService {
 
         List<Block> blockList = blockRepository.findByBlocker(blocker);
 
-        return BlockResponseDTO.BlockMemberDTO.toBlockedMemberListDTO(blockList);
+        return BlockResponseDTO.BlockMemberDTO.fromList(blockList);
     }
 }

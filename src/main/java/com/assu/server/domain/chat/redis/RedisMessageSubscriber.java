@@ -48,7 +48,7 @@ public class RedisMessageSubscriber implements MessageListener {
         messagingTemplate.convertAndSend("/sub/chat/" + roomId, messageDto);
     }
 
-    public void handleUserUpdate(String channel, String jsonMessage) throws Exception {
+    private void handleUserUpdate(String channel, String jsonMessage) throws Exception {
         String userId = channel.substring("user.update.".length());
         ChatRoomUpdateDTO updateDTO =
                 objectMapper.readValue(jsonMessage, ChatRoomUpdateDTO.class);

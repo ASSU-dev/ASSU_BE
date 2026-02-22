@@ -16,7 +16,7 @@ public record ChatRoomListResultDTO(
 
 ) {
     // 채팅방 리스트 아이템 하나
-    public static ChatRoomListResultDTO toChatRoomResultDTO(
+    public static ChatRoomListResultDTO of(
             ChatRoomListResultDTO dto
     ) {
         return new ChatRoomListResultDTO(
@@ -32,11 +32,11 @@ public record ChatRoomListResultDTO(
     }
 
     // 채팅방 리스트 변환
-    public static List<ChatRoomListResultDTO> toChatRoomListResultDTO (
+    public static List<ChatRoomListResultDTO> ofList(
             List<ChatRoomListResultDTO> dto
     ) {
         return dto.stream()
-                .map(ChatRoomListResultDTO::toChatRoomResultDTO)
+                .map(ChatRoomListResultDTO::of)
                 .collect(Collectors.toList());
     }
 }

@@ -15,7 +15,7 @@ public class BlockResponseDTO {
             String name,
             LocalDateTime blockDate
     ) {
-        public static BlockMemberDTO toBlockDTO(
+        public static BlockMemberDTO of(
                 Long blockedId,
                 String blockedName
         ) {
@@ -26,7 +26,7 @@ public class BlockResponseDTO {
             );
         }
 
-        public static BlockMemberDTO toBlockedMemberDTO(
+        public static BlockMemberDTO from(
                 Block block
         ) {
             Member blockedMember = block.getBlocked();
@@ -45,11 +45,11 @@ public class BlockResponseDTO {
             );
         }
 
-        public static List<BlockMemberDTO> toBlockedMemberListDTO(
+        public static List<BlockMemberDTO> fromList(
                 List<Block> blockList
         ) {
             return blockList.stream()
-                    .map(BlockResponseDTO.BlockMemberDTO::toBlockedMemberDTO)
+                    .map(BlockResponseDTO.BlockMemberDTO::from)
                     .collect(Collectors.toList());
         }
 
@@ -61,7 +61,7 @@ public class BlockResponseDTO {
             String name,
             boolean blocked
     ) {
-        public static CheckBlockMemberDTO toCheckBlockDTO(
+        public static CheckBlockMemberDTO of(
                 Long blockedId,
                 String blockedName,
                 boolean blocked
