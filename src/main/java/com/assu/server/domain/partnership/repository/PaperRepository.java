@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,13 +26,9 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 		@Param("adminId")Long adminId,
 		@Param("status")ActivationStatus status);
 
-
     // Admin 기준 (ACTIVE)
     List<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Sort sort);
     Page<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Pageable pageable);
-    Optional<Paper> findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(
-            Long adminId, Long partnerId, ActivationStatus isActivated
-    );
 
     boolean existsByAdmin_IdAndPartner_IdAndIsActivatedIn(Long adminId, Long partnerId, List<ActivationStatus> statuses);
     Optional<Paper> findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(Long adminId, Long partnerId, List<ActivationStatus> statuses);
@@ -46,7 +43,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     // Partner 기준 (ACTIVE)
     List<Paper> findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Sort sort);
     Page<Paper>  findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Pageable pageable);
-    Optional<Paper> findTopPaperByStoreId(Long storeId);
     long countByStore_Id(Long storeId);
 
     @Query("""
@@ -61,4 +57,60 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                                            @Param("status") ActivationStatus status);
 
     List<Paper> findByStoreIdAndAdminIdAndIsActivated(Long storeId, Long adminId, ActivationStatus isActivated);
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id = :adminId
+          AND p.partner.id IN :partnerIds
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdAndPartnerIdInAndIsActivated(
+            @Param("adminId") Long adminId,
+            @Param("partnerIds") List<Long> partnerIds,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id IN :adminIds
+          AND p.partner.id = :partnerId
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdInAndPartnerIdAndIsActivated(
+            @Param("adminIds") List<Long> adminIds,
+            @Param("partnerId") Long partnerId,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.store.id IN :storeIds
+        ORDER BY p.id DESC
+        """)
+    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds);
+
+    // PaperRepository.java에 추가
+    @Query("""
+    SELECT p
+    FROM Paper p
+    LEFT JOIN FETCH p.admin a
+    WHERE p.store.id IN :storeIds
+      AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+      AND p.partnershipPeriodStart <= CURRENT_DATE
+      AND p.partnershipPeriodEnd >= CURRENT_DATE
+    ORDER BY p.id DESC
+""")
+    List<Paper> findLatestPapersByStoreIds(@Param("storeIds") List<Long> storeIds);
+
+    @Modifying
+    @Query("""
+        UPDATE Paper p
+        SET p.isActivated = :inactiveStatus
+        WHERE p.partnershipPeriodEnd < :today
+          AND p.isActivated = :activeStatus
+    """)
+    void updatePaperStatus(@Param("today") LocalDate today,
+                          @Param("inactiveStatus") ActivationStatus inactiveStatus,
+                          @Param("activeStatus") ActivationStatus activeStatus);
+
 }

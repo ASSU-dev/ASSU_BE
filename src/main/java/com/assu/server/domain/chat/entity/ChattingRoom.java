@@ -4,7 +4,6 @@ import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -63,5 +62,12 @@ public class ChattingRoom extends BaseEntity {
 
     public void setPartner(Partner partner) {
         this.partner = partner;
+    }
+
+    public static ChattingRoom of(Admin admin, Partner partner) {
+        return ChattingRoom.builder()
+                .admin(admin)
+                .partner(partner)
+                .build();
     }
 }

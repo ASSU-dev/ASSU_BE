@@ -16,75 +16,51 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 @Builder
+@Setter
 public class Admin {
 
     @Id
-    @Column(name = "id")
-    private Long id;
+    private Long id;  // member_id와 동일
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne
     @MapsId
     @JoinColumn(name = "id")
-    @NotNull
     private Member member;
 
-    @NotNull
-    @Column(nullable = false)
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
-    @NotNull
-    @Column(nullable = false)
+    @Column(name = "office_address", length = 255, nullable = false)
     private String officeAddress;
 
+    @Column(name = "detail", length = 255)
     private String detailAddress;
 
     private String signImageUrl;
 
-    @NotNull
-    @Builder.Default
-    @Column(nullable = false)
-    private Boolean isSignVerified = false;
+    private Boolean isSignVerified;
 
     private LocalDateTime signVerifiedAt;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
-    @Column(nullable = false)
     private Major major;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
-    @Column(nullable = false)
     private Department department;
 
     @Enumerated(EnumType.STRING)
     @NotNull
-    @Column(nullable = false)
     private University university;
 
     @JdbcTypeCode(SqlTypes.GEOMETRY)
     private Point point;
 
-    @NotNull
-    @Column(nullable = false)
-    private Double latitude;
+    private double latitude;
+    private double longitude;
 
-    @NotNull
-    @Column(nullable = false)
-    private Double longitude;
-
-    // --- 비즈니스 로직 및 연관관계 메서드 ---
-
-    /**
-     * @Setter 대신 사용하는 연관 관계 메서드
-     * Member의 ID를 Admin의 PK로 동기화
-     */
-    public void linkMember(Member member) {
+    public void updateMember(Member member) {
         this.member = member;
-        if (member != null) {
-            this.id = member.getId();
-        }
     }
 }

@@ -1,17 +1,10 @@
 package com.assu.server.domain.partnership.service;
 
-import static com.assu.server.domain.partnership.dto.PaperContentResponseDTO.*;
-
-import java.util.List;
-
-import org.springframework.stereotype.Service;
-
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.service.AdminService;
-import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
-import com.assu.server.domain.partnership.converter.PartnershipConverter;
+import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.dto.PaperResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -23,9 +16,14 @@ import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.user.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
-
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static com.assu.server.domain.partnership.dto.PaperContentResponseDTO.toContentResponseList;
 
 @Service
 @RequiredArgsConstructor
@@ -73,10 +71,16 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		// dto 변환
 		List<PaperContentResponseDTO> contents = toContentResponseList(contentList);
 
-
 		return new PaperResponseDTO(contents, store.getName(), store.getId());
-
 
 	}
 
+	/**
+	 * paper 상태를 업데이트하는 메서드 (ACTIVE -> INACTIVE)
+	 */
+	@Override
+	public void updatePaperStatus() {
+		LocalDate today = LocalDate.now();
+		paperRepository.updatePaperStatus(today, ActivationStatus.INACTIVE, ActivationStatus.ACTIVE);
+	}
 }

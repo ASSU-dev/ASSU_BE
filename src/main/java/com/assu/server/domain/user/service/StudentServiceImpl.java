@@ -45,6 +45,7 @@ public class StudentServiceImpl implements StudentService {
 	private final GoodsRepository goodsRepository;
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
+	private final NotificationService notificationService;
 
     @Override
     @Transactional
