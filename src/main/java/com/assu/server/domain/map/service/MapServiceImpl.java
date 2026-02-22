@@ -7,15 +7,12 @@ import com.assu.server.domain.map.dto.AdminMapResponseDTO;
 import com.assu.server.domain.map.dto.MapRequestDTO;
 import com.assu.server.domain.map.dto.PartnerMapResponseDTO;
 import com.assu.server.domain.map.dto.StoreMapResponseDTO;
-import com.assu.server.domain.map.dto.StoreMapResponseV2DTO;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
-import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -27,8 +24,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,13 +44,11 @@ public class MapServiceImpl implements MapService {
     private final StoreRepository storeRepository;
     private final PaperContentRepository paperContentRepository;
     private final PaperRepository paperRepository;
-    private final GoodsRepository goodsRepository;
     private final AmazonS3Manager amazonS3Manager;
     private final UserPaperRepository userPaperRepository;
 
     @Override
     public List<PartnerMapResponseDTO> getPartners(MapRequestDTO viewport, Long memberId) {
-
         String wkt = toWKT(viewport);
         List<Partner> partners = partnerRepository.findAllWithinViewportWithMember(wkt);
 
@@ -84,170 +85,110 @@ public class MapServiceImpl implements MapService {
                 .toList();
     }
 
+    /**
+     * 뷰포트 내 매장 조회 (학생 혜택 기반).
+     *
+     * 조회 기준:
+     *  1. memberId(student_id)와 매치되는 모든 user_paper 조회
+     *  2. 각 user_paper의 paper_id를 가진 paper 중 is_activated = ACTIVE인 것
+     *  3. 그 중 뷰포트 내 store를 포함한 paper
+     *
+     * 위 기준을 만족하는 paper 중, 매장당 중복 없이 가장 최근 2건(paper+papercontent 쌍)을 가져와
+     * adminId1/2, adminName1/2, benefit1/2를 채운 StoreMapResponseDTO 반환.
+     * papercontent의 note가 있으면 benefit 대신 note를 사용.
+     */
     @Override
     public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId) {
         final String wkt = toWKT(viewport);
 
         // 1) 뷰포트 내 매장 조회 (Partner, Member fetch join)
         final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt);
-
         if (stores.isEmpty()) {
             return List.of();
         }
 
-        // 2) Paper 및 Admin 정보 batch 조회
-        List<Long> storeIds = stores.stream().map(Store::getId).toList();
-        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
-        Map<Long, Paper> storeIdToPaper = papers.stream()
-                .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
+        // 2) 해당 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, LocalDate.now());
+        if (userPapers.isEmpty()) {
+            return stores.stream()
+                    .map(s -> StoreMapResponseDTO.of(s, null, null, null, null, null, null, amazonS3Manager))
+                    .toList();
+        }
 
-        List<Long> adminIds = papers.stream()
-                .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
-                .filter(id -> id != null)
-                .distinct()
+        // 3) 뷰포트 매장 ID Set (O(1) 조회용)
+        final Set<Long> storeIdSet = new HashSet<>();
+        for (Store s : stores) storeIdSet.add(s.getId());
+
+        // 4) UserPaper를 매장별로 그룹화: 뷰포트 내 매장 필터 + paper 중복 제거 + 매장당 최대 2건
+        //    findActivePartnershipsByStudentId 결과는 이미 paper.id DESC 정렬 상태
+        final Map<Long, List<Paper>> papersByStore = new LinkedHashMap<>();
+        final Set<Long> seenPaperIds = new HashSet<>();
+        for (UserPaper up : userPapers) {
+            final Long storeId = up.getPaper().getStore().getId();
+            if (!storeIdSet.contains(storeId)) continue;
+
+            final Long paperId = up.getPaper().getId();
+            if (!seenPaperIds.add(paperId)) continue; // 이미 처리한 paper면 스킵
+
+            final List<Paper> list = papersByStore.computeIfAbsent(storeId, k -> new ArrayList<>(2));
+            if (list.size() < 2) {
+                list.add(up.getPaper());
+            }
+        }
+
+        // 5) 선택된 paper ID 목록으로 각 paper의 최신 PaperContent 1건씩 일괄 조회
+        final List<Long> selectedPaperIds = papersByStore.values().stream()
+                .flatMap(List::stream)
+                .map(Paper::getId)
                 .toList();
-        List<Admin> admins = adminIds.isEmpty() ? List.of() : adminRepository.findAllById(adminIds);
-        Map<Long, Admin> adminIdToAdmin = admins.stream()
-                .collect(Collectors.toMap(Admin::getId, a -> a));
 
-        // 3) PaperContent batch 조회 (N+1 방지)
-        List<PaperContent> contents = paperContentRepository.findLatestValidByStoreIdInNative(
-                storeIds,
-                ActivationStatus.ACTIVE.name(),
-                OptionType.SERVICE.name(),
-                OptionType.DISCOUNT.name(),
-                CriterionType.PRICE.name(),
-                CriterionType.HEADCOUNT.name()
-        );
-        Map<Long, PaperContent> storeIdToContent = contents.stream()
-                .collect(Collectors.toMap(
-                        pc -> pc.getPaper().getStore().getId(),
-                        pc -> pc,
-                        (pc1, pc2) -> pc1.getId() > pc2.getId() ? pc1 : pc2
-                ));
+        final Map<Long, PaperContent> contentByPaperId;
+        if (selectedPaperIds.isEmpty()) {
+            contentByPaperId = Collections.emptyMap();
+        } else {
+            contentByPaperId = paperContentRepository.findLatestByPaperIds(selectedPaperIds).stream()
+                    .collect(Collectors.toMap(
+                            pc -> pc.getPaper().getId(),
+                            pc -> pc,
+                            (a, b) -> a
+                    ));
+        }
 
-        // 4) 매장별 DTO 생성
+        // 6) 매장별 DTO 생성
         return stores.stream().map(s -> {
-            final PaperContent content = storeIdToContent.get(s.getId());
-            final Paper paper = storeIdToPaper.get(s.getId());
-            final Long adminId = paper != null && paper.getAdmin() != null ? paper.getAdmin().getId() : null;
-            final String adminName = adminId != null ? adminIdToAdmin.getOrDefault(adminId, null) != null
-                    ? adminIdToAdmin.get(adminId).getName() : null : null;
+            final List<Paper> sPapers = papersByStore.getOrDefault(s.getId(), Collections.emptyList());
 
-            return StoreMapResponseDTO.of(s, content, adminId, adminName, amazonS3Manager);
+            Long adminId1 = null; String adminName1 = null; String benefit1 = null;
+            Long adminId2 = null; String adminName2 = null; String benefit2 = null;
+
+            if (!sPapers.isEmpty()) {
+                final Paper p1 = sPapers.get(0);
+                if (p1.getAdmin() != null) {
+                    adminId1 = p1.getAdmin().getId();
+                    adminName1 = p1.getAdmin().getName();
+                }
+                benefit1 = resolveBenefit(contentByPaperId.get(p1.getId()));
+            }
+            if (sPapers.size() > 1) {
+                final Paper p2 = sPapers.get(1);
+                if (p2.getAdmin() != null) {
+                    adminId2 = p2.getAdmin().getId();
+                    adminName2 = p2.getAdmin().getName();
+                }
+                benefit2 = resolveBenefit(contentByPaperId.get(p2.getId()));
+            }
+
+            return StoreMapResponseDTO.of(s, adminId1, adminId2, adminName1, adminName2, benefit1, benefit2, amazonS3Manager);
         }).toList();
     }
 
-    @Override
-    public List<StoreMapResponseV2DTO> getStoresV2(MapRequestDTO viewport, Long memberId) {
-        final String wkt = toWKT(viewport);
-        final List<Store> stores = storeRepository.findAllWithinViewport(wkt);
-        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, java.time.LocalDate.now());
-
-        // 모든 매장 ID 수집
-        List<Long> storeIds = stores.stream().map(Store::getId).toList();
-
-        // 빈 화면(매장 없음) 방어 코드
-        if (storeIds.isEmpty()) {
-            return java.util.Collections.emptyList();
+    /** note가 있으면 note를, 없으면 generateBenefitText 결과를 반환 */
+    private String resolveBenefit(PaperContent content) {
+        if (content == null) return null;
+        if (content.getNote() != null && !content.getNote().isBlank()) {
+            return content.getNote();
         }
-
-        // 사용자가 가진 Paper ID 수집 (쿼리에 파라미터로 넘기기 위해 위치를 위로 올림!)
-        List<Long> userPaperIds = userPapers.stream()
-                .map(up -> up.getPaper().getId())
-                .toList();
-
-        // 일괄 조회 1: 모든 매장의 PaperContent (내 혜택 기준 매장당 최대 2개)
-        List<PaperContent> allContents;
-        if (userPaperIds.isEmpty()) {
-            // 방어 코드: 사용자가 가진 혜택이 없다면 IN () 에러 방지를 위해 쿼리 실행 없이 빈 리스트 할당
-            allContents = java.util.Collections.emptyList();
-        } else {
-            allContents = paperContentRepository.findLatestValidByStoreIdInNativeMax2(
-                    storeIds,
-                    ActivationStatus.ACTIVE.name(),
-                    OptionType.SERVICE.name(),
-                    OptionType.DISCOUNT.name(),
-                    CriterionType.PRICE.name(),
-                    CriterionType.HEADCOUNT.name(),
-                    userPaperIds // ⭐️ 새로 추가된 파라미터 전달!
-            );
-        }
-
-        // 일괄 조회 2: 모든 매장의 Paper와 Admin 정보 (Fetch Join)
-        List<Paper> allPapers = paperRepository.findLatestPapersByStoreIds(storeIds);
-
-        // 매장별 Paper 매핑 (매장당 최신 1개)
-        java.util.Map<Long, Paper> paperByStore = allPapers.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        p -> p.getStore().getId(),
-                        p -> p,
-                        (existing, replacement) -> existing // 이미 키가 있으면 기존 값(최신) 유지
-                ));
-
-        // 매장별로 PaperContent 그룹화
-        java.util.Map<Long, List<PaperContent>> contentsByStore = allContents.stream()
-                .collect(java.util.stream.Collectors.groupingBy(
-                        pc -> pc.getPaper().getStore().getId()
-                ));
-
-        return stores.stream().map(s -> {
-            final boolean hasPartner = (s.getPartner() != null);
-
-            // ⭐️ DB에서 이미 '내 혜택 중 상위 2개'만 가져왔으므로 filter와 limit이 필요 없음! 꺼내기만 하면 끝.
-            List<PaperContent> benefits = contentsByStore.getOrDefault(s.getId(), java.util.Collections.emptyList());
-
-            // 혜택 텍스트 생성
-            String partner1 = null;
-            String benefit1 = null;
-            String partner2 = null;
-            String benefit2 = null;
-
-            if (!benefits.isEmpty()) {
-                PaperContent content1 = benefits.get(0);
-                partner1 = content1.getPaper() != null && content1.getPaper().getPartner() != null
-                        ? content1.getPaper().getPartner().getName() : null;
-                benefit1 = generateBenefitText(content1);
-            }
-
-            if (benefits.size() > 1) {
-                PaperContent content2 = benefits.get(1);
-                partner2 = content2.getPaper() != null && content2.getPaper().getPartner() != null
-                        ? content2.getPaper().getPartner().getName() : null;
-                benefit2 = generateBenefitText(content2);
-            }
-
-            Paper paper = paperByStore.get(s.getId());
-            Long adminId = null;
-            String adminName = null;
-            if (paper != null && paper.getAdmin() != null) {
-                adminId = paper.getAdmin().getId();
-                String name = paper.getAdmin().getName();
-                adminName = (name != null) ? name : ""; // Null이면 빈 문자열로 덮어쓰기!
-            }
-
-            // S3 presigned URL
-            final String key = (s.getPartner() != null && s.getPartner().getMember() != null)
-                    ? s.getPartner().getMember().getProfileUrl() : null;
-            final String profileUrl = (key != null && !key.isBlank())
-                    ? amazonS3Manager.generatePresignedUrl(key) : null;
-
-            // phoneNumber
-            final String phoneNumber = (s.getPartner() != null
-                    && s.getPartner().getMember() != null
-                    && s.getPartner().getMember().getPhoneNum() != null)
-                    ? s.getPartner().getMember().getPhoneNum()
-                    : "";
-
-            return new StoreMapResponseV2DTO(
-                    s.getId(), adminId, adminName, s.getName(),
-                    s.getAddress() != null ? s.getAddress() : s.getDetailAddress(),
-                    s.getRate(), hasPartner,
-                    s.getLatitude(), s.getLongitude(),
-                    profileUrl, phoneNumber,
-                    partner1, partner2, benefit1, benefit2
-            );
-        }).toList();
+        return generateBenefitText(content);
     }
 
     private String generateBenefitText(PaperContent content) {
@@ -291,20 +232,22 @@ public class MapServiceImpl implements MapService {
         }
 
         List<Long> storeIds = stores.stream().map(Store::getId).toList();
+
+        // 매장당 최신 Paper 1건 (admin 정보용)
         List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
         Map<Long, Paper> storeIdToPaper = papers.stream()
                 .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         List<Long> adminIds = papers.stream()
-                .map(p -> p.getAdmin() != null ? p.getAdmin().getId() : null)
-                .filter(id -> id != null)
+                .filter(p -> p.getAdmin() != null)
+                .map(p -> p.getAdmin().getId())
                 .distinct()
                 .toList();
         List<Admin> admins = adminIds.isEmpty() ? List.of() : adminRepository.findAllById(adminIds);
         Map<Long, Admin> adminIdToAdmin = admins.stream()
                 .collect(Collectors.toMap(Admin::getId, a -> a));
 
-        // PaperContent batch 조회 (N+1 방지)
+        // 매장당 최신 PaperContent 1건 (benefit 생성용)
         List<PaperContent> contents = paperContentRepository.findTopByStoreIdIn(storeIds);
         Map<Long, PaperContent> storeIdToContent = contents.stream()
                 .collect(Collectors.toMap(
@@ -313,36 +256,17 @@ public class MapServiceImpl implements MapService {
                         (pc1, pc2) -> pc1.getId() > pc2.getId() ? pc1 : pc2
                 ));
 
-        // Goods batch 조회 (N+1 방지)
-        List<Long> contentIds = contents.stream().map(PaperContent::getId).toList();
-        List<Goods> allGoods = contentIds.isEmpty() ? List.of() : goodsRepository.findByContentIdIn(contentIds);
-        Map<Long, List<Goods>> contentIdToGoods = allGoods.stream()
-                .collect(Collectors.groupingBy(g -> g.getContent().getId()));
-
         return stores.stream().map(s -> {
             PaperContent content = storeIdToContent.get(s.getId());
             Paper paper = storeIdToPaper.get(s.getId());
             Long adminId = paper != null && paper.getAdmin() != null ? paper.getAdmin().getId() : null;
             Admin admin = adminId != null ? adminIdToAdmin.get(adminId) : null;
 
-            String finalCategory = null;
-
-            if (content != null) {
-                if (content.getCategory() != null) {
-                    finalCategory = content.getCategory();
-                }
-                else if (content.getOptionType() == OptionType.SERVICE) {
-                    List<Goods> goods = contentIdToGoods.getOrDefault(content.getId(), List.of());
-
-                    if (!goods.isEmpty()) {
-                        finalCategory = goods.get(0).getBelonging();
-                    }
-                }
-            }
-
-            return StoreMapResponseDTO.ofSearch(
-                    s, content, finalCategory, adminId,
-                    admin != null ? admin.getName() : null,
+            return StoreMapResponseDTO.of(
+                    s,
+                    adminId, null,
+                    admin != null ? admin.getName() : null, null,
+                    generateBenefitText(content), null,
                     amazonS3Manager
             );
         }).toList();

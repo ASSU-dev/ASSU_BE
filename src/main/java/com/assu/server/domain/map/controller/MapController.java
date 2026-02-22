@@ -107,8 +107,8 @@ public class MapController {
     }
 
     @Operation(
-            summary = "주변 장소 조회 API",
-            description = "공간 인덱싱에 들어갈 좌표 4개를 경도, 위도 순서로 입력해주세요 (user -> store 조회 / admin -> partner 조회 / partner -> admin 조회)"
+            summary = "주변 장소 조회 API (학생 혜택 기반)",
+            description = "공간 인덱싱에 들어갈 좌표 4개를 경도, 위도 순서로 입력해주세요 (user -> store 조회)"
     )
     @GetMapping("/nearby/v2")
     public BaseResponse<?> getLocationsV2(
@@ -116,7 +116,7 @@ public class MapController {
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         Long memberId = pd.getMember().getId();
-        return BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStoresV2(viewport, memberId));
+        return BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStores(viewport, memberId));
     }
 
     @Operation(
