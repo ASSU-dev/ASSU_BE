@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.assu.server.domain.admin.entity.Admin;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -65,7 +66,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
         WHERE a.point IS NOT NULL
           AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), a.point) = true
         """)
-    List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt);
+    List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt, Pageable pageable);
 
     @Query("""
         SELECT DISTINCT a
@@ -74,6 +75,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
         WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
         """)
     List<Admin> searchAdminByKeywordWithMember(
-            @Param("keyword") String keyword
+            @Param("keyword") String keyword,
+            Pageable pageable
     );
 }

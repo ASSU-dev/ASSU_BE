@@ -21,6 +21,7 @@ import com.assu.server.domain.user.entity.UserPaper;
 import com.assu.server.domain.user.repository.UserPaperRepository;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,7 +70,7 @@ public class MapServiceImpl implements MapService {
     @Override
     public List<AdminMapResponseDTO> getAdmins(MapRequestDTO viewport, Long memberId) {
         String wkt = toWKT(viewport);
-        List<Admin> admins = adminRepository.findAllWithinViewportWithMember(wkt);
+        List<Admin> admins = adminRepository.findAllWithinViewportWithMember(wkt, PageRequest.of(0, 200));
 
         if (admins.isEmpty()) {
             return List.of();
@@ -292,7 +293,7 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<AdminMapResponseDTO> searchAdmin(String keyword, Long memberId) {
-        List<Admin> admins = adminRepository.searchAdminByKeywordWithMember(keyword);
+        List<Admin> admins = adminRepository.searchAdminByKeywordWithMember(keyword, PageRequest.of(0, 50));
 
         if (admins.isEmpty()) {
             return List.of();
