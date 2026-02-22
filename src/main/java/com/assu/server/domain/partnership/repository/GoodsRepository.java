@@ -13,6 +13,9 @@ public interface GoodsRepository extends JpaRepository<Goods, Long> {
 
 	List<Goods> findByContentId(Long contentId);
 
+    @Query("SELECT g FROM Goods g WHERE g.content.id IN :contentIds")
+    List<Goods> findByContentIdIn(@Param("contentIds") List<Long> contentIds);
+
     @Modifying
     @Query("delete from Goods g where g.content.id in :contentIds")
     void deleteAllByContentIds(@Param("contentIds") List<Long> contentIds);

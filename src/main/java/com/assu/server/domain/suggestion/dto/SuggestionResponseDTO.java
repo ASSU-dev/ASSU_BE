@@ -16,11 +16,11 @@
         @AllArgsConstructor
         @Builder
         public static class WriteSuggestionResponseDTO {
-            private Long suggestionId; // 제안 번호
-            private Long userId; // 제안인 아이디
-            private Long adminId; // 건의 대상 아이디
-            private String storeName; // 희망 가게 이름
-            private String suggestionBenefit; // 희망 혜택
+            private Long suggestionId;
+            private Long userId;
+            private Long adminId;
+            private String storeName;
+            private String suggestionBenefit;
         }
 
         @Getter

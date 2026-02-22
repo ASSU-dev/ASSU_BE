@@ -17,9 +17,19 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
+import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.service.PartnershipService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -31,8 +41,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+
 @RestController
-@Tag(name = "제휴 요청 api", description = "최종적으로 제휴를 요청할때 사용하는 api ")
+@Tag(name = "Partnership", description = "제휴 제안 api")
 @RequiredArgsConstructor
 @RequestMapping("/partnership")
 public class PartnershipController {
@@ -59,51 +70,273 @@ public class PartnershipController {
             "  - 실패: 적절한 에러 코드 및 메시지"
     )
 	public ResponseEntity<BaseResponse<Void>> finalPartnershipRequest(
-		@AuthenticationPrincipal PrincipalDetails pd,@RequestBody PartnershipFinalRequestDTO dto
+		@AuthenticationPrincipal PrincipalDetails pd, @RequestBody PartnershipFinalRequestDTO dto
 	) {
 
-		partnershipService.recordPartnershipUsage(dto,pd.getMember());
+		partnershipService.recordPartnershipUsage(dto, pd.getMember());
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.USER_PAPER_REQUEST_SUCCESS, null));
 	}
 
-    @PatchMapping("/proposal")
     @Operation(
-            summary = "제휴 제안서 내용 수정 API",
-            description = "제공 서비스 종류(SERVICE, DISCOUNT), 서비스 제공 기준(PRICE, HEADCOUNT), 서비스 제공 항목, 카테고리, 할인율을 상황에 맞게 작성해주세요."
-    )
-    public BaseResponse<PartnershipResponseDTO.WritePartnershipResponseDTO> updatePartnership(
-            @RequestBody PartnershipRequestDTO.WritePartnershipRequestDTO request,
+            summary = "제휴 제안서 초안 생성 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8043a511cc8ea005d5b4)\n" +
+                    "- 관리자로 로그인한 상태에서 제안서 초안을 생성합니다.\n" +
+                    "- 제안서를 작성할 제휴업체 ID 입력.\n" +
+                    "\n**Request Body:**\n" +
+                    "  - `CreateDraftRequest` 객체 (JSON, required)\n" +
+                    "  - `partnerId` (Long): 제휴 제안서를 작성할 제휴업체 ID\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `CreateDraftResponse` 객체 반환.\n" +
+                    "  - `paperId` (Long): 생성된 제안서 ID\n")
+    @PostMapping("/proposal/draft")
+    public BaseResponse<PartnershipDraftResponseDTO> createDraftPartnership(
+            @RequestBody PartnershipDraftRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
-    ){
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId()));
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createDraftPartnership(request, pd.getId()));
     }
 
     @Operation(
             summary = "제휴 제안서 수동 등록 API",
-            description = "제공 서비스 종류(SERVICE, DISCOUNT), 서비스 제공 기준(PRICE, HEADCOUNT), 서비스 제공 항목, 카테고리, 할인율을 상황에 맞게 작성하고, 계약서 이미지를 업로드하세요."
-    )
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2591197c19ed804785d9f58f95223048)\n" +
+                    "- 관리자로 로그인한 상황에서 내용이 있는 제휴 제안서를 생성합니다.\n" +
+                    "- 계약서 이미지 MultipartFile을 입력.\n" +
+                    "- 주소 입력 시 장소 검색용 API에서 반환된 Map 객체의 내용을 selectedPlace에 입력.\n" +
+                    "- options의 optionType을 SERVICE/DISCOUNT 중 하나로 설정.\n" +
+                    "- options의 criterionType을 PRICE/HEADCOUNT 중 하나로 설정.\n" +
+                    "- 이외의 제휴 유형일 경우 anotherType을 true로 설정.\n" +
+                    "- DB에 해당하는 store가 없다면 생성.\n" +
+                    "- 해당하는 store가 INACTIVE 상태였다면 ACTIVE 상태로 변환.\n" +
+                    "\n**Request Body:**\n" +
+                    "  - `ManualPartnershipRequest` 객체 (JSON, required): 제안서 내용\n" +
+                    "  - `storeName` (String): 가게 이름\n" +
+                    "  - `selectedPlace` (JSON): 선택된 장소\n" +
+                    "    - `placeId` (String): kakao place ID\n" +
+                    "    - `name` (String): kakao place 이름\n" +
+                    "    - `address` (String): 지번 주소\n" +
+                    "    - `roadAddress` (String): 도로명 주소\n" +
+                    "    - `latitude` (Double): 장소 위도\n" +
+                    "    - `longitude` (Double): 장소 경도\n" +
+                    "  - `storeDetailAddress` (String): 가게 상세주소\n" +
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n" +
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n" +
+                    "  - `contractImage` (MultipartFile, required): 계약서 이미지 파일\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `ManualPartnershipResponse` 객체 반환.\n" +
+                    "  - `storeId` (Long): 가게 ID\n" +
+                    "  - `storeCreated` (boolean): 가게가 DB에 생성되었는지 여부\n" +
+                    "  - `storeActivated` (boolean): 가게가 재활성화되었는지 여부\n" +
+                    "  - `status` (String): 제휴 제안서의 상태\n" +
+                    "  - `contractImageUrl` (String): 계약서 파일 URL\n" +
+                    "  - `partnership` (JSON): 제휴 제안서\n" +
+                    "    - `partnershipId` (Long): 제안서 ID\n" +
+                    "    - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n" +
+                    "    - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n" +
+                    "    - `adminId` (Long): 관리자 ID\n" +
+                    "    - `partnerId` (Long): 제휴업체 ID\n" +
+                    "    - `storeId` (Long): 가게 ID\n" +
+                    "    - `storeName` (String): 가게 이름\n" +
+                    "    - `adminName` (String): 관리자 이름\n" +
+                    "    - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
+                    "    - `options` (JSON): 제휴 옵션\n" +
+                    "      - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "      - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "      - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "      - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "      - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "      - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "      - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "      - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "      - `goods` (JSON): 서비스 제공 항목\n" +
+                    "        - `goodsId` (Long): 서비스 제공 항목 ID\n" +
+                    "        - `goodsName` (String): 서비스 제공 항목명\n")
     @PostMapping(value = "/passivity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BaseResponse<PartnershipResponseDTO.ManualPartnershipResponseDTO> createManualPartnership(
-            @RequestPart("request") @Parameter PartnershipRequestDTO.ManualPartnershipRequestDTO request,
+    public BaseResponse<ManualPartnershipResponseDTO> createManualPartnership(
+            @RequestPart("request") @Parameter ManualPartnershipRequestDTO request,
+            @RequestPart(value = "contractImage")
             @Parameter(
                     description = "계약서 이미지 파일",
                     required = true,
                     content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
                             schema = @Schema(type = "string", format = "binary"))
-            )
-            MultipartFile contractImage,
+            ) MultipartFile contractImage,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createManualPartnership(request, pd.getId(), contractImage));
     }
 
     @Operation(
+            summary = "제휴 제안서 내용 수정 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2371197c19ed80aa8468d2377ef8eac2)\n" +
+                    "- 제안서 초안 또는 이미 작성된 제안서의 내용을 수정합니다.\n" +
+                    "- options의 optionType을 SERVICE/DISCOUNT 중 하나로 설정\n" +
+                    "- options의 criterionType을 PRICE/HEADCOUNT 중 하나로 설정\n" +
+                    "- 이외의 제휴 유형일 경우 anotherType을 true로 설정\n" +
+                    "\n**Request Body:**\n" +
+                    "  - `WritePartnershipRequest` 객체 (JSON, required): 수정 내용\n" +
+                    "  - `paperId` (String): 이메일 주소\n" +
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n" +
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `WritePartnershipResponse` 객체 반환\n" +
+                    "  - `partnershipId` (Long): 제안서 ID\n" +
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n" +
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n" +
+                    "  - `adminId` (Long): 관리자 ID\n" +
+                    "  - `partnerId` (Long): 제휴업체 ID\n" +
+                    "  - `storeId` (Long): 가게 ID\n" +
+                    "  - `storeName` (String): 가게 이름\n" +
+                    "  - `adminName` (String): 관리자 이름\n" +
+                    "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n")
+    @PatchMapping("/proposal")
+    public BaseResponse<WritePartnershipResponseDTO> updatePartnership(
+            @RequestBody WritePartnershipRequestDTO request,
+            @AuthenticationPrincipal PrincipalDetails pd
+    ){
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId()));
+    }
+
+    @Operation(
+            summary = "제휴 상태 업데이트 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/SUSPEND-ACTIVE-INACTIVE-2371197c19ed805ab509f552817e823a)\n" +
+                    "- 제휴 상태를 변경합니다.\n" +
+                    "- 적용할 상태 입력 (ACTIVE/SUSPEND/INACTIVE).\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `partnershipId` (Long, required): 상태를 적용할 제안서 ID\n" +
+                    "\n**Request Body:**\n" +
+                    "  - `UpdateRequest` 객체 (JSON, required)\n" +
+                    "  - `status` (String): 제안서에 적용할 상태\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `UpdateResponse` 객체 반환.\n" +
+                    "  - `partnershipId` (Long): 생성된 제안서 ID\n"+
+                    "  - `prevStatus` (String): 제안서의 이전 상태\n"+
+                    "  - `newStatus` (String): 제안서의 이전 상태\n"+
+                    "  - `changedAt` (LocalDateTime): 상태 변경 시간\n")
+    @PatchMapping("/{partnershipId}/status")
+    public BaseResponse<PartnershipStatusUpdateResponseDTO> updatePartnershipStatus(
+            @PathVariable("partnershipId") @Parameter(required = true) Long partnershipId,
+            @RequestBody PartnershipStatusUpdateRequestDTO request
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnershipStatus(partnershipId, request));
+    }
+
+    @Operation(
+            summary = "제휴 상세조회 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2371197c19ed80cdac8beb2ffddb2f61)\n" +
+                    "- 제휴 제안서의 내용을 조회합니다.\n" +
+                    "- 적용할 상태 입력 (ACTIVE/SUSPEND/INACTIVE).\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `partnershipId` (Long, required): 내용을 조회할 제안서 ID\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `GetPartnershipDetailResponse` 객체 반환.\n" +
+                    "  - `partnershipId` (Long): 제안서 ID\n"+
+                    "  - `updatedAt` (LocalDateTime): 업데이트된 시간\n"+
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n"+
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n"+
+                    "  - `adminId` (Long): 관리자 ID\n" +
+                    "  - `partnerId` (Long): 제휴업체 ID\n" +
+                    "  - `storeId` (Long): 가게 ID\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n")
+    @GetMapping("/{partnershipId}")
+    public BaseResponse<PartnershipDetailResponseDTO> getPartnership(
+            @PathVariable @Parameter(required = true) Long partnershipId
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getPartnership(partnershipId));
+    }
+
+    @Operation(
+            summary = "제휴 제안서 삭제 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed80e58d30c469e4ba3146)\n" +
+                    "- paperId와 관련된 모든 내용을 삭제합니다.\n" +
+                    "- 성공 시 200(OK) 반환.\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `paperId` (Long, required): 삭제할 제안서 ID\n")
+    @DeleteMapping("/proposal/delete/{paperId}")
+    public BaseResponse<Void> deletePartnership(
+            @PathVariable @Parameter(required = true) Long paperId
+    ) {
+        partnershipService.deletePartnership(paperId);
+        return BaseResponse.onSuccess(SuccessStatus._OK, null);
+    }
+
+    @Operation(
             summary = "제휴 중인 가게 조회 API",
-            description = "전체를 조회하려면 all을 true로, 가장 최근 두 건을 조회하려면 all을 false로 설정해주세요."
-    )
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-2241197c19ed81b1b9adf724adc4600c)\n" +
+                    "- 현재 로그인한 관리자와 제휴 중인 가게를 조회합니다.\n" +
+                    "- 전체를 조회하려면 all을 true로, 가장 최근 두 건을 조회하려면 all을 false로 설정.\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `all` (boolean, required): 조회 옵션\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `WritePartnershipResponse` 객체 반환.\n" +
+                    "  - `partnershipId` (Long): 제안서 ID\n"+
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n"+
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n"+
+                    "  - `adminId` (Long): 관리자 ID\n" +
+                    "  - `partnerId` (Long): 제휴업체 ID\n" +
+                    "  - `storeId` (Long): 가게 ID\n" +
+                    "  - `storeName` (String): 가게 이름\n" +
+                    "  - `adminName` (String): 관리자 이름\n" +
+                    "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/admin")
-    public BaseResponse<List<PartnershipResponseDTO.WritePartnershipResponseDTO>> listForAdmin(
+    public BaseResponse<List<WritePartnershipResponseDTO>> listForAdmin(
             @RequestParam(name = "all", defaultValue = "false") boolean all,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -112,10 +345,36 @@ public class PartnershipController {
 
     @Operation(
             summary = "제휴 중인 관리자 조회 API",
-            description = "전체를 조회하려면 all을 true로, 가장 최근 두 건을 조회하려면 all을 false로 설정해주세요."
-    )
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-24f1197c19ed802784fddadbbd3ea2c6)\n" +
+                    "- 현재 로그인한 제휴업체와 제휴 중인 관리자를 조회합니다.\n" +
+                    "- 전체를 조회하려면 all을 true로, 가장 최근 두 건을 조회하려면 all을 false로 설정.\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `all` (boolean, required): 조회 옵션\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `WritePartnershipResponse` 객체 반환.\n" +
+                    "  - `partnershipId` (Long): 제안서 ID\n"+
+                    "  - `partnershipPeriodStart` (LocalDate): 제휴 시작일\n"+
+                    "  - `partnershipPeriodEnd` (LocalDate): 제휴 마감일\n"+
+                    "  - `adminId` (Long): 관리자 ID\n" +
+                    "  - `partnerId` (Long): 제휴업체 ID\n" +
+                    "  - `storeId` (Long): 가게 ID\n" +
+                    "  - `storeName` (String): 가게 이름\n" +
+                    "  - `adminName` (String): 관리자 이름\n" +
+                    "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
+                    "  - `options` (JSON): 제휴 옵션\n" +
+                    "    - `optionType` (OptionType):  제공 서비스 종류 (서비스 제공, 할인)\n" +
+                    "    - `criterionType` (CriterionType):  서비스 제공 기준 (금액, 인원)\n" +
+                    "    - `anotherType` (Boolean):  기타 제공 서비스\n" +
+                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
+                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
+                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
+                    "    - `category` (String): 서비스 카테고리, 서비스 제공 항목이 여러 개 일 때 작성\n" +
+                    "    - `discountRate` (Long): 서비스 제공 인원 수\n" +
+                    "    - `goods` (JSON): 서비스 제공 항목\n" +
+                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
+                    "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/partner")
-    public BaseResponse<List<PartnershipResponseDTO.WritePartnershipResponseDTO>> listForPartner(
+    public BaseResponse<List<WritePartnershipResponseDTO>> listForPartner(
             @RequestParam(name = "all", defaultValue = "false") boolean all,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -123,82 +382,62 @@ public class PartnershipController {
     }
 
     @Operation(
-            summary = "제휴 상세조회 API",
-            description = "제휴 아이디를 입력하세요."
-    )
-    @GetMapping("/{partnershipId}")
-    public BaseResponse<PartnershipResponseDTO.GetPartnershipDetailResponseDTO> getPartnership(
-            @PathVariable Long partnershipId
-    ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getPartnership(partnershipId));
-    }
-
-    @Operation(
-            summary = "제휴 상태 업데이트 API",
-            description = "제휴 ID와 바꾸고 싶은 상태를 입력하세요(SUSPEND/ACTIVE/INACTIVE/BLANK)"
-    )
-    @PatchMapping("/{partnershipId}/status")
-    public BaseResponse<PartnershipResponseDTO.UpdateResponseDTO> updatePartnershipStatus(
-            @PathVariable("partnershipId") Long partnershipId,
-            @RequestBody PartnershipRequestDTO.UpdateRequestDTO request
-    ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnershipStatus(partnershipId, request));
-    }
-
-    @PostMapping("/proposal/draft")
-    @Operation(
-            summary = "제휴 제안서 초안 생성 API",
-            description = "현재 로그인한 관리자(Admin)가 내용이 비어있는 제휴 제안서를 초안 상태로 생성합니다."
-    )
-    public BaseResponse<PartnershipResponseDTO.CreateDraftResponseDTO> createDraftPartnership(
-            @RequestBody PartnershipRequestDTO.CreateDraftRequestDTO request,
-            @AuthenticationPrincipal PrincipalDetails pd
-    ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createDraftPartnership(request, pd.getId()));
-    }
-
-    @DeleteMapping("/proposal/delete/{paperId}")
-    @Operation(
-            summary = "제휴 제안서 삭제 API",
-            description = "특정 제휴 제안서(paperId)와 관련된 모든 데이터를 삭제합니다."
-    )
-    public BaseResponse<Void> deletePartnership(
-            @PathVariable Long paperId
-    ) {
-        partnershipService.deletePartnership(paperId);
-        return BaseResponse.onSuccess(SuccessStatus._OK, null);
-    }
-
-    @GetMapping("/suspended")
-    @Operation(
             summary = "대기 중인 제휴 계약서 조회 API",
-            description = "현재 로그인한 관리자(Admin)가 대기 중인 제휴 계약서를 모두 조회하여 리스트로 반환합니다."
-    )
-    public BaseResponse<List<PartnershipResponseDTO.SuspendedPaperDTO>> suspendPartnership(
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-24f1197c19ed802784fddadbbd3ea2c6)\n" +
+                    "- 현재 로그인한 관리자와 제휴 중인 제안서 중 SUSPEND 상태인 제안서를 모두 조회합니다.\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `SuspendedPaper` 객체 반환.\n" +
+                    "  - `paperId` (Long): 제안서 ID\n"+
+                    "  - `partnerName` (String): 제휴업체 이름\n"+
+                    "  - `createdAt` (LocalDateTime): 제휴 생성 일자\n")
+    @GetMapping("/suspended")
+    public BaseResponse<List<SuspendedPaperResponseDTO>> suspendPartnership(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getSuspendedPapers(pd.getId()));
     }
 
-    @GetMapping("/check/admin")
     @Operation(
-            summary = "관리자 채팅방 내 제휴 확인 API",
-            description = "현재 로그인한 관리자(Admin)가 파라미터로 받은 partnerId를 가진 상대 제휴업체(Partner)와 맺고 있는 제휴를 조회합니다. 비활성화되지 않은 가장 최근 제휴 1건을 조회합니다."
-    )
-    public BaseResponse<PartnershipResponseDTO.AdminPartnershipWithPartnerResponseDTO> checkAdminPartnership(
-            @RequestParam("partnerId") Long partnerId,
+            summary = "채팅방 내 제휴 확인 API(관리자용)",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8078af77d65bfcc09087)\n" +
+                    "- 현재 로그인한 관리자와 파라미터로 받은 partnerId를 가진 제휴업체 간에 제휴를 조회합니다.\n" +
+                    "- 비활성화 되지 않은 가장 최근 제휴 1건 조회.\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `partnerId` (Long, required): 제휴업체 ID\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `AdminPartnershipWithPartnerResponse` 객체 반환.\n" +
+                    "  - `paperId` (Long): 제안서 ID\n"+
+                    "  - `isPartnered` (boolean): 제휴 여부\n"+
+                    "  - `status` (String): 제휴 상태\n"+
+                    "  - `partnerId` (Long): 제휴업체 ID\n"+
+                    "  - `partnerName` (String): 제휴업체 이름\n"+
+                    "  - `partnerAddress` (String): 제휴업체 주소\n")
+    @GetMapping("/check/admin/{partnerId}")
+    public BaseResponse<AdminPartnershipCheckResponseDTO> checkAdminPartnership(
+            @PathVariable @Parameter(required = true) Long partnerId,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.checkPartnershipWithPartner(pd.getId(), partnerId));
     }
 
-    @GetMapping("/check/partner")
     @Operation(
-            summary = "제휴업체 채팅방 내 제휴 확인 API",
-            description = "현재 로그인한 제휴업체(Partner)가 파라미터로 받은 AdminId를 가진 상대 관리자(Admin)과 맺고 있는 제휴를 조회합니다. 비활성화되지 않은 가장 최근 제휴 1건을 조회합니다."
-    )
-    public BaseResponse<PartnershipResponseDTO.PartnerPartnershipWithAdminResponseDTO> checkPartnerPartnership(
-            @RequestParam("adminId") Long adminId,
+            summary = "채팅방 내 제휴 확인 API(제휴업체용)",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8078af77d65bfcc09087)\n" +
+                    "- 현재 로그인한 제휴업체와 파라미터로 받은 adminId를 가진 관리자 간에 제휴를 조회합니다.\n" +
+                    "- 비활성화 되지 않은 가장 최근 제휴 1건 조회.\n" +
+                    "\n**Parameters:**\n" +
+                    "  - `adminId` (Long, required): 관리자 ID\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `PartnerPartnershipWithAdminResponse` 객체 반환.\n" +
+                    "  - `paperId` (Long): 제안서 ID\n"+
+                    "  - `isPartnered` (boolean): 제휴 여부\n"+
+                    "  - `status` (String): 제휴 상태\n"+
+                    "  - `adminId` (Long): 관리자 ID\n"+
+                    "  - `adminName` (String): 관리자 이름\n"+
+                    "  - `adminAddress` (String): 관리자 주소\n")
+    @GetMapping("/check/partner/{adminId}")
+    public BaseResponse<PartnerPartnershipCheckResponseDTO> checkPartnerPartnership(
+            @PathVariable @Parameter(required = true) Long adminId,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.checkPartnershipWithAdmin(pd.getId(), adminId));

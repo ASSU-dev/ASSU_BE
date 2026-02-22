@@ -1,18 +1,9 @@
 package com.assu.server.domain.admin.entity;
 
-
+import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.user.entity.enums.Department;
 import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.user.entity.enums.University;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
-import jakarta.persistence.Id;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -38,13 +29,16 @@ public class Admin {
     @JoinColumn(name = "id")
     private Member member;
 
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
+    @Column(name = "office_address", length = 255, nullable = false)
     private String officeAddress;
 
+    @Column(name = "detail", length = 255)
     private String detailAddress;
 
-    private String signUrl;
+    private String signImageUrl;
 
     private Boolean isSignVerified;
 
@@ -66,7 +60,7 @@ public class Admin {
     private double latitude;
     private double longitude;
 
-    public void setMember(Member member) {
+    public void updateMember(Member member) {
         this.member = member;
     }
 }

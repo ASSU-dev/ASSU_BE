@@ -26,13 +26,9 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 		@Param("adminId")Long adminId,
 		@Param("status")ActivationStatus status);
 
-
     // Admin 기준 (ACTIVE)
     List<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Sort sort);
     Page<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Pageable pageable);
-    Optional<Paper> findTopByAdmin_IdAndPartner_IdAndIsActivatedOrderByIdDesc(
-            Long adminId, Long partnerId, ActivationStatus isActivated
-    );
 
     boolean existsByAdmin_IdAndPartner_IdAndIsActivatedIn(Long adminId, Long partnerId, List<ActivationStatus> statuses);
     Optional<Paper> findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(Long adminId, Long partnerId, List<ActivationStatus> statuses);
@@ -47,7 +43,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     // Partner 기준 (ACTIVE)
     List<Paper> findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Sort sort);
     Page<Paper>  findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Pageable pageable);
-    Optional<Paper> findTopPaperByStoreId(Long storeId);
     long countByStore_Id(Long storeId);
 
     @Query("""
@@ -62,6 +57,37 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                                            @Param("status") ActivationStatus status);
 
     List<Paper> findByStoreIdAndAdminIdAndIsActivated(Long storeId, Long adminId, ActivationStatus isActivated);
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id = :adminId
+          AND p.partner.id IN :partnerIds
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdAndPartnerIdInAndIsActivated(
+            @Param("adminId") Long adminId,
+            @Param("partnerIds") List<Long> partnerIds,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.admin.id IN :adminIds
+          AND p.partner.id = :partnerId
+          AND p.isActivated = :status
+        """)
+    List<Paper> findByAdminIdInAndPartnerIdAndIsActivated(
+            @Param("adminIds") List<Long> adminIds,
+            @Param("partnerId") Long partnerId,
+            @Param("status") ActivationStatus status
+    );
+
+    @Query("""
+        SELECT p FROM Paper p
+        WHERE p.store.id IN :storeIds
+        ORDER BY p.id DESC
+        """)
+    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds);
 
     // PaperRepository.java에 추가
     @Query("""
