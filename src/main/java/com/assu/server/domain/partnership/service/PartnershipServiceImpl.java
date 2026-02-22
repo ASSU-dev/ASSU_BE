@@ -255,8 +255,7 @@ public class PartnershipServiceImpl implements PartnershipService {
                     chattingRoom.getId(),
                     partnerId,
                     adminId,
-                    guideMessage,
-                    0
+                    guideMessage
             );
             chatService.sendGuideMessage(guideMessageRequest);
             notificationService.sendChat(adminId, chattingRoom.getId(), partner.getName(), guideMessage);
@@ -267,8 +266,7 @@ public class PartnershipServiceImpl implements PartnershipService {
                     chattingRoom.getId(),
                     adminId,
                     partnerId,
-                    guideMessage,
-                    0
+                    guideMessage
             );
             chatService.sendGuideMessage(guideMessageRequest);
             notificationService.sendChat(partnerId, chattingRoom.getId(), admin.getName(), guideMessage);
@@ -379,8 +377,7 @@ public class PartnershipServiceImpl implements PartnershipService {
                 chattingRoom.getId(),
                 admin.getId(),
                 partner.getId(),
-                guideMessage,
-                0
+                guideMessage
         );
 
         // 5. 완성된 DTO를 사용해서 안내 메시지를 전송합니다.

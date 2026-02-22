@@ -1,31 +1,41 @@
 package com.assu.server.domain.chat.dto;
 
+import com.assu.server.domain.chat.entity.ChattingRoom;
+import com.assu.server.domain.chat.entity.Message;
 import com.assu.server.domain.chat.entity.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.google.protobuf.Enum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class ChatResponseDTO {
 
     // 채팅방 목록 조회
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CreateChatRoomResponseDTO {
-        private Long roomId;
-        private String adminViewName;
-        private String partnerViewName;
-        private Boolean isNew;
+    public record CreateChatRoomResponseDTO(
+            Long roomId,
+            String adminViewName,
+            String partnerViewName,
+            Boolean isNew
+    ) {
+        public static CreateChatRoomResponseDTO fromNewRoom(ChattingRoom room) {
+            return new CreateChatRoomResponseDTO(
+                    room.getId(),
+                    room.getPartner().getName(),
+                    room.getAdmin().getName(),
+                    true
+            );
+        }
+        public static CreateChatRoomResponseDTO fromExistingRoom(ChattingRoom room) {
+            return new CreateChatRoomResponseDTO(
+                    room.getId(),
+                    room.getPartner().getName(),
+                    room.getAdmin().getName(),
+                    false
+            );
+        }
     }
 
     // 메시지 전송
-    @Builder
     public record SendMessageResponseDTO(
         Long messageId,
         Long roomId,
@@ -37,10 +47,22 @@ public class ChatResponseDTO {
         LocalDateTime sentAt,
         Integer unreadCountForSender
     ) {
-        public SendMessageResponseDTO withUnreadCountForSender(Integer count) {
+
+        public static SendMessageResponseDTO from(
+                Message message
+        ) {
             return new SendMessageResponseDTO(
-                    messageId, roomId, senderId, receiverId, message, messageType, sentAt, count
+                    message.getId(),
+                    message.getChattingRoom().getId(),
+                    message.getSender().getId(),
+                    message.getReceiver().getId(),
+                    message.getMessage(),
+                    message.getType(),
+                    message.getCreatedAt(),
+                    message.getUnreadCount()
             );
+
+
         }
     }
 
@@ -54,23 +76,26 @@ public class ChatResponseDTO {
     ) {}
 
     // 채팅방 들어갔을 때 조회
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class ChatHistoryResponseDTO {
-        private Long roomId;
-        private List<ChatMessageDTO> messages;
+    public record ChatHistoryResponseDTO(
+            Long roomId,
+            List<ChatMessageDTO> messages
+    ) {
+        public static ChatHistoryResponseDTO of(
+                Long roomId,
+                List<ChatMessageDTO> messages) {
+            return new ChatHistoryResponseDTO(
+                    roomId,
+                    messages
+            );
+        }
     }
 
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class LeaveChattingRoomResponseDTO {
-        private Long roomId;
-        private boolean isLeftSuccessfully;
-        private boolean isRoomDeleted;
+    public record LeaveChattingRoomResponseDTO(
+            Long roomId,
+            boolean isLeftSuccessfully,
+            boolean isRoomDeleted
+    ) {
+
     }
 }
 

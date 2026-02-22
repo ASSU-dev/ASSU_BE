@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -100,5 +101,16 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     ORDER BY p.id DESC
 """)
     List<Paper> findLatestPapersByStoreIds(@Param("storeIds") List<Long> storeIds);
+
+    @Modifying
+    @Query("""
+        UPDATE Paper p
+        SET p.isActivated = :inactiveStatus
+        WHERE p.partnershipPeriodEnd < :today
+          AND p.isActivated = :activeStatus
+    """)
+    void updatePaperStatus(@Param("today") LocalDate today,
+                          @Param("inactiveStatus") ActivationStatus inactiveStatus,
+                          @Param("activeStatus") ActivationStatus activeStatus);
 
 }
