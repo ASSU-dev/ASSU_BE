@@ -12,6 +12,6 @@ import com.assu.server.domain.user.entity.enums.University;
 public interface AdminService {
 	List<Admin> findMatchingAdmins(University university, Department department, Major major);
 
-    AdminResponseDTO.RandomPartnerResponseDTO suggestRandomPartner(Long adminId);
+    AdminResponseDTO suggestRandomPartner(Long adminId);
 
 }

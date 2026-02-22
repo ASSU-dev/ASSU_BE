@@ -9,7 +9,6 @@ import com.assu.server.domain.store.entity.Store;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -21,9 +20,8 @@ public class Paper extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-
 	@Setter
-	private LocalDate partnershipPeriodStart; //  LocalDate vs String
+	private LocalDate partnershipPeriodStart;
 
 	@Setter
 	private LocalDate partnershipPeriodEnd;
@@ -31,7 +29,6 @@ public class Paper extends BaseEntity {
 	@Setter
     @Enumerated(EnumType.STRING)
 	private ActivationStatus isActivated;
-
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "admin_id")
