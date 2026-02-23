@@ -50,6 +50,7 @@ public class Student {
     public void setStamp() {
         this.stamp++;
     }
+    public void resetStamp() {this.stamp = 0;}
 
     /**
      * 유세인트에서 크롤링한 최신 정보로 학생 정보를 업데이트합니다.

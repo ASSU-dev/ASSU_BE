@@ -7,6 +7,8 @@ import java.util.List;
 
 import com.assu.server.domain.notification.repository.NotificationRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.user.entity.StampEventApplicant;
+import com.assu.server.domain.user.repository.StampEventApplicantRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +46,7 @@ public class StudentServiceImpl implements StudentService {
 	private final UserPaperRepository userPaperRepository;
 	private final PaperContentRepository paperContentRepository;
 	private final PartnershipUsageRepository partnershipUsageRepository;
+	private final StampEventApplicantRepository stampEventApplicantRepository;
 	private final GoodsRepository goodsRepository;
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
@@ -113,14 +116,11 @@ public class StudentServiceImpl implements StudentService {
 			partnershipUsageRepository.findByUnreviewedUsage(memberId, pageable);
 
 		return contentList.map(u -> {
-			// 1. partnershipUsage의 paperContentId 로 paperContent 조회
 			PaperContent paperContent = paperContentRepository.findById(u.getContentId())
 				.orElse(null);
 
-			// 2. store 추출
 			Store store = (paperContent != null) ? paperContent.getPaper().getStore() : null;
 
-			// 3. 날짜 포맷팅
 			LocalDateTime ld = u.getCreatedAt();
 			String formatDate = ld.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
@@ -150,7 +150,6 @@ public class StudentServiceImpl implements StudentService {
 			String adminName = (paper.getAdmin() != null) ? paper.getAdmin().getName() : null;
 			String partnerName = (store != null) ? store.getName() : null;
 
-			// 카테고리 결정 로직 그대로
 			String finalCategory = null;
 			String note = null;
 			if (content != null) {
@@ -235,9 +234,20 @@ public class StudentServiceImpl implements StudentService {
 
 		student.setStamp();
 
-		if (student.getStamp() == 10) {
+		if (student.getStamp() >= 10) {
+			// 응모자 테이블에 기록 저장
+			StampEventApplicant applicant = StampEventApplicant.builder()
+					.student(student)
+					.appliedAt(LocalDateTime.now())
+					.eventVersion("2026_SEASON_1")
+					.build();
+			stampEventApplicantRepository.save(applicant);
+
+			// 알림 발송
 			notificationCommandService.sendStamp(memberId);
 
+			// 스탬프 초기화 (리셋해야 다음 10개를 다시 모을 수 있음)
+			student.resetStamp();
 		}
 	}
 

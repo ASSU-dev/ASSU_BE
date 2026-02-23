@@ -91,8 +91,8 @@ public class StudentController {
     }
 	@Operation(
 			summary = "스탬프 적립 및 이벤트 응모 API",
-			description = "- 호출 시 사용자의 스탬프가 1개 적립됩니다.\n" +
-					"- 스탬프가 10개가 되는 시점에 자동으로 알림 서비스(`sendStamp`)가 호출되어 이벤트에 응모됩니다."
+			description = "# [v1.0 (2026-02-23)](https://clumsy-seeder-416.notion.site/3101197c19ed80b5b47eceb202535469)\n" +
+					"- 스탬프가 10개가 되는 시점에 자동으로 응모및 알림"
 	)
 	@PostMapping("/stamp")
 	public BaseResponse<String> earnStamp(
@@ -100,7 +100,7 @@ public class StudentController {
 	) {
 		// ServiceImpl에 새로 만든 로직 호출
 		studentService.addStamp(pd.getId());
-		return BaseResponse.onSuccess(SuccessStatus._OK, "스탬프 적립 및 이벤트 체크 완료");
+		return BaseResponse.onSuccess(SuccessStatus._OK, "스탬프 적립 성공");
 	}
 
 	@Operation(
