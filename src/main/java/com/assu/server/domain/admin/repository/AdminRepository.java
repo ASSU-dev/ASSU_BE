@@ -28,8 +28,6 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 		@Param("department") Department department,
 		@Param("major") Major major);
 
-	Optional<Admin> findByName(String name);
-
     // 후보 수 카운트: 해당 partner와 ACTIVE 제휴가 없는 admin 수
     @Query(value = """
         SELECT COUNT(*)

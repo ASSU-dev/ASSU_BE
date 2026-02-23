@@ -29,7 +29,9 @@ import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -151,32 +153,28 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long adminId) {
-        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
-        List<Paper> papers = all
-                ? paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, sort)
-                : paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, PageRequest.of(0, 2, sort)).getContent();
+    public Page<WritePartnershipResponseDTO> listPartnershipsForAdmin(Pageable pageable, Long adminId) {
+        Page<Paper> paperPage = paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, pageable);
 
-        papers = papers.stream()
+        List<Paper> papers = paperPage.getContent().stream()
                 .filter(p -> p.getStore() != null)
                 .toList();
 
-        return buildPartnershipDTOs(papers);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long partnerId) {
-        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
-        List<Paper> papers = all
-                ? paperRepository.findByPartner_IdAndIsActivated(partnerId, ActivationStatus.ACTIVE, sort)
-                : paperRepository.findByPartner_IdAndIsActivated(partnerId, ActivationStatus.ACTIVE, PageRequest.of(0, 2, sort)).getContent();
+    public Page<WritePartnershipResponseDTO> listPartnershipsForPartner(Pageable pageable, Long partnerId) {
+        Page<Paper> paperPage = paperRepository.findByPartner_IdAndIsActivated(partnerId, ActivationStatus.ACTIVE, pageable);
 
-        papers = papers.stream()
+        List<Paper> papers = paperPage.getContent().stream()
                 .filter(p -> p.getAdmin() != null)
                 .toList();
 
-        return buildPartnershipDTOs(papers);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
     @Override
@@ -461,7 +459,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         if (papers == null || papers.isEmpty()) return List.of();
 
         List<Long> paperIds = papers.stream().map(Paper::getId).toList();
-        List<PaperContent> allContents = paperContentRepository.findAllByPaperIdInFetchGoods(paperIds);
+        List<PaperContent> allContents = paperContentRepository.findAllByPaperIdIn(paperIds, Pageable.unpaged()).getContent();
 
         Map<Long, List<PaperContent>> byPaperId = allContents.stream()
                 .collect(Collectors.groupingBy(pc -> pc.getPaper().getId()));

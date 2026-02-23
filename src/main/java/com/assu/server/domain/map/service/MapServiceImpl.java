@@ -229,7 +229,7 @@ public class MapServiceImpl implements MapService {
         List<Long> storeIds = stores.stream().map(Store::getId).toList();
 
         // 매장당 최신 Paper 1건 (admin 정보용)
-        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
+        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds, ActivationStatus.ACTIVE);
         Map<Long, Paper> storeIdToPaper = papers.stream()
                 .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 

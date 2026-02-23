@@ -82,22 +82,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     @Query("""
         SELECT p FROM Paper p
         WHERE p.store.id IN :storeIds
+          AND p.isActivated = :status
         ORDER BY p.id DESC
         """)
-    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds);
-
-    // PaperRepository.java에 추가
-    @Query("""
-    SELECT p
-    FROM Paper p
-    LEFT JOIN FETCH p.admin a
-    WHERE p.store.id IN :storeIds
-      AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
-      AND p.partnershipPeriodStart <= CURRENT_DATE
-      AND p.partnershipPeriodEnd >= CURRENT_DATE
-    ORDER BY p.id DESC
-""")
-    List<Paper> findLatestPapersByStoreIds(@Param("storeIds") List<Long> storeIds);
+    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds, @Param("status") ActivationStatus status);
 
     @Modifying
     @Query("""

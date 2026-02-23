@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -313,11 +317,11 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/admin")
-    public BaseResponse<List<WritePartnershipResponseDTO>> listForAdmin(
-            @RequestParam(name = "all", defaultValue = "false") boolean all,
+    public BaseResponse<Page<WritePartnershipResponseDTO>> listForAdmin(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.listPartnershipsForAdmin(all, pd.getId()));
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.listPartnershipsForAdmin(pageable, pd.getId()));
     }
 
     @Operation(
@@ -351,11 +355,11 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/partner")
-    public BaseResponse<List<WritePartnershipResponseDTO>> listForPartner(
-            @RequestParam(name = "all", defaultValue = "false") boolean all,
+    public BaseResponse<Page<WritePartnershipResponseDTO>> listForPartner(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.listPartnershipsForPartner(all, pd.getId()));
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.listPartnershipsForPartner(pageable, pd.getId()));
     }
 
     @Operation(
