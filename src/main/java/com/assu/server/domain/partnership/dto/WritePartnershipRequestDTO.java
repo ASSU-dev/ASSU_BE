@@ -5,6 +5,7 @@ import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -12,16 +13,16 @@ import java.util.List;
 
 public record WritePartnershipRequestDTO(
         @Schema(description = "수정할 제안서 ID", example = "1001")
-        Long paperId,
+        @NotNull Long paperId,
 
         @Schema(description = "제휴 시작일", example = "2024-01-01")
-        LocalDate partnershipPeriodStart,
+        @NotNull LocalDate partnershipPeriodStart,
 
         @Schema(description = "제휴 마감일", example = "2024-12-31")
-        LocalDate partnershipPeriodEnd,
+        @NotNull LocalDate partnershipPeriodEnd,
 
         @Schema(description = "제휴 옵션 목록")
-        List<PartnershipOptionRequestDTO> options
+        @NotNull List<PartnershipOptionRequestDTO> options
 ) {
     public void updatePaper(Paper paper) {
         paper.setPartnershipPeriodStart(partnershipPeriodStart());

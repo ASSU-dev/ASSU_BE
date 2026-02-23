@@ -15,7 +15,7 @@ import java.util.List;
 
 public record ManualPartnershipRequestDTO(
         @Schema(description = "가게 이름", example = "역전할머니맥주 숭실대점")
-        String storeName,
+        @NotNull String storeName,
 
         @Schema(description = "선택된 장소 정보 (카카오맵 검색 결과)")
         @NotNull SelectedPlacePayload selectedPlace,
@@ -24,13 +24,13 @@ public record ManualPartnershipRequestDTO(
         String storeDetailAddress,
 
         @Schema(description = "제휴 시작일", example = "2024-01-01")
-        LocalDate partnershipPeriodStart,
+        @NotNull LocalDate partnershipPeriodStart,
 
         @Schema(description = "제휴 마감일", example = "2024-12-31")
-        LocalDate partnershipPeriodEnd,
+        @NotNull LocalDate partnershipPeriodEnd,
 
         @Schema(description = "제휴 옵션 목록")
-        List<PartnershipOptionRequestDTO> options
+        @NotNull List<PartnershipOptionRequestDTO> options
 ) {
     public Paper toPaper(Admin admin, Store store, ActivationStatus status) {
         return Paper.builder()

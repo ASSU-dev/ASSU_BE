@@ -5,18 +5,19 @@ import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
 public record PartnershipOptionResponseDTO(
         @Schema(description = "제공 서비스 종류 (SERVICE: 서비스 제공, DISCOUNT: 할인)", example = "SERVICE")
-        OptionType optionType,
+        @NotNull OptionType optionType,
 
         @Schema(description = "서비스 제공 기준 (PRICE: 금액, HEADCOUNT: 인원)", example = "HEADCOUNT")
-        CriterionType criterionType,
+        @NotNull CriterionType criterionType,
 
         @Schema(description = "기타 제공 서비스 여부", example = "false")
-        Boolean anotherType,
+        @NotNull Boolean anotherType,
 
         @Schema(description = "서비스 제공 기준 인원 수", example = "2")
         Integer people,
