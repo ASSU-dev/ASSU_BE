@@ -1,5 +1,6 @@
 package com.assu.server.domain.mapping.repository;
 
+import com.assu.server.domain.mapping.dto.StoreUsageWithPaper;
 import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.mapping.entity.StudentAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,7 +19,8 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
     Long countByAdminIdBetween(@Param("adminId") Long adminId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
     @Query("""
-        SELECT COUNT(DISTINCT pu.student.id)
+
+            SELECT COUNT(DISTINCT pu.student.id)
         FROM PartnershipUsage pu, Paper p
         WHERE pu.paperId = p.id
           AND p.admin.id = :adminId
@@ -32,14 +34,14 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
     );
 
     @Query("""
-        SELECT new com.assu.server.domain.mapping.dto.StudentAdminResponseDTO.StoreUsageWithPaper(
-          p.id, p.store.id, p.store.name, COUNT(pu.id)
-        )
-        FROM PartnershipUsage pu
-        JOIN Paper p ON pu.paperId = p.id
-        WHERE p.admin.id = :adminId
-        GROUP BY p.id, p.store.id, p.store.name
-        ORDER BY COUNT(pu.id) DESC, p.id ASC
-        """)
-    List<StudentAdminResponseDTO.StoreUsageWithPaper> findUsageByStoreWithPaper(@Param("adminId") Long adminId);
-}
+    SELECT new com.assu.server.domain.mapping.dto.StoreUsageWithPaper(
+      p.id, p.store.id, p.store.name, COUNT(pu.id)
+    )
+    FROM PartnershipUsage pu
+    JOIN Paper p ON pu.paperId = p.id
+    WHERE p.admin.id = :adminId
+    GROUP BY p.id, p.store.id, p.store.name
+    ORDER BY COUNT(pu.id) DESC, p.id ASC
+""")
+    List<StoreUsageWithPaper> findUsageByStoreWithPaper(@Param("adminId") Long adminId);
+    }

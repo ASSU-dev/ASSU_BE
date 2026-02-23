@@ -67,11 +67,4 @@ public class StudentAdminResponseDTO {
             return new CountUsageListResponseDTO(countUsageList);
         }
     }
-
-    public record StoreUsageWithPaper(
-            Long paperId,
-            Long storeId,
-            String storeName,
-            Long usageCount
-    ) {}
 }
