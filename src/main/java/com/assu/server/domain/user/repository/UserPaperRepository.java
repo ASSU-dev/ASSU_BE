@@ -17,8 +17,6 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
         LEFT JOIN FETCH p.admin a
         WHERE up.student.id = :studentId
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
-          AND p.partnershipPeriodStart <= :today
-          AND p.partnershipPeriodEnd >= :today
         ORDER BY p.id DESC
     """)
     List<UserPaper> findActivePartnershipsByStudentId(@Param("studentId") Long studentId,

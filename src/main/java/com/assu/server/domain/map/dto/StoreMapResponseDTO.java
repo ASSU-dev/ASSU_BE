@@ -34,19 +34,19 @@ public record StoreMapResponseDTO(
         String phoneNumber,
 
         @Schema(description = "관리자1 ID", example = "101")
-        Long adminId1,
+        @NotNull Long adminId1,
 
         @Schema(description = "관리자2 ID", example = "102")
         Long adminId2,
 
         @Schema(description = "관리자1 이름", example = "숭실대학교 총학생회")
-        String adminName1,
+        @NotNull String adminName1,
 
         @Schema(description = "관리자2 이름", example = "숭실대학교 IT대학 학생회")
         String adminName2,
 
         @Schema(description = "제휴 혜택1", example = "음료 10% 할인")
-        String benefit1,
+        @NotNull String benefit1,
 
         @Schema(description = "제휴 혜택2", example = "버터구이 오징어 제공")
         String benefit2
