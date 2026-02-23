@@ -89,6 +89,18 @@ public class StudentController {
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStamp(pd.getId()));
     }
+	@Operation(
+			summary = "스탬프 적립 및 이벤트 응모 API",
+			description = "# [v1.0 (2026-02-23)](https://clumsy-seeder-416.notion.site/3101197c19ed80b5b47eceb202535469)\n" +
+					"- 스탬프가 10개가 되는 시점에 자동으로 응모및 알림"
+	)
+	@PostMapping("/stamp")
+	public BaseResponse<String> earnStamp(
+			@AuthenticationPrincipal PrincipalDetails pd
+	) {
+		studentService.addStamp(pd.getId());
+		return BaseResponse.onSuccess(SuccessStatus._OK, "스탬프 적립 성공");
+	}
 
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",

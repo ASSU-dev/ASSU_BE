@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.user.entity.StampEventApplicant;
+import com.assu.server.domain.user.repository.StampEventApplicantRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -42,10 +45,11 @@ public class StudentServiceImpl implements StudentService {
 	private final UserPaperRepository userPaperRepository;
 	private final PaperContentRepository paperContentRepository;
 	private final PartnershipUsageRepository partnershipUsageRepository;
+	private final StampEventApplicantRepository stampEventApplicantRepository;
 	private final GoodsRepository goodsRepository;
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
-
+	private final NotificationCommandService notificationCommandService;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -111,14 +115,11 @@ public class StudentServiceImpl implements StudentService {
 			partnershipUsageRepository.findByUnreviewedUsage(memberId, pageable);
 
 		return contentList.map(u -> {
-			// 1. partnershipUsage의 paperContentId 로 paperContent 조회
 			PaperContent paperContent = paperContentRepository.findById(u.getContentId())
 				.orElse(null);
 
-			// 2. store 추출
 			Store store = (paperContent != null) ? paperContent.getPaper().getStore() : null;
 
-			// 3. 날짜 포맷팅
 			LocalDateTime ld = u.getCreatedAt();
 			String formatDate = ld.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
@@ -148,7 +149,6 @@ public class StudentServiceImpl implements StudentService {
 			String adminName = (paper.getAdmin() != null) ? paper.getAdmin().getName() : null;
 			String partnerName = (store != null) ? store.getName() : null;
 
-			// 카테고리 결정 로직 그대로
 			String finalCategory = null;
 			String note = null;
 			if (content != null) {
@@ -225,6 +225,32 @@ public class StudentServiceImpl implements StudentService {
 
 			userPaperRepository.save(up);
 		}
+	}
+	@Transactional
+	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {
+		Student student = studentRepository.findById(memberId)
+				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+
+		student.setStamp();
+		String responseMessage = "스탬프가 적립되었습니다.";
+
+		if (student.getStamp() >= 10) {
+			StampEventApplicant applicant = StampEventApplicant.builder()
+					.student(student)
+					.appliedAt(LocalDateTime.now())
+					.eventVersion("2026_SEASON_1")
+					.build();
+			stampEventApplicantRepository.save(applicant);
+			notificationCommandService.sendStamp(memberId);
+
+			student.resetStamp();
+			responseMessage = "스탬프 10개를 모아 자동 응모 되었습니다.";
+		}
+		return StudentResponseDTO.CheckStampResponseDTO.builder()
+				.userId(student.getId())
+				.stamp(student.getStamp())
+				.message(responseMessage)
+				.build();
 	}
 
 	/**

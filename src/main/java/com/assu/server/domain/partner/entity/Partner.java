@@ -47,7 +47,4 @@ public class Partner {
     private double latitude;
     private double longitude;
 
-    public void setMember(Member member) {
-        this.member = member;
-    }
 }

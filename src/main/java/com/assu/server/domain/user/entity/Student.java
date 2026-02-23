@@ -19,6 +19,7 @@ public class Student {
     @Id
     private Long id;
 
+    @Setter
     @OneToOne
     @JoinColumn(name = "id") // member_id와 공유
     @MapsId
@@ -46,13 +47,10 @@ public class Student {
     @Builder.Default
     private ReportedStatus status = ReportedStatus.NORMAL;
 
-    public void setMember(Member member) {
-        this.member = member;
-    }
-
     public void setStamp() {
         this.stamp++;
     }
+    public void resetStamp() {this.stamp = 0;}
 
     /**
      * 유세인트에서 크롤링한 최신 정보로 학생 정보를 업데이트합니다.

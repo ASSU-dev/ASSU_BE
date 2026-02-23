@@ -3,7 +3,7 @@ package com.assu.server.domain.store.dto;
 import java.util.List;
 
 public class StoreResponseDTO {
-    
+
     public record WeeklyRankResponseDTO(
         Long rank,           // 그 주 순위(1부터)
         Long usageCount      // 그 주 사용 건수
