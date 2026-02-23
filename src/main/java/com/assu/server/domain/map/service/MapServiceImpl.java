@@ -21,17 +21,12 @@ import com.assu.server.domain.user.entity.UserPaper;
 import com.assu.server.domain.user.repository.UserPaperRepository;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -69,7 +64,7 @@ public class MapServiceImpl implements MapService {
     @Override
     public List<AdminMapResponseDTO> getAdmins(MapRequestDTO viewport, Long memberId) {
         String wkt = toWKT(viewport);
-        List<Admin> admins = adminRepository.findAllWithinViewportWithMember(wkt);
+        List<Admin> admins = adminRepository.findAllWithinViewportWithMember(wkt, PageRequest.of(0, 200));
 
         if (admins.isEmpty()) {
             return List.of();
@@ -234,7 +229,7 @@ public class MapServiceImpl implements MapService {
         List<Long> storeIds = stores.stream().map(Store::getId).toList();
 
         // 매장당 최신 Paper 1건 (admin 정보용)
-        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds);
+        List<Paper> papers = paperRepository.findByStoreIdIn(storeIds, ActivationStatus.ACTIVE);
         Map<Long, Paper> storeIdToPaper = papers.stream()
                 .collect(Collectors.toMap(p -> p.getStore().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
@@ -292,7 +287,7 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<AdminMapResponseDTO> searchAdmin(String keyword, Long memberId) {
-        List<Admin> admins = adminRepository.searchAdminByKeywordWithMember(keyword);
+        List<Admin> admins = adminRepository.searchAdminByKeywordWithMember(keyword, PageRequest.of(0, 50));
 
         if (admins.isEmpty()) {
             return List.of();

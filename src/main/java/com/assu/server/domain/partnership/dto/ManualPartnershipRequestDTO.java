@@ -6,6 +6,7 @@ import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.store.entity.Store;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
@@ -13,12 +14,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public record ManualPartnershipRequestDTO(
-        String storeName,
+        @Schema(description = "가게 이름", example = "역전할머니맥주 숭실대점")
+        @NotNull String storeName,
+
+        @Schema(description = "선택된 장소 정보 (카카오맵 검색 결과)")
         @NotNull SelectedPlacePayload selectedPlace,
+
+        @Schema(description = "가게 상세주소", example = "2층")
         String storeDetailAddress,
-        LocalDate partnershipPeriodStart,
-        LocalDate partnershipPeriodEnd,
-        List<PartnershipOptionRequestDTO> options
+
+        @Schema(description = "제휴 시작일", example = "2024-01-01")
+        @NotNull LocalDate partnershipPeriodStart,
+
+        @Schema(description = "제휴 마감일", example = "2024-12-31")
+        @NotNull LocalDate partnershipPeriodEnd,
+
+        @Schema(description = "제휴 옵션 목록")
+        @NotNull List<PartnershipOptionRequestDTO> options
 ) {
     public Paper toPaper(Admin admin, Store store, ActivationStatus status) {
         return Paper.builder()

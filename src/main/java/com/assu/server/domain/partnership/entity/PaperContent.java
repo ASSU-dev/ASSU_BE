@@ -8,6 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,7 @@ public class PaperContent extends BaseEntity {
 
 	private Long discount;
 
+	@BatchSize(size = 100)
 	@OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Goods> goods = new ArrayList<>();
 

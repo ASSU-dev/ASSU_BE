@@ -5,9 +5,12 @@ import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.store.entity.Store;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 public record PartnershipDraftRequestDTO(
-        Long partnerId
+        @Schema(description = "제휴 제안서를 작성할 제휴업체 ID", example = "101")
+        @NotNull Long partnerId
 ) {
     public Paper toDraftPaper(Admin admin, Partner partner, Store store) {
         return Paper.builder()
