@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import com.assu.server.domain.notification.repository.NotificationRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.user.entity.StampEventApplicant;
 import com.assu.server.domain.user.repository.StampEventApplicantRepository;
@@ -228,27 +227,30 @@ public class StudentServiceImpl implements StudentService {
 		}
 	}
 	@Transactional
-	public void addStamp(Long memberId) {
+	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {
 		Student student = studentRepository.findById(memberId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 
 		student.setStamp();
+		String responseMessage = "스탬프가 적립되었습니다.";
 
 		if (student.getStamp() >= 10) {
-			// 응모자 테이블에 기록 저장
 			StampEventApplicant applicant = StampEventApplicant.builder()
 					.student(student)
 					.appliedAt(LocalDateTime.now())
 					.eventVersion("2026_SEASON_1")
 					.build();
 			stampEventApplicantRepository.save(applicant);
-
-			// 알림 발송
 			notificationCommandService.sendStamp(memberId);
 
-			// 스탬프 초기화 (리셋해야 다음 10개를 다시 모을 수 있음)
 			student.resetStamp();
+			responseMessage = "스탬프 10개를 모아 자동 응모 되었습니다.";
 		}
+		return StudentResponseDTO.CheckStampResponseDTO.builder()
+				.userId(student.getId())
+				.stamp(student.getStamp())
+				.message(responseMessage)
+				.build();
 	}
 
 	/**

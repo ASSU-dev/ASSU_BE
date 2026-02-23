@@ -98,7 +98,6 @@ public class StudentController {
 	public BaseResponse<String> earnStamp(
 			@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		// ServiceImpl에 새로 만든 로직 호출
 		studentService.addStamp(pd.getId());
 		return BaseResponse.onSuccess(SuccessStatus._OK, "스탬프 적립 성공");
 	}
