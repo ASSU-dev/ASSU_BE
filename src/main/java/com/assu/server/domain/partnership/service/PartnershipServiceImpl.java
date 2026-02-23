@@ -11,19 +11,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
-import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
-import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.*;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
@@ -122,15 +110,6 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         Paper paper = paperRepository.findById(request.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
-
-        Partner partner = partnerRepository.findById(memberId)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
-
-        Admin admin = adminRepository.findById(paper.getAdmin().getId())
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-
-        Store store = storeRepository.findByPartner(partner)
-                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
         request.updatePaper(paper);
 

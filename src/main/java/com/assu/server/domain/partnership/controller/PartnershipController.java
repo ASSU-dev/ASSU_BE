@@ -1,46 +1,23 @@
 package com.assu.server.domain.partnership.controller;
 
-import java.util.List;
-
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
-import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.*;
 import com.assu.server.domain.partnership.service.PartnershipService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import com.assu.server.global.util.PrincipalDetails;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @Tag(name = "Partnership", description = "제휴 제안 api")
