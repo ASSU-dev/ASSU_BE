@@ -9,5 +9,5 @@ import com.assu.server.domain.qr.entity.Qr;
 
 @Repository
 public interface TemporaryQrRepository extends JpaRepository<Qr, Long> {
-	List<Qr> findByUserId(Long id);
+	List<Qr> findByUserIdOrderByCreatedAtDesc(Long userId);
 }
