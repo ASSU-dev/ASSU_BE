@@ -117,7 +117,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
     @Override
     public void sendStamp(Long receiverId) {
-        createAndQueue(receiverId, NotificationType.STAMP, 1L, Map.of());
+        sendIfEnabled(receiverId, NotificationType.STAMP, null, Map.of());
     }
 
     @Override
