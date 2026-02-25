@@ -46,7 +46,9 @@ public class Inquiry extends BaseEntity {
 
     private LocalDateTime answeredAt;
 
-    public enum Status { WAITING, ANSWERED, ALL }
+    public enum Status { WAITING, ANSWERED }
+    
+    public enum StatusFilter { WAITING, ANSWERED, ALL }
 
     public void answer(String answerText) {
         this.answer = answerText;
