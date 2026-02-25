@@ -1,7 +1,9 @@
 package com.assu.server.domain.suggestion.controller;
 
-import com.assu.server.domain.suggestion.dto.SuggestionRequestDTO;
-import com.assu.server.domain.suggestion.dto.SuggestionResponseDTO;
+import com.assu.server.domain.suggestion.dto.GetSuggestionAdminsDTO;
+import com.assu.server.domain.suggestion.dto.GetSuggestionResponseDTO;
+import com.assu.server.domain.suggestion.dto.WriteSuggestionRequestDTO;
+import com.assu.server.domain.suggestion.dto.WriteSuggestionResponseDTO;
 import com.assu.server.domain.suggestion.service.SuggestionService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -39,8 +41,8 @@ public class SuggestionController {
                     "  - `storeName` (String): 희망 가게 이름\n" +
                     "  - `suggestionBenefit` (String): 희망 혜택\n")
     @PostMapping
-    public BaseResponse<SuggestionResponseDTO.WriteSuggestionResponseDTO> writeSuggestion(
-            @RequestBody SuggestionRequestDTO.WriteSuggestionRequestDTO suggestionRequestDTO,
+    public BaseResponse<WriteSuggestionResponseDTO> writeSuggestion(
+            @RequestBody WriteSuggestionRequestDTO suggestionRequestDTO,
             @AuthenticationPrincipal PrincipalDetails pd
     ){
         return BaseResponse.onSuccess(SuccessStatus._OK, suggestionService.writeSuggestion(suggestionRequestDTO, pd.getId()));
@@ -59,7 +61,7 @@ public class SuggestionController {
                     "  - `majorId` (Long): 학부/학과 학생회 ID\n" +
                     "  - `majorName` (String): 학부/학과 학생회 이름\n")
     @GetMapping("/admin")
-    public BaseResponse<SuggestionResponseDTO.GetSuggestionAdminsDTO> getSuggestionAdmins(
+    public BaseResponse<GetSuggestionAdminsDTO> getSuggestionAdmins(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, suggestionService.getSuggestionAdmins(pd.getId()));
@@ -80,7 +82,7 @@ public class SuggestionController {
                     "  - `studentMajor` (Long): 건의자의 학부/학과\n" +
                     "  - `enrollmentStatus` (EnrollmentStatus): 재학 상태\n")
     @GetMapping("/list")
-    public BaseResponse<List<SuggestionResponseDTO.GetSuggestionResponseDTO>> getSuggestions(
+    public BaseResponse<List<GetSuggestionResponseDTO>> getSuggestions(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, suggestionService.getSuggestions(pd.getId()));

@@ -2,19 +2,19 @@ package com.assu.server.domain.mapping.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.mapping.converter.StudentAdminConverter;
+import com.assu.server.domain.mapping.dto.StoreUsageWithPaper;
 import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.mapping.repository.StudentAdminRepository;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.repository.PaperRepository;
-import com.assu.server.domain.partnership.repository.PartnershipRepository;
-import com.assu.server.domain.user.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,25 +33,32 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         Admin admin = getAdminOrThrow(memberId);
         Long total = studentAdminRepository.countAllByAdminId(memberId);
 
-        return StudentAdminConverter.countAdminAuthDTO(memberId, total, admin.getName());
+        return StudentAdminResponseDTO.CountAdminAuthResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
     @Transactional
     public StudentAdminResponseDTO.NewCountAdminResponseDTO getNewStudentCountAdmin(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
-        Long total = studentAdminRepository.countThisMonthByAdminId(memberId);
 
-        return StudentAdminConverter.newCountAdminResponseDTO(memberId, total, admin.getName());
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
+
+        return StudentAdminResponseDTO.NewCountAdminResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
     @Transactional
     public StudentAdminResponseDTO.CountUsagePersonResponseDTO getCountUsagePerson(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
-        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId);
 
-        return StudentAdminConverter.countUsagePersonDTO(memberId, total, admin.getName());
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+
+        Long total = studentAdminRepository.countTodayUsersByAdmin(memberId, startOfDay, endOfDay);
+
+        return StudentAdminResponseDTO.CountUsagePersonResponseDTO.from(memberId, total, admin.getName());
     }
 
     @Override
@@ -59,21 +66,19 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageResponseDTO getCountUsage(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        List<StudentAdminRepository.StoreUsageWithPaper> storeUsages =
+        List<StoreUsageWithPaper> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
-        //예외 처리
         if (storeUsages.isEmpty()) {
             throw new DatabaseException(ErrorStatus.NO_USAGE_DATA);
         }
 
-        // 첫 번째가 가장 사용량이 많은 업체 (ORDER BY usageCount DESC)
-        var top = storeUsages.get(0);
+        StoreUsageWithPaper top = storeUsages.get(0);
 
-        Paper paper = paperRepository.findById(top.getPaperId())
+        Paper paper = paperRepository.findById(top.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE));
 
-        return StudentAdminConverter.countUsageResponseDTO(admin, paper, top.getUsageCount());
+        return StudentAdminResponseDTO.CountUsageResponseDTO.from(admin, paper, top.usageCount());
     }
 
     @Override
@@ -81,34 +86,31 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageListResponseDTO getCountUsageList(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        // 🔧 핵심 수정: Paper 정보를 포함한 조회 (N+1 해결)
-        List<StudentAdminRepository.StoreUsageWithPaper> storeUsages =
+        List<StoreUsageWithPaper> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
         if (storeUsages.isEmpty()) {
-            // 빈 리스트 반환 (선택: 예외 처리도 가능)
-            return StudentAdminConverter.countUsageListResponseDTO(List.of());
+            return StudentAdminResponseDTO.CountUsageListResponseDTO.from(List.of());
         }
 
         List<Long> paperIds = storeUsages.stream()
-                .map(StudentAdminRepository.StoreUsageWithPaper::getPaperId)
+                .map(StoreUsageWithPaper::paperId)
                 .toList();
 
         Map<Long, Paper> paperMap = paperRepository.findAllById(paperIds).stream()
                 .collect(Collectors.toMap(Paper::getId, paper -> paper));
 
-        var items = storeUsages.stream().map(row -> {
-            Paper paper = paperMap.get(row.getPaperId());
+        List<StudentAdminResponseDTO.CountUsageResponseDTO> items = storeUsages.stream().map(row -> {
+            Paper paper = paperMap.get(row.paperId());
             if (paper == null) {
                 throw new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE);
             }
-            return StudentAdminConverter.countUsageResponseDTO(admin, paper, row.getUsageCount());
+            return StudentAdminResponseDTO.CountUsageResponseDTO.from(admin, paper, row.usageCount());
         }).toList();
 
-        return StudentAdminConverter.countUsageListResponseDTO(items);
+        return StudentAdminResponseDTO.CountUsageListResponseDTO.from(items);
     }
 
-    //  Admin 조회 중복 제거
     private Admin getAdminOrThrow(Long adminId) {
         return adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));

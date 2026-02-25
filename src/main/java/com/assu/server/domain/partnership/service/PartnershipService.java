@@ -1,19 +1,9 @@
 package com.assu.server.domain.partnership.service;
 
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.ManualPartnershipResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnerPartnershipCheckResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDetailResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
-import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
-import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
-import com.assu.server.domain.partnership.dto.SuspendedPaperResponseDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
-import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
+import com.assu.server.domain.partnership.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -24,8 +14,8 @@ public interface PartnershipService {
 
     void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member);
 
-    List<WritePartnershipResponseDTO> listPartnershipsForAdmin(boolean all, Long partnerId);
-    List<WritePartnershipResponseDTO> listPartnershipsForPartner(boolean all, Long adminId);
+    Page<WritePartnershipResponseDTO> listPartnershipsForAdmin(Pageable pageable, Long adminId);
+    Page<WritePartnershipResponseDTO> listPartnershipsForPartner(Pageable pageable, Long partnerId);
 
     PartnershipDetailResponseDTO getPartnership(Long partnershipId);
     List<SuspendedPaperResponseDTO> getSuspendedPapers(Long adminId);

@@ -1,9 +1,7 @@
 package com.assu.server.domain.partnership.repository;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
+import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.partnership.entity.Paper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -12,8 +10,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partnership.entity.Paper;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
 
@@ -56,8 +55,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                                            @Param("today") LocalDate today,
                                            @Param("status") ActivationStatus status);
 
-    List<Paper> findByStoreIdAndAdminIdAndIsActivated(Long storeId, Long adminId, ActivationStatus isActivated);
-
     @Query("""
         SELECT p FROM Paper p
         WHERE p.admin.id = :adminId
@@ -85,22 +82,10 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     @Query("""
         SELECT p FROM Paper p
         WHERE p.store.id IN :storeIds
+          AND p.isActivated = :status
         ORDER BY p.id DESC
         """)
-    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds);
-
-    // PaperRepository.java에 추가
-    @Query("""
-    SELECT p
-    FROM Paper p
-    LEFT JOIN FETCH p.admin a
-    WHERE p.store.id IN :storeIds
-      AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
-      AND p.partnershipPeriodStart <= CURRENT_DATE
-      AND p.partnershipPeriodEnd >= CURRENT_DATE
-    ORDER BY p.id DESC
-""")
-    List<Paper> findLatestPapersByStoreIds(@Param("storeIds") List<Long> storeIds);
+    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds, @Param("status") ActivationStatus status);
 
     @Modifying
     @Query("""

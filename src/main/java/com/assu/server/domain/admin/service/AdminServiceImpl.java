@@ -1,20 +1,20 @@
 package com.assu.server.domain.admin.service;
 
-import java.util.List;
-import org.springframework.stereotype.Service;
 import com.assu.server.domain.admin.dto.AdminResponseDTO;
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import lombok.RequiredArgsConstructor;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.user.entity.enums.Department;
+import com.assu.server.domain.user.entity.enums.Major;
 import com.assu.server.domain.user.entity.enums.University;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service

@@ -1,19 +1,21 @@
 package com.assu.server.domain.suggestion.service;
 
-import com.assu.server.domain.suggestion.dto.SuggestionRequestDTO;
-import com.assu.server.domain.suggestion.dto.SuggestionResponseDTO;
+import com.assu.server.domain.suggestion.dto.GetSuggestionAdminsDTO;
+import com.assu.server.domain.suggestion.dto.GetSuggestionResponseDTO;
+import com.assu.server.domain.suggestion.dto.WriteSuggestionRequestDTO;
+import com.assu.server.domain.suggestion.dto.WriteSuggestionResponseDTO;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
 public interface SuggestionService {
 
-    SuggestionResponseDTO.WriteSuggestionResponseDTO writeSuggestion(
-            @RequestBody SuggestionRequestDTO.WriteSuggestionRequestDTO request,
+    WriteSuggestionResponseDTO writeSuggestion(
+            @RequestBody WriteSuggestionRequestDTO request,
             Long userId
     );
 
-    List<SuggestionResponseDTO.GetSuggestionResponseDTO> getSuggestions(Long adminId);
+    List<GetSuggestionResponseDTO> getSuggestions(Long adminId);
 
-    SuggestionResponseDTO.GetSuggestionAdminsDTO getSuggestionAdmins(Long userId);
+    GetSuggestionAdminsDTO getSuggestionAdmins(Long userId);
 }

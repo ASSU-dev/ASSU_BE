@@ -49,13 +49,6 @@ public class Review extends BaseEntity {
 	@OneToMany(mappedBy = "review", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
 	private List<ReviewPhoto> imageList = new ArrayList<>();
 
-	public List<ReviewPhoto> getImageList() {
-		if (imageList == null) {
-			imageList = new ArrayList<>();
-		}
-		return imageList;
-	}
-
 	private Integer rate;
 	private String content;
 
@@ -65,7 +58,6 @@ public class Review extends BaseEntity {
 	@Builder.Default
 	private ReportedStatus status = ReportedStatus.NORMAL;
 
-	// 상태 업데이트 메서드
 	public void updateReportedStatus(ReportedStatus status) {
 		this.status = status;
 	}

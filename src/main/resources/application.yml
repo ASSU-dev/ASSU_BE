@@ -39,3 +39,9 @@ logging:
 
 server:
   shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health" # 따옴표를 붙여 문자열임을 명시하세요.

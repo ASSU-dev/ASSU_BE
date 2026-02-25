@@ -1,11 +1,7 @@
 package com.assu.server.domain.map.controller;
 
 import com.assu.server.domain.common.enums.UserRole;
-import com.assu.server.domain.map.dto.AdminMapResponseDTO;
-import com.assu.server.domain.map.dto.MapRequestDTO;
-import com.assu.server.domain.map.dto.PartnerMapResponseDTO;
-import com.assu.server.domain.map.dto.PlaceSuggestionDTO;
-import com.assu.server.domain.map.dto.StoreMapResponseDTO;
+import com.assu.server.domain.map.dto.*;
 import com.assu.server.domain.map.service.MapService;
 import com.assu.server.domain.map.service.PlaceSearchService;
 import com.assu.server.global.apiPayload.BaseResponse;

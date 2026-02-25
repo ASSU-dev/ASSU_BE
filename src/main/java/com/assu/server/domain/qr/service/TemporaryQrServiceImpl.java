@@ -52,7 +52,7 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 			() -> new GeneralException(ErrorStatus.NO_SUCH_STUDENT)
 		);
 
-		List<TemporaryQrResponseDTO> result = temporaryQrRepository.findByUserId(student.getId())
+		List<TemporaryQrResponseDTO> result = temporaryQrRepository.findByUserIdOrderByCreatedAtDesc(student.getId())
 			.stream()
 			.map(data -> new TemporaryQrResponseDTO(
 				data.getAdminName(),

@@ -1,6 +1,4 @@
 package com.assu.server.domain.store.repository;
-
-
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -107,14 +105,6 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
             @Param("detail") String detail
     );
 
-    @Query(value = """
-        SELECT s.*
-        FROM store s
-        WHERE s.point IS NOT NULL
-          AND ST_Contains(ST_GeomFromText(:wkt, 4326), s.point)
-        """, nativeQuery = true)
-    List<Store> findAllWithinViewport(@Param("wkt") String wkt);
-
     @Query("""
         SELECT DISTINCT s
         FROM Store s
@@ -124,8 +114,6 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
           AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), s.point) = true
         """)
     List<Store> findAllWithinViewportWithPartner(@Param("wkt") String wkt);
-
-    List<Store> findByNameContainingIgnoreCaseOrderByIdDesc(String name);
 
     @Query("""
         SELECT DISTINCT s
