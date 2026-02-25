@@ -38,7 +38,7 @@ public class InquiryServiceImpl implements InquiryService {
     /** 문의 내역 조회 (status=all|waiting|answered) */
     @Override
     @Transactional(readOnly = true)
-    public PageResponseDTO<InquiryResponseDTO> getInquiries(Status status, int page, int size, Long memberId) {
+    public PageResponseDTO<InquiryResponseDTO> getInquiries(Inquiry.StatusFilter status, int page, int size, Long memberId) {
         if (page < 1) throw new DatabaseException(ErrorStatus.PAGE_UNDER_ONE);
         if (size < 1 || size > 200) throw new DatabaseException(ErrorStatus.PAGE_SIZE_INVALID);
 
@@ -49,7 +49,7 @@ public class InquiryServiceImpl implements InquiryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<InquiryResponseDTO> list(Status status, Pageable pageable, Long memberId) {
+    public Page<InquiryResponseDTO> list(Inquiry.StatusFilter status, Pageable pageable, Long memberId) {
         Page<Inquiry> page = switch (status) {
             case WAITING -> inquiryRepository.findByMemberIdAndStatus(memberId, Status.WAITING, pageable);
             case ANSWERED -> inquiryRepository.findByMemberIdAndStatus(memberId, Status.ANSWERED, pageable);

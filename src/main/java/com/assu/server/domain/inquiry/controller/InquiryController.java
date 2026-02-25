@@ -55,7 +55,7 @@ public class InquiryController {
     @GetMapping
     public BaseResponse<PageResponseDTO<InquiryResponseDTO>> list(
             @AuthenticationPrincipal PrincipalDetails pd,
-            @RequestParam(defaultValue = "all") Inquiry.Status status,
+            @RequestParam(defaultValue = "ALL") Inquiry.StatusFilter status,
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
             @RequestParam(defaultValue = "20") Integer size
     ) {
