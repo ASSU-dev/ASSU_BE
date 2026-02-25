@@ -128,7 +128,7 @@ jobs:
           sleep 10
           done
           
-          MESSAGE="$EMOJI **sumte 배포 결과**\\n상태: $STATUS\\n$HEALTH_STATUS\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}"
+          MESSAGE="$EMOJI **assu 배포 결과**\\n상태: $STATUS\\n$HEALTH_STATUS\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}"
           
           curl -H "Content-Type: application/json" \
                -X POST \
