@@ -58,7 +58,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             "/auth/commons/login",
             "/auth/students/login",
             "/auth/tokens/refresh",
-            "/auth/students/ssu-verify"
+            "/auth/students/ssu-verify",
+            // Actuator 헬스체크 추가
+            "/actuator/**",
     };
 
     /**

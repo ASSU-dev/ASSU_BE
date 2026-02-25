@@ -106,3 +106,31 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest
             sudo chmod +x /home/ubuntu/cicd/deploy.sh
             sudo /home/ubuntu/cicd/deploy.sh
+            
+      - name: Send Discord Notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+          
+          # 반복 폴링 헬스체크
+          HEALTH_STATUS="❌ 서버 비정상 작동"
+          for i in {1..20}; do
+          if curl -sSf https://assu.shop/actuator/health >/dev/null; then
+          HEALTH_STATUS="✅ 서버 정상 작동"
+          break
+          fi
+          echo "서버 응답 대기 중... ($i/20)"
+          sleep 10
+          done
+          
+          MESSAGE="$EMOJI **assu 배포 결과**\\n상태: $STATUS\\n$HEALTH_STATUS\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}"
+          
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"$MESSAGE\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }} || true
