@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -29,7 +30,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                 "/swagger-resources/**", "/webjars/**"
                         ).permitAll()
-
+                        // 헬스 체크 용
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(// Auth (로그아웃 제외)
                                 "/auth/phone-verification/check-and-send",
                                 "/auth/phone-verification/verify",
@@ -55,6 +57,14 @@ public class SecurityConfig {
 
 
         return http.build();
+    }
+
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        // /actuator로 시작하는 모든 요청은 보안 필터 체인 자체를 거치지 않게 합니다.
+        return (web) -> web.ignoring()
+            .requestMatchers("/actuator/**");
     }
 
 }
