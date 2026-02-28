@@ -25,7 +25,17 @@ public class OutboxRetryProcessor {
             outbox.incrementRetryCount();
             outboxRepository.save(outbox);
             
-            OutboxCreatedEvent event = new OutboxCreatedEvent(outbox.getId(), outbox.getNotification());
+            var n = outbox.getNotification();
+            OutboxCreatedEvent event = new OutboxCreatedEvent(
+                    outbox.getId(),
+                    n.getReceiver().getId(),
+                    n.getTitle(),
+                    n.getMessagePreview(),
+                    n.getType().name(),
+                    n.getRefId(),
+                    n.getDeeplink(),
+                    n.getId()
+            );
             eventPublisher.publishEvent(event);
             
             log.debug("[OutboxRetry] Retrying outboxId={} retryCount={}", 

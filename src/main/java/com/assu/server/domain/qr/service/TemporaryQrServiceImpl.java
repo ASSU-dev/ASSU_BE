@@ -2,9 +2,13 @@ package com.assu.server.domain.qr.service;
 
 import static com.assu.server.domain.qr.dto.TemporaryQrRequestDTO.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.user.entity.StampEventApplicant;
+import com.assu.server.domain.user.repository.StampEventApplicantRepository;
 import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.member.entity.Member;
@@ -29,6 +33,8 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 
 	private final TemporaryQrRepository temporaryQrRepository;
 	private final StudentRepository studentRepository;
+	private final StampEventApplicantRepository stampEventApplicantRepository;
+	private final NotificationCommandService notificationCommandService;
 
 	@Override
 	public void insertData(TemporaryQrRequestDTO dto, Member member){
@@ -44,6 +50,23 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 			() -> new GeneralException(ErrorStatus.NO_SUCH_STUDENT)
 		);
 		student.setStamp();
+		checkAndApplyStampEvent(student);
+	}
+
+	private void checkAndApplyStampEvent(Student student) {
+		if (student.getStamp() % 10 == 0 && student.getStamp() > 0) {
+			stampEventApplicantRepository.save(StampEventApplicant.builder()
+					.student(student)
+					.appliedAt(LocalDateTime.now())
+					.eventVersion("2026_SEASON_1")
+					.build());
+			try {
+				notificationCommandService.sendStamp(student.getId());
+			} catch (Exception e) {
+				// 알림 전송 실패해도 스탬프 적립은 성공
+			}
+			student.resetStamp();
+		}
 	}
 
 	@Override
