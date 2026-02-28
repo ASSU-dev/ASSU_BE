@@ -33,8 +33,7 @@ public class Notification extends BaseEntity {
 	@Column(nullable = false, length = 40)
 	private NotificationType type;
 
-	@NotNull
-	@Column(nullable = false)
+	@Column(nullable = true)
 	private Long refId;
 
 	@NotNull
