@@ -65,7 +65,6 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 			} catch (Exception e) {
 				// 알림 전송 실패해도 스탬프 적립은 성공
 			}
-			student.resetStamp();
 		}
 	}
 
