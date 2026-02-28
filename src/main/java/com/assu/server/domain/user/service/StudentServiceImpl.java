@@ -241,7 +241,11 @@ public class StudentServiceImpl implements StudentService {
 					.eventVersion("2026_SEASON_1")
 					.build();
 			stampEventApplicantRepository.save(applicant);
-			notificationCommandService.sendStamp(memberId);
+			try {
+				notificationCommandService.sendStamp(memberId);
+			} catch (Exception e) {
+				// 알림 전송 실패해도 스탬프 적립은 성공
+			}
 
 			student.resetStamp();
 			responseMessage = "스탬프 10개를 모아 자동 응모 되었습니다.";

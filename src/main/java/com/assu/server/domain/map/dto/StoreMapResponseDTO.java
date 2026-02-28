@@ -4,6 +4,7 @@ import com.assu.server.domain.store.entity.Store;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 public record StoreMapResponseDTO(
         @Schema(description = "가게 ID", example = "201")
@@ -33,29 +34,57 @@ public record StoreMapResponseDTO(
         @Schema(description = "가게 전화번호", example = "010-1234-5678")
         String phoneNumber,
 
-        @Schema(description = "관리자1 ID", example = "101")
-        @NotNull Long adminId1,
-
-        @Schema(description = "관리자2 ID", example = "102")
-        Long adminId2,
-
-        @Schema(description = "관리자1 이름", example = "숭실대학교 총학생회")
-        @NotNull String adminName1,
-
-        @Schema(description = "관리자2 이름", example = "숭실대학교 IT대학 학생회")
-        String adminName2,
-
-        @Schema(description = "제휴 혜택1", example = "음료 10% 할인")
-        @NotNull String benefit1,
-
-        @Schema(description = "제휴 혜택2", example = "버터구이 오징어 제공")
-        String benefit2
+        @Schema(description = "모든 제휴 혜택 목록")
+        List<PartnershipInfo> partnerships
 ) {
+    public record PartnershipInfo(
+            Long adminId,
+            String adminName,
+            String benefit
+    ) {}
+
     public static StoreMapResponseDTO of(
             Store store,
             Long adminId1, Long adminId2,
             String adminName1, String adminName2,
             String benefit1, String benefit2,
+            AmazonS3Manager s3Manager
+    ) {
+        final boolean hasPartner = store.getPartner() != null;
+        final String key = (store.getPartner() != null && store.getPartner().getMember() != null)
+                ? store.getPartner().getMember().getProfileUrl() : null;
+        final String profileUrl = (key != null && !key.isBlank())
+                ? s3Manager.generatePresignedUrl(key) : null;
+        final String phoneNumber = (store.getPartner() != null
+                && store.getPartner().getMember() != null
+                && store.getPartner().getMember().getPhoneNum() != null)
+                ? store.getPartner().getMember().getPhoneNum() : "";
+
+        List<PartnershipInfo> partnerships = new java.util.ArrayList<>();
+        if (adminId1 != null) {
+            partnerships.add(new PartnershipInfo(adminId1, adminName1, benefit1));
+        }
+        if (adminId2 != null) {
+            partnerships.add(new PartnershipInfo(adminId2, adminName2, benefit2));
+        }
+
+        return new StoreMapResponseDTO(
+                store.getId(),
+                store.getName(),
+                store.getAddress() != null ? store.getAddress() : store.getDetailAddress(),
+                store.getRate(),
+                hasPartner,
+                store.getLatitude(),
+                store.getLongitude(),
+                profileUrl,
+                phoneNumber,
+                partnerships
+        );
+    }
+
+    public static StoreMapResponseDTO ofWithPartnerships(
+            Store store,
+            List<PartnershipInfo> partnerships,
             AmazonS3Manager s3Manager
     ) {
         final boolean hasPartner = store.getPartner() != null;
@@ -78,9 +107,7 @@ public record StoreMapResponseDTO(
                 store.getLongitude(),
                 profileUrl,
                 phoneNumber,
-                adminId1, adminId2,
-                adminName1, adminName2,
-                benefit1, benefit2
+                partnerships
         );
     }
 }

@@ -45,7 +45,16 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         outboxRepository.save(outbox);
 
         // 이벤트 발행
-        OutboxCreatedEvent event = new OutboxCreatedEvent(outbox.getId(), notification);
+        OutboxCreatedEvent event = new OutboxCreatedEvent(
+                outbox.getId(),
+                member.getId(),
+                notification.getTitle(),
+                notification.getMessagePreview(),
+                type.name(),
+                refId,
+                notification.getDeeplink(),
+                notification.getId()
+        );
         eventPublisher.publishEvent(event);
 
         return notification;
@@ -82,13 +91,13 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     }
 
     protected void sendIfEnabled(Long receiverId, NotificationType type, Long refId, Map<String, Object> ctx) {
-        if (!isEnabled(receiverId, type)) {
+        if (isEnabled(receiverId, type)) {
+            createAndQueue(receiverId, type, refId, ctx);
+        } else {
             Member member = memberRepository.findMemberById(receiverId)
                     .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
             notificationRepository.save(createNotification(member, type, refId, ctx));
-            return;
         }
-        createAndQueue(receiverId, type, refId, ctx);
     }
 
     // 간단한 전송 메서드들
