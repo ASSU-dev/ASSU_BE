@@ -246,6 +246,8 @@ public class StudentServiceImpl implements StudentService {
 			} catch (Exception e) {
 				// 알림 전송 실패해도 스탬프 적립은 성공
 			}
+
+			student.resetStamp();
 			responseMessage = "스탬프 10개를 모아 자동 응모 되었습니다.";
 		}
 		return StudentResponseDTO.CheckStampResponseDTO.builder()
