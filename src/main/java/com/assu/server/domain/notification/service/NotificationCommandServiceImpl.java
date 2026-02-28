@@ -225,7 +225,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
             case ORDER -> ctx.get("table_num") + "번 테이블에서 주문";
             case PARTNER_SUGGESTION -> "새로운 제휴 건의가 도착했습니다";
             case PARTNER_PROPOSAL -> ctx.get("partner_name") + "에서 제휴 제안";
-            case STAMP -> "스탬프 10개가 모두 적립되어\n기프티콘 증정 이벤트에 자동으로 응모되었어요.";
+            case STAMP -> "스탬프 10개가 적립되어 기프티콘 증정 이벤트에 자동으로 응모되었어요.";
             default -> "새로운 알림";
         };
     }
