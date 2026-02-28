@@ -60,7 +60,11 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 					.appliedAt(LocalDateTime.now())
 					.eventVersion("2026_SEASON_1")
 					.build());
-			notificationCommandService.sendStamp(student.getId());
+			try {
+				notificationCommandService.sendStamp(student.getId());
+			} catch (Exception e) {
+				// 알림 전송 실패해도 스탬프 적립은 성공
+			}
 			student.resetStamp();
 		}
 	}
