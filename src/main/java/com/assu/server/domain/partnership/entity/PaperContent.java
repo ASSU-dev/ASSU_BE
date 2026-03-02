@@ -4,10 +4,7 @@ import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
@@ -15,6 +12,7 @@ import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
