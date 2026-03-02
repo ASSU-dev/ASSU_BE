@@ -123,6 +123,14 @@ public class PartnershipServiceImpl implements PartnershipService {
         }
 
         List<PaperContent> newContents = request.toPaperContents(paper);
+        
+        for (int i = 0; i < newContents.size(); i++) {
+            var option = request.options().get(i);
+            if (option.goods() != null && option.goods().size() == 1) {
+                newContents.get(i).setCategory(option.goods().get(0).goodsName());
+            }
+        }
+        
         newContents = newContents.isEmpty() ? newContents : paperContentRepository.saveAll(newContents);
 
         List<List<Goods>> requestGoodsBatches = request.toGoodsBatches();
@@ -306,6 +314,14 @@ public class PartnershipServiceImpl implements PartnershipService {
         List<PaperContent> savedContents = new ArrayList<>();
         if (request.options() != null && !request.options().isEmpty()) {
             List<PaperContent> contents = request.toPaperContents(paper);
+            
+            for (int i = 0; i < contents.size(); i++) {
+                var opt = request.options().get(i);
+                if (opt.goods() != null && opt.goods().size() == 1) {
+                    contents.get(i).setCategory(opt.goods().get(0).goodsName());
+                }
+            }
+            
             savedContents = paperContentRepository.saveAll(contents);
 
             List<Goods> toPersist = new ArrayList<>();
