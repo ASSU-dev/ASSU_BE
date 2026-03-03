@@ -24,4 +24,14 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
 
     boolean existsByStudentIdAndPaperId(Long studentId, Long paperId);
 
+    boolean existsByStudentIdAndPaperIdAndPaperContentId(Long studentId, Long paperId, Long paperContentId);
+
+    @Query("""
+        SELECT up FROM UserPaper up
+        JOIN FETCH up.paper p
+        JOIN FETCH up.paperContent pc
+        WHERE up.student.id = :studentId
+    """)
+    List<UserPaper> findByStudentId(@Param("studentId") Long studentId);
+
 }

@@ -1,5 +1,6 @@
 package com.assu.server.domain.notification.service;
 
+import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.infra.firebase.AmqpConfig;
 import com.assu.server.infra.firebase.FcmClient;
 import com.assu.server.domain.notification.dto.NotificationMessageDTO;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
@@ -20,6 +22,7 @@ public class NotificationListener {
 
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
+    private final ApplicationEventPublisher eventPublisher;
 
     @RabbitListener(queues = AmqpConfig.QUEUE, ackMode = "MANUAL")
     public void onMessage(@Payload NotificationMessageDTO notificationMessageDTO,
@@ -64,7 +67,15 @@ public class NotificationListener {
     }
 
     private void handleException(Exception e, Long outboxId, Long memberId) {
-        if (outboxId != null) outboxStatus.markFailed(outboxId);
+        if (outboxId != null) {
+            outboxStatus.markFailed(outboxId);
+            
+            // 일시적 실패인 경우에만 재시도 이벤트 발행
+            if (isRetryable(e)) {
+                eventPublisher.publishEvent(new NotificationFailedEvent(outboxId, 0));
+                log.info("[Notify] Scheduled retry for outboxId={}", outboxId);
+            }
+        }
 
         if (e instanceof FirebaseMessagingException fme) {
             handleFcmException(fme, outboxId, memberId);
@@ -85,6 +96,17 @@ public class NotificationListener {
         log.error("[Notify] FCM failure outboxId={} memberId={} root={} [permanent={} http={} code={}]",
                 outboxId, memberId, rootSummary(fme),
                 permanent, FcmClient.httpStatusOf(fme), fme.getMessagingErrorCode(), fme);
+    }
+
+    private boolean isRetryable(Exception e) {
+        if (e instanceof FirebaseMessagingException fme) {
+            return !isPermanent(fme);
+        }
+        // 네트워크, 타임아웃 등은 재시도 가능
+        return e instanceof java.net.UnknownHostException ||
+               e instanceof javax.net.ssl.SSLHandshakeException ||
+               e instanceof java.util.concurrent.TimeoutException ||
+               e instanceof java.net.SocketTimeoutException;
     }
 
     private boolean isPermanent(FirebaseMessagingException fme) {
