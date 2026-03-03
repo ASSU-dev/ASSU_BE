@@ -2,6 +2,7 @@ package com.assu.server.domain.notification.service;
 
 import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
+import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,11 @@ public class OutboxRetryProcessor {
                 
         } catch (Exception e) {
             log.error("[OutboxRetry] Failed to retry outboxId={}", outbox.getId(), e);
+            
+            // 재시도 실패 시 이벤트 발행
+            if (outbox.getRetryCount() < 3) {
+                eventPublisher.publishEvent(new NotificationFailedEvent(outbox.getId(), outbox.getRetryCount()));
+            }
         }
     }
 }
