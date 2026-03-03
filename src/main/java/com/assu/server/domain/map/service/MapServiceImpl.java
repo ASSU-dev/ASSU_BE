@@ -156,14 +156,34 @@ public class MapServiceImpl implements MapService {
         return storesWithActivePaper.stream().map(s -> {
             final List<Paper> sPapers = papersByStore.get(s.getId());
 
-            List<StoreMapResponseDTO.PartnershipInfo> partnerships = sPapers.stream()
-                    .map(paper -> {
-                        Long adminId = paper.getAdmin() != null ? paper.getAdmin().getId() : null;
-                        String adminName = paper.getAdmin() != null ? paper.getAdmin().getName() : null;
-                        String benefit = resolveBenefit(contentByPaperId.get(paper.getId()));
-                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefit);
+            // admin별로 그룹화해서 benefits 리스트 생성
+            Map<Long, List<String>> benefitsByAdmin = sPapers.stream()
+                    .collect(Collectors.groupingBy(
+                            paper -> paper.getAdmin().getId(),
+                            Collectors.mapping(
+                                    paper -> {
+                                        PaperContent content = contentByPaperId.get(paper.getId());
+                                        return resolveBenefit(content);
+                                    },
+                                    Collectors.filtering(
+                                            benefit -> benefit != null && !benefit.isBlank(),
+                                            Collectors.toList()
+                                    )
+                            )
+                    ));
+
+            List<StoreMapResponseDTO.PartnershipInfo> partnerships = benefitsByAdmin.entrySet().stream()
+                    .map(entry -> {
+                        Long adminId = entry.getKey();
+                        List<String> benefits = entry.getValue();
+                        String adminName = sPapers.stream()
+                                .filter(p -> p.getAdmin().getId().equals(adminId))
+                                .findFirst()
+                                .map(p -> p.getAdmin().getName())
+                                .orElse(null);
+                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefits);
                     })
-                    .filter(p -> p.adminId() != null)
+                    .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
                     .toList();
 
             return StoreMapResponseDTO.ofWithPartnerships(s, partnerships, amazonS3Manager);
@@ -255,15 +275,34 @@ public class MapServiceImpl implements MapService {
         return storesWithActivePaper.stream().map(s -> {
             List<Paper> storePapers = papersByStore.getOrDefault(s.getId(), List.of());
             
-            List<StoreMapResponseDTO.PartnershipInfo> partnerships = storePapers.stream()
-                    .map(paper -> {
-                        Long adminId = paper.getAdmin() != null ? paper.getAdmin().getId() : null;
-                        String adminName = paper.getAdmin() != null ? paper.getAdmin().getName() : null;
-                        PaperContent content = contentByPaperId.get(paper.getId());
-                        String benefit = resolveBenefit(content);
-                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefit);
+            // admin별로 그룹화해서 benefits 리스트 생성
+            Map<Long, List<String>> benefitsByAdmin = storePapers.stream()
+                    .collect(Collectors.groupingBy(
+                            paper -> paper.getAdmin().getId(),
+                            Collectors.mapping(
+                                    paper -> {
+                                        PaperContent content = contentByPaperId.get(paper.getId());
+                                        return resolveBenefit(content);
+                                    },
+                                    Collectors.filtering(
+                                            benefit -> benefit != null && !benefit.isBlank(),
+                                            Collectors.toList()
+                                    )
+                            )
+                    ));
+
+            List<StoreMapResponseDTO.PartnershipInfo> partnerships = benefitsByAdmin.entrySet().stream()
+                    .map(entry -> {
+                        Long adminId = entry.getKey();
+                        List<String> benefits = entry.getValue();
+                        String adminName = storePapers.stream()
+                                .filter(p -> p.getAdmin().getId().equals(adminId))
+                                .findFirst()
+                                .map(p -> p.getAdmin().getName())
+                                .orElse(null);
+                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefits);
                     })
-                    .filter(p -> p.adminId() != null)
+                    .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
                     .toList();
 
             return StoreMapResponseDTO.ofWithPartnerships(s, partnerships, amazonS3Manager);

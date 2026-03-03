@@ -45,23 +45,18 @@ public class MapController {
                     "\n**Response:**\n" +
                     "  - `User`: 가게 조회\n" +
                     "    - `storeId` (Long): 가게 ID\n" +
-                    "    - `adminId` (Long): 관리자 ID\n" +
-                    "    - `adminName` (String): 관리자 이름\n" +
                     "    - `name` (String): 가게 이름\n" +
                     "    - `address` (String): 가게 주소\n" +
                     "    - `rate` (Integer): 가게 별점\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준(PRICE/HEADCOUNT)\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류(SERVICE/DISCOUNT)\n" +
-                    "    - `people` (Integer): 인원 수(HEADCOUNT)\n" +
-                    "    - `cost` (Long): 가격(PRICE)\n" +
-                    "    - `category` (String): 카테고리(SERVICE)\n" +
-                    "    - `note` (String): 제휴 설명 (형식에 맞지 않는 제휴일때)\n" +
-                    "    - `discountRate` (Long): 할인률(DISCOUNT)\n" +
                     "    - `hasPartner` (boolean): 제휴업체인지 여부\n" +
                     "    - `latitude` (Double): 가게 위치 위도\n" +
                     "    - `longitude` (Double):  가게 위치 경도\n" +
                     "    - `profileUrl` (String): 가게 카카오맵 URL\n" +
                     "    - `phoneNumber` (String): 가게 전화번호\n" +
+                    "    - `partnerships` (Array): 제휴 정보 목록\n" +
+                    "      - `adminId` (Long): 관리자 ID\n" +
+                    "      - `adminName` (String): 관리자 이름\n" +
+                    "      - `benefits` (Array): 혜택 목록\n" +
                     "  - `Admin`: 제휴업체 조회\n" +
                     "    - `partnerId` (Long): 제휴업체 ID\n" +
                     "    - `name` (String): 제휴업체 이름\n" +
@@ -126,23 +121,18 @@ public class MapController {
                     "\n**Response:**\n" +
                     "  - `User`: 가게 조회\n" +
                     "    - `storeId` (Long): 가게 ID\n" +
-                    "    - `adminId` (Long): 관리자 ID\n" +
-                    "    - `adminName` (String): 관리자 이름\n" +
                     "    - `name` (String): 가게 이름\n" +
                     "    - `address` (String): 가게 주소\n" +
                     "    - `rate` (Integer): 가게 별점\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준(PRICE/HEADCOUNT)\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류(SERVICE/DISCOUNT)\n" +
-                    "    - `people` (Integer): 인원 수(HEADCOUNT)\n" +
-                    "    - `cost` (Long): 가격(PRICE)\n" +
-                    "    - `category` (String): 카테고리(SERVICE)\n" +
-                    "    - `note` (String): 제휴 설명 (형식에 맞지 않는 제휴일때)\n" +
-                    "    - `discountRate` (Long): 할인률(DISCOUNT)\n" +
                     "    - `hasPartner` (boolean): 제휴업체인지 여부\n" +
                     "    - `latitude` (Double): 가게 위치 위도\n" +
                     "    - `longitude` (Double):  가게 위치 경도\n" +
                     "    - `profileUrl` (String): 가게 카카오맵 URL\n" +
                     "    - `phoneNumber` (String): 가게 전화번호\n" +
+                    "    - `partnerships` (Array): 제휴 정보 목록\n" +
+                    "      - `adminId` (Long): 관리자 ID\n" +
+                    "      - `adminName` (String): 관리자 이름\n" +
+                    "      - `benefits` (Array): 혜택 목록\n" +
                     "  - `Admin`: 제휴업체 조회\n" +
                     "    - `partnerId` (Long): 제휴업체 ID\n" +
                     "    - `name` (String): 제휴업체 이름\n" +
