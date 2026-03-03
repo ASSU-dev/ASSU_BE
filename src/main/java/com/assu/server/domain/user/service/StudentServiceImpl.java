@@ -3,7 +3,8 @@ package com.assu.server.domain.user.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.user.entity.StampEventApplicant;
@@ -137,45 +138,40 @@ public class StudentServiceImpl implements StudentService {
 
 	@Override
 	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all) {
-		LocalDate today = LocalDate.now();
+		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, LocalDate.now());
 
-		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, today);
+		// Goods 일괄 조회 (N+1 방지)
+		List<Long> contentIds = userPapers.stream()
+				.map(up -> up.getPaperContent().getId())
+				.toList();
+		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
+				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
 
 		List<StudentResponseDTO.UsablePartnershipDTO> result = userPapers.stream().map(up -> {
 			Paper paper = up.getPaper();
 			PaperContent content = up.getPaperContent();
 			Store store = paper.getStore();
 
-			String adminName = (paper.getAdmin() != null) ? paper.getAdmin().getName() : null;
-			String partnerName = (store != null) ? store.getName() : null;
-
-			String finalCategory = null;
-			String note = null;
-			if (content != null) {
-				if(content.getNote() != null){
-					note = content.getNote();
-				}
-				if (content.getCategory() != null) {
-					finalCategory = content.getCategory();
-				} else if (content.getOptionType() == OptionType.SERVICE) {
-					List<Goods> goods = goodsRepository.findByContentId(content.getId());
-					if (!goods.isEmpty()) {
-						finalCategory = goods.get(0).getBelonging();
-					}
+			String finalCategory = content.getCategory();
+			if (finalCategory == null && content.getOptionType() == OptionType.SERVICE) {
+				List<Goods> goods = goodsMap.get(content.getId());
+				if (goods != null && !goods.isEmpty()) {
+					finalCategory = goods.get(0).getBelonging();
 				}
 			}
 
 			return StudentResponseDTO.UsablePartnershipDTO.builder()
 					.partnershipId(paper.getId())
-					.adminName(adminName)
-					.partnerName(partnerName)
-					.note(note).paperId(content != null? content.getPaper().getId(): null)
-					.criterionType(content != null ? content.getCriterionType() : null)
-					.optionType(content != null ? content.getOptionType() : null)
-					.people(content != null ? content.getPeople() : null)
-					.cost(content != null ? content.getCost() : null)
+					.adminName(paper.getAdmin() != null ? paper.getAdmin().getName() : null)
+					.partnerName(store != null ? store.getName() : null)
+					.note(content.getNote())
+					.paperId(paper.getId())
+					.criterionType(content.getCriterionType())
+					.optionType(content.getOptionType())
+					.people(content.getPeople())
+					.cost(content.getCost())
 					.category(finalCategory)
-					.discountRate(content != null ? content.getDiscount() : null)
+					.discountRate(content.getDiscount())
 					.build();
 		}).toList();
 
@@ -187,43 +183,41 @@ public class StudentServiceImpl implements StudentService {
 		Student student = studentRepository.findById(studentId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 
-		// 1. 학생 기준으로 admin 찾기
 		List<Admin> admins = adminRepository.findMatchingAdmins(
 				student.getUniversity(),
 				student.getDepartment(),
 				student.getMajor()
 		);
 
-		if (admins.isEmpty()) {
-			return;
-		}
+		if (admins.isEmpty()) return;
 
 		List<Long> adminIds = admins.stream().map(Admin::getId).toList();
-		LocalDate today = LocalDate.now();
-
-		// 2. admin들이 만든 오늘 유효한 paper 조회
 		List<Paper> papers = paperRepository.findActivePapersByAdminIds(
-				adminIds,
-				today,
-				ActivationStatus.ACTIVE
+				adminIds, LocalDate.now(), ActivationStatus.ACTIVE
 		);
 
-		// 3. user_paper에 없으면 넣기
-		for (Paper paper : papers) {
-			boolean exists = userPaperRepository.existsByStudentIdAndPaperId(studentId, paper.getId());
-			if (exists) continue;
+		if (papers.isEmpty()) return;
 
-			PaperContent latestContent = paperContentRepository
-					.findTopByPaperIdOrderByIdDesc(paper.getId())
-					.orElse(null);
+		List<Long> paperIds = papers.stream().map(Paper::getId).toList();
+		List<PaperContent> allContents = paperContentRepository.findByPaperIdIn(paperIds);
 
-			UserPaper up = UserPaper.builder()
-					.paper(paper)
-					.paperContent(latestContent)
-					.student(student)
-					.build();
+		// 기존 UserPaper 한 번에 조회 (N+1 방지)
+		List<UserPaper> existing = userPaperRepository.findByStudentId(studentId);
+		Set<String> existingKeys = existing.stream()
+				.map(up -> up.getPaper().getId() + "_" + up.getPaperContent().getId())
+				.collect(Collectors.toSet());
 
-			userPaperRepository.save(up);
+		List<UserPaper> newUserPapers = allContents.stream()
+				.filter(content -> !existingKeys.contains(content.getPaper().getId() + "_" + content.getId()))
+				.map(content -> UserPaper.builder()
+						.paper(content.getPaper())
+						.paperContent(content)
+						.student(student)
+						.build())
+				.toList();
+
+		if (!newUserPapers.isEmpty()) {
+			userPaperRepository.saveAll(newUserPapers);
 		}
 	}
 	@Transactional

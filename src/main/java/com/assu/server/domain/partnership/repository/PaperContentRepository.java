@@ -61,4 +61,6 @@ public interface PaperContentRepository extends JpaRepository<PaperContent, Long
         """, nativeQuery = true)
     List<PaperContent> findLatestByPaperIds(@Param("paperIds") List<Long> paperIds);
 
+    List<PaperContent> findByPaperIdIn(List<Long> paperIds);
+
 }
