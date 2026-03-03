@@ -40,7 +40,7 @@ public record StoreMapResponseDTO(
     public record PartnershipInfo(
             Long adminId,
             String adminName,
-            String benefit
+            List<String> benefits
     ) {}
 
     public static StoreMapResponseDTO of(
@@ -62,10 +62,10 @@ public record StoreMapResponseDTO(
 
         List<PartnershipInfo> partnerships = new java.util.ArrayList<>();
         if (adminId1 != null) {
-            partnerships.add(new PartnershipInfo(adminId1, adminName1, benefit1));
+            partnerships.add(new PartnershipInfo(adminId1, adminName1, List.of(benefit1)));
         }
         if (adminId2 != null) {
-            partnerships.add(new PartnershipInfo(adminId2, adminName2, benefit2));
+            partnerships.add(new PartnershipInfo(adminId2, adminName2, List.of(benefit2)));
         }
 
         return new StoreMapResponseDTO(
