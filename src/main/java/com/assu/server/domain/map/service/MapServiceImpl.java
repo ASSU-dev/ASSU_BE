@@ -70,12 +70,40 @@ public class MapServiceImpl implements MapService {
             return List.of();
         }
 
-        List<Long> adminIds = admins.stream().map(Admin::getId).toList();
-        List<Paper> papers = paperRepository.findByAdminIdInAndPartnerIdAndIsActivated(adminIds, memberId, ActivationStatus.ACTIVE);
-        Map<Long, Paper> adminIdToPaper = papers.stream()
-                .collect(Collectors.toMap(p -> p.getAdmin().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
+        // 해당 학생의 활성 UserPaper 조회
+        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, LocalDate.now());
+        if (userPapers.isEmpty()) {
+            return List.of();
+        }
 
-        return admins.stream()
+        // 뷰포트 내 admin ID Set
+        Set<Long> adminIdSet = admins.stream().map(Admin::getId).collect(Collectors.toSet());
+
+        // UserPaper를 admin별로 그룹화: 뷰포트 내 admin 필터
+        Map<Long, List<Paper>> papersByAdmin = userPapers.stream()
+                .filter(up -> adminIdSet.contains(up.getPaper().getAdmin().getId()))
+                .collect(Collectors.groupingBy(
+                        up -> up.getPaper().getAdmin().getId(),
+                        Collectors.mapping(UserPaper::getPaper, Collectors.toList())
+                ));
+
+        // active 제휴가 있는 admin만 필터링
+        List<Admin> adminsWithActivePaper = admins.stream()
+                .filter(a -> papersByAdmin.containsKey(a.getId()))
+                .toList();
+
+        if (adminsWithActivePaper.isEmpty()) {
+            return List.of();
+        }
+
+        // 각 admin의 첫 번째 Paper만 사용 (기존 DTO 구조 유지)
+        Map<Long, Paper> adminIdToPaper = papersByAdmin.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().get(0)
+                ));
+
+        return adminsWithActivePaper.stream()
                 .map(a -> AdminMapResponseDTO.of(a, adminIdToPaper.get(a.getId()), amazonS3Manager))
                 .toList();
     }
@@ -296,12 +324,40 @@ public class MapServiceImpl implements MapService {
             return List.of();
         }
 
-        List<Long> adminIds = admins.stream().map(Admin::getId).toList();
-        List<Paper> papers = paperRepository.findByAdminIdInAndPartnerIdAndIsActivated(adminIds, memberId, ActivationStatus.ACTIVE);
-        Map<Long, Paper> adminIdToPaper = papers.stream()
-                .collect(Collectors.toMap(p -> p.getAdmin().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
+        // 해당 학생의 활성 UserPaper 조회
+        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, LocalDate.now());
+        if (userPapers.isEmpty()) {
+            return List.of();
+        }
 
-        return admins.stream()
+        // 검색된 admin ID Set
+        Set<Long> adminIdSet = admins.stream().map(Admin::getId).collect(Collectors.toSet());
+
+        // UserPaper를 admin별로 그룹화: 검색된 admin 필터
+        Map<Long, List<Paper>> papersByAdmin = userPapers.stream()
+                .filter(up -> adminIdSet.contains(up.getPaper().getAdmin().getId()))
+                .collect(Collectors.groupingBy(
+                        up -> up.getPaper().getAdmin().getId(),
+                        Collectors.mapping(UserPaper::getPaper, Collectors.toList())
+                ));
+
+        // active 제휴가 있는 admin만 필터링
+        List<Admin> adminsWithActivePaper = admins.stream()
+                .filter(a -> papersByAdmin.containsKey(a.getId()))
+                .toList();
+
+        if (adminsWithActivePaper.isEmpty()) {
+            return List.of();
+        }
+
+        // 각 admin의 첫 번째 Paper만 사용 (기존 DTO 구조 유지)
+        Map<Long, Paper> adminIdToPaper = papersByAdmin.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().get(0)
+                ));
+
+        return adminsWithActivePaper.stream()
                 .map(a -> AdminMapResponseDTO.of(a, adminIdToPaper.get(a.getId()), amazonS3Manager))
                 .toList();
     }
