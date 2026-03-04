@@ -140,15 +140,13 @@ public class MapServiceImpl implements MapService {
                 .map(Paper::getId)
                 .toList();
 
-        final Map<Long, PaperContent> contentByPaperId;
+        final Map<Long, List<PaperContent>> contentsByPaperId;
         if (selectedPaperIds.isEmpty()) {
-            contentByPaperId = Collections.emptyMap();
+            contentsByPaperId = Collections.emptyMap();
         } else {
-            contentByPaperId = paperContentRepository.findLatestByPaperIds(selectedPaperIds).stream()
-                    .collect(Collectors.toMap(
-                            pc -> pc.getPaper().getId(),
-                            pc -> pc,
-                            (a, b) -> a
+            contentsByPaperId = paperContentRepository.findByPaperIdIn(selectedPaperIds).stream()
+                    .collect(Collectors.groupingBy(
+                            pc -> pc.getPaper().getId()
                     ));
         }
 
@@ -160,10 +158,10 @@ public class MapServiceImpl implements MapService {
             Map<Long, List<String>> benefitsByAdmin = sPapers.stream()
                     .collect(Collectors.groupingBy(
                             paper -> paper.getAdmin().getId(),
-                            Collectors.mapping(
+                            Collectors.flatMapping(
                                     paper -> {
-                                        PaperContent content = contentByPaperId.get(paper.getId());
-                                        return resolveBenefit(content);
+                                        List<PaperContent> contents = contentsByPaperId.getOrDefault(paper.getId(), List.of());
+                                        return contents.stream().map(this::resolveBenefit);
                                     },
                                     Collectors.filtering(
                                             benefit -> benefit != null && !benefit.isBlank(),
@@ -261,15 +259,13 @@ public class MapServiceImpl implements MapService {
         Map<Long, List<Paper>> papersByStore = papers.stream()
                 .collect(Collectors.groupingBy(p -> p.getStore().getId()));
 
-        // 모든 paper의 최신 PaperContent 조회
+        // 모든 paper의 모든 PaperContent 조회
         List<Long> allPaperIds = papers.stream().map(Paper::getId).toList();
-        Map<Long, PaperContent> contentByPaperId = allPaperIds.isEmpty() 
+        Map<Long, List<PaperContent>> contentsByPaperId = allPaperIds.isEmpty() 
                 ? Collections.emptyMap()
-                : paperContentRepository.findLatestByPaperIds(allPaperIds).stream()
-                        .collect(Collectors.toMap(
-                                pc -> pc.getPaper().getId(),
-                                pc -> pc,
-                                (a, b) -> a
+                : paperContentRepository.findByPaperIdIn(allPaperIds).stream()
+                        .collect(Collectors.groupingBy(
+                                pc -> pc.getPaper().getId()
                         ));
 
         return storesWithActivePaper.stream().map(s -> {
@@ -279,10 +275,10 @@ public class MapServiceImpl implements MapService {
             Map<Long, List<String>> benefitsByAdmin = storePapers.stream()
                     .collect(Collectors.groupingBy(
                             paper -> paper.getAdmin().getId(),
-                            Collectors.mapping(
+                            Collectors.flatMapping(
                                     paper -> {
-                                        PaperContent content = contentByPaperId.get(paper.getId());
-                                        return resolveBenefit(content);
+                                        List<PaperContent> contents = contentsByPaperId.getOrDefault(paper.getId(), List.of());
+                                        return contents.stream().map(this::resolveBenefit);
                                     },
                                     Collectors.filtering(
                                             benefit -> benefit != null && !benefit.isBlank(),
