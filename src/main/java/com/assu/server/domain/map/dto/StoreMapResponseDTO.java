@@ -47,7 +47,7 @@ public record StoreMapResponseDTO(
             Store store,
             Long adminId1, Long adminId2,
             String adminName1, String adminName2,
-            String benefit1, String benefit2,
+            List<String> benefits1, List<String> benefits2,
             AmazonS3Manager s3Manager
     ) {
         final boolean hasPartner = store.getPartner() != null;
@@ -62,10 +62,10 @@ public record StoreMapResponseDTO(
 
         List<PartnershipInfo> partnerships = new java.util.ArrayList<>();
         if (adminId1 != null) {
-            partnerships.add(new PartnershipInfo(adminId1, adminName1, List.of(benefit1)));
+            partnerships.add(new PartnershipInfo(adminId1, adminName1, benefits1));
         }
         if (adminId2 != null) {
-            partnerships.add(new PartnershipInfo(adminId2, adminName2, List.of(benefit2)));
+            partnerships.add(new PartnershipInfo(adminId2, adminName2, benefits2));
         }
 
         return new StoreMapResponseDTO(
