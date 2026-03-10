@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@Tag(name = "Partnership", description = "제휴 제안 api")
+@Tag(name = "Partnership", description = "제휴 제안 API")
 @RequiredArgsConstructor
 @RequestMapping("/partnership")
 public class PartnershipController {
@@ -380,7 +380,7 @@ public class PartnershipController {
 
     @Operation(
             summary = "채팅방 내 제휴 확인 API(관리자용)",
-            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8078af77d65bfcc09087)\n" +
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-31f1197c19ed8017bceced3b3d65c0d7?source=copy_link)\n" +
                     "- 현재 로그인한 관리자와 파라미터로 받은 partnerId를 가진 제휴업체 간에 제휴를 조회합니다.\n" +
                     "- 비활성화 되지 않은 가장 최근 제휴 1건 조회.\n" +
                     "\n**Parameters:**\n" +

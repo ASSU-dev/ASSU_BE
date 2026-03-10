@@ -26,7 +26,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 @RestController
 @RequiredArgsConstructor
-@Tag(name = "Store", description = "가게 관련 API")
+@Tag(name = "Store", description = "가게 API")
 @RequestMapping("/store")
 public class StoreController {
 
