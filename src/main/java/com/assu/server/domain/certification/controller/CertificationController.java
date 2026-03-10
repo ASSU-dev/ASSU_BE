@@ -19,7 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@Tag(name = "제휴 인증 api", description = "qr인증과 관련된 api 입니다.")
+@Tag(name = "Certification", description = "QR인증 API")
 @RequiredArgsConstructor
 public class CertificationController {
 
