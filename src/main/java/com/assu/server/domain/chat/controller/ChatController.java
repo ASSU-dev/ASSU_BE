@@ -87,7 +87,7 @@ public class ChatController {
                     "\n**PathVariable:**\n" +
                     "- roomId: Path Variable, Long\n"
     )
-    @PatchMapping("rooms/{roomId}/read")
+    @PatchMapping("/rooms/{roomId}/read")
     public BaseResponse<ChatResponseDTO.ReadMessageResponseDTO> readMessage(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -104,7 +104,7 @@ public class ChatController {
                     "\n**PathVariable:**\n" +
                     "- roomId: Path Variable, Long\n"
     )
-    @GetMapping("rooms/{roomId}/messages")
+    @GetMapping("/rooms/{roomId}/messages")
     public BaseResponse<ChatResponseDTO.ChatHistoryResponseDTO> getChatHistory(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -122,7 +122,7 @@ public class ChatController {
                     "\n**PathVariable:**\n" +
                     "- roomId: Path Variable, Long\n"
     )
-    @DeleteMapping("rooms/{roomId}/leave")
+    @DeleteMapping("/rooms/{roomId}/leave")
     public BaseResponse<ChatResponseDTO.LeaveChattingRoomResponseDTO> leaveChattingRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -181,11 +181,11 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "차단한 대상 조회 API.",
+            summary = "차단한 대상 조회 API차단한 대상 조회 API",
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f)\n" +
                     "- 차단한 대상을 조회합니다..\n"
     )
-    @GetMapping("/blockList")
+    @GetMapping("/block-list")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
