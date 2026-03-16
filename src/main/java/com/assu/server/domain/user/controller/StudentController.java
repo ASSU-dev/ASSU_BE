@@ -115,6 +115,12 @@ public class StudentController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
 	}
 
+	@Operation(
+			summary = "전체 학생의 사용 가능 제휴 동기화 API",
+			description = "# [v1.0 (2025-01-04)](https://clumsy-seeder-416.notion.site/3251197c19ed8066885cece9ffc455f6?source=copy_link)\n" +
+					"- 모든 학생의 user_paper 데이터를 동기화합니다.\n" +
+					"- 관리자 전용 API입니다."
+	)
 	@PostMapping("/sync/all")
 	public BaseResponse<String> syncAllStudentsNow() {
 		studentService.syncUserPapersForAllStudents();
