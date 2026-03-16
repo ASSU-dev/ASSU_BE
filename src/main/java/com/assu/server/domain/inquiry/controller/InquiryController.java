@@ -47,7 +47,7 @@ public class InquiryController {
     @Operation(
             summary = "문의 내역 목록 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/2441197c19ed803eba4af9598484e5c5?source=copy_link)\n" +
-                    "- 본인의 문의 목록을 상태별로 조회합니다.\n"+
+                    "- 본인의 문의 내역 목록을 상태별로 조회합니다.\n"+
                     "  - status: Request Param, Enum, [WAITING, ANSWERED, ALL]\n" +
                     "  - page: Request Param, Integer, 1 이상\n" +
                     "  - size: Request Param, Integer, default = 20"
@@ -67,7 +67,7 @@ public class InquiryController {
     @Operation(
             summary = "문의 내역 단건 상세 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed800f8a1fffc5a101f3c0?source=copy_link)\n" +
-                    "- 본인의 단건 문의를 상세 조회합니다.\n"+
+                    "- 본인의 문의 내역 중 1건의 문의를 상세 조회합니다.\n"+
                     "  - inquiry-id: Path Variable, Long\n"
     )
     @GetMapping("/{inquiryId}")
