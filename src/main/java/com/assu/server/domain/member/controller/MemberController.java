@@ -26,7 +26,7 @@ public class MemberController {
     private final ProfileImageService profileImageService;
 
     @Operation(
-            summary = "프로필 사진 업로드/교체 API",
+            summary = "프로필 이미지 업로드/교체 API",
             description = "# [v1.0 (2025-09-15)](https://clumsy-seeder-416.notion.site/26f1197c19ed8031bc50e3571e8ea18f?source=copy_link)\n" +
                     "- `multipart/form-data`로 프로필 이미지를 업로드합니다.\n" +
                     "- 기존 이미지가 있으면 S3에서 삭제 후 새 이미지로 교체합니다.\n" +
