@@ -115,10 +115,10 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "채팅방을 나가는 API" +
-                    "참여자가 2명이면 채팅방이 살아있지만, 이미 한 명이 나갔다면 채팅방이 삭제됩니다.",
+            summary = "채팅방을 나가는 API",
             description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2371197c19ed8079a6e1c2331cb4f534&pm=s)\n" +
                     "- 채팅방을 나갑니다.\n"+
+                    "- 참여자가 2명이면 채팅방이 살아있지만, 이미 한 명이 나갔다면 채팅방이 삭제됩니다.\n"+
                     "\n**PathVariable:**\n" +
                     "- roomId: Path Variable, Long\n"
     )
@@ -132,10 +132,10 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단하는 API" +
-                    "상대방을 차단합니다. 메시지를 주고받을 수 없습니다.",
+            summary = "상대방을 차단하는 API",
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed804ba3dbf57ba36860c4)\n" +
-                    "- 상대방을 차단합니다.\n"+
+                    "- 상대방을 차단합니다.\n" +
+                    "- 메시지를 주고받을 수 없습니다.\n" +
                     "\n**Request:**\n" +
                     "- opponentId: Request Body, Long\n"
     )
@@ -149,8 +149,7 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단했는지 확인하는 API" +
-                    "상대방을 차단했는지 여부를 알려줍니다.",
+            summary = "상대방을 차단했는지 확인하는 API",
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80769521eab9660ac53f)\n" +
                     "- 상대방을 차단했는지 검사합니다.\n"+
                     "\n**Request:**\n" +
@@ -166,10 +165,9 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단 해제하는 API" +
-                    "상대방을 차단해제합니다. 앞으로 다시 메시지를 주고받을 수 있습니다.",
+            summary = "상대방을 차단 해제하는 API",
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80b6a93fcbe277fc934c?pvs=74)\n" +
-                    "- 상대방을 차단 해제합니다.\n"+
+                    "- 상대방을 차단 해제합니다. 다시 메시지를 주고받을 수 있습니다.\n"+
                     "\n**Request:**\n" +
                     "- opponentId: Request Body, Long\n"
     )
@@ -183,8 +181,7 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "차단한 대상을 조회합니다." +
-                    "본인이 차단한 대상을 모두 조회합니다.",
+            summary = "차단한 대상 조회 API.",
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f)\n" +
                     "- 차단한 대상을 조회합니다..\n"
     )
