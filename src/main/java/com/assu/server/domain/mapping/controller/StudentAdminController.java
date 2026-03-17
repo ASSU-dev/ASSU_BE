@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/admin/dashBoard")
-@Tag(name = "관리자 대시보드 API", description = "어드민 전용 통계 및 대시보드 데이터 조회 API")
+@Tag(name = "AdminDashboard", description = "통계, 대시보드 API")
 public class StudentAdminController {
 
     private final StudentAdminService studentAdminService;
