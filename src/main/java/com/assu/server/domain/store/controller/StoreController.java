@@ -50,7 +50,7 @@ public class StoreController {
 
 	@GetMapping("/{storeId}/papers")
 	@Operation(
-		summary = "유저에게 적용 가능한 제휴 컨텐츠 조회 API",
+		summary = "제휴 컨텐츠 조회 API",
 		description = "# [v1.0 (2026-02-14)](https://clumsy-seeder-416.notion.site/2361197c19ed8019b8b8cb054cd3135b?source=copy_link)\n" +
 			"- 유저가 속한 단과대 및 학부의 `admin_id`와 요청한 `store_id`를 매칭하여 적용 가능한 제휴 컨텐츠를 조회합니다.\n" +
 			"- QR 코드 스캔 후 유저에게 실제로 보여줄 혜택(Paper) 목록을 가져올 때 사용됩니다.\n\n" +
@@ -58,7 +58,18 @@ public class StoreController {
 			"  - `storeId` (Long, required): QR에서 추출한 제휴 매장 ID\n\n" +
 			"**Query Parameters:**\n" +
 			"  - (없음) - 유저 정보는 토큰(@AuthenticationPrincipal)을 통해 식별합니다.\n\n" +
-			"**Response:**\n" +
+			"**Response (PaperResponseDTO):**\n" +
+			"  - `storeId` (Long): 매장 고유 ID\n" +
+			"  - `storeName` (String): 매장 이름\n" +
+			"  - `partnershipContents` (List): 제휴 컨텐츠 상세 목록\n" +
+			"    - `adminId` (Long): 혜택 제공자 ID\n" +
+			"    - `adminName` (String): 혜택 제공자 이름 (예: OO대학 학생회)\n" +
+			"    - `paperContent` (String): 제휴 혜택 상세 설명\n" +
+			"    - `contentId` (Long): 컨텐츠 고유 ID\n" +
+			"    - `goods` (List<String>): 제공되는 상품/서비스 리스트\n" +
+			"    - `people` (Integer): 사용 가능 인원\n" +
+			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n\n" +
+			"**Error Cases:**\n" +
 			"  - 성공: 200 OK, `isSuccess=true`, `result=PaperResponseDTO` (제휴 컨텐츠 상세 정보)\n" +
 			"  - 실패: \n" +
 			"    - 404 NOT_FOUND: 해당 매장을 찾을 수 없거나 유효한 제휴 컨텐츠가 없는 경우\n" +
