@@ -25,7 +25,7 @@ import okhttp3.Response;
 
 @RestController
 @RequiredArgsConstructor
-@Tag(name="TemporaryQR", description="1학기 임시 운영 qr 관련 api")
+@Tag(name="Temporary", description="임시운영 API")
 @RequestMapping("/temporary-qr")
 public class TemporaryQrController {
 
@@ -39,8 +39,7 @@ public class TemporaryQrController {
 				"- 임시 QR 적립 데이터를 저장합니다.\n" +
 				"- 요청 바디(JSON)를 통해 QR 적립 대상 정보를 전달합니다.\n" +
 				"\n**Request Body:**\n" +
-				"  - `storeId` (Long, required): 매장 ID\n" +
-				"  - `adminId` (Long, required): 학생회(관리자) ID\n" +
+				"  - `adminName` (String, required): 학생회(관리자) 이름 (ex. 컴퓨터학부 학생회, 총학생회, IT대 학생회)\n" +
 				"  - `sort` (Enum, required): 어떻게 적립되었는지 REVIEW/SUGGEST 중 하나 입력\n" +
 				"\n**Response:**\n" +
 				"  - 성공 시 200(OK)\n"
