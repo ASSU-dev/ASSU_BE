@@ -25,7 +25,7 @@ import okhttp3.Response;
 
 @RestController
 @RequiredArgsConstructor
-@Tag(name="Temporary", description="임시 QR인증 API")
+@Tag(name="Temp QR", description="임시 QR 인증 API")
 @RequestMapping("/temporary-qr")
 public class TemporaryQrController {
 
