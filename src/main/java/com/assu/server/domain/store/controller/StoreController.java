@@ -35,7 +35,7 @@ public class StoreController {
 
 	@GetMapping("/best")
 	@Operation(
-		summary = "오늘의 인기 매장 조회 API",
+		summary = "오늘 인기 매장 조회 API",
 		description =
 			"# [v1.0 (2025-12-23)](https://clumsy-seeder-416.notion.site/Today-22b1197c19ed80aebfc3e6b337d02ece?source=copy_link)\n" +
 				"- 오늘 기준 인기 매장 목록을 조회합니다.\n" +
