@@ -80,7 +80,7 @@ public class InquiryController {
             summary = "문의 내역 단건 상세 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed800f8a1fffc5a101f3c0?source=copy_link)\n" +
                     "- 본인의 문의 내역 중 1건의 문의를 상세 조회합니다.\n\n" +
-                    "**Path Variables:**\n" +
+                    "**Path Variable:**\n" +
                     "- `inquiryId` (Long, required): 문의 ID\n\n" +
                     "**Response:**\n" +
                     "- 성공 시 200(OK)과 문의 상세 정보 반환\n" +
@@ -102,7 +102,7 @@ public class InquiryController {
             summary = "운영자 답변 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed8064808fcca568b8912a?source=copy_link)\n" +
                     "- 문의에 답변을 저장하고 상태를 ANSWERED로 변경합니다.\n\n" +
-                    "**Path Variables:**\n" +
+                    "**Path Variable:**\n" +
                     "- `inquiryId` (Long, required): 문의 ID\n\n" +
                     "**Request Body:**\n" +
                     "- `answer` (String, required): 답변 내용\n\n" +

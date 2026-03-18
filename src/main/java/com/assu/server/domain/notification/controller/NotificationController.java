@@ -54,7 +54,7 @@ public class NotificationController {
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/2491197c19ed80a89ff0c03bc150460f?source=copy_link)\n" +
                     "- 알림 ID에 해당하는 알림을 읽음 처리합니다.\n" +
                     "- 본인의 알림만 읽음 처리 가능합니다.\n\n" +
-                    "**Path Variables:**\n" +
+                    "**Path Variable:**\n" +
                     "- `notificationId` (Long, required): 알림 ID\n\n" +
                     "**Response:**\n" +
                     "- 성공 시 200(OK)과 성공 메시지 반환\n" +
@@ -97,7 +97,7 @@ public class NotificationController {
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/on-off-2511197c19ed80aeb4eed3c502691361?source=copy_link)\n" +
                     "- 토글 형식으로 유형별 알림을 ON/OFF 합니다.\n" +
                     "- 그룹 토글 기능을 지원합니다.\n\n" +
-                    "**Path Variables:**\n" +
+                    "**Path Variable:**\n" +
                     "- `type` (NotificationType, required): 알림 유형\n" +
                     "  - 개별 유형: CHAT, PARTNER_SUGGESTION, PARTNER_PROPOSAL, ORDER, STAMP\n" +
                     "  - 그룹 유형: PARTNER_ALL (CHAT + ORDER), ADMIN_ALL (CHAT + PARTNER_SUGGESTION + PARTNER_PROPOSAL)\n\n" +

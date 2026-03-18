@@ -42,7 +42,7 @@ public class DeviceTokenController {
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed80b8b26be9e01d24c929?source=copy_link)\n" +
                     "- 로그아웃/탈퇴 시 호출해 디바이스 토큰 등록을 해제합니다.\n" +
                     "- 자신의 토큰만 해제가 가능합니다.\n\n" +
-                    "**Path Variables:**\n" +
+                    "**Path Variable:**\n" +
                     "- `tokenId` (Long, required): 해제할 디바이스 토큰 ID\n\n" +
                     "**Response:**\n" +
                     "- 성공 시 200(OK)과 성공 메시지 반환\n" +
