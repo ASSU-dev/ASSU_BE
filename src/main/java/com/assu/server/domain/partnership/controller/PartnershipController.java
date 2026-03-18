@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@Tag(name = "Partnership", description = "제휴 제안 api")
+@Tag(name = "Partnership", description = "제휴 제안 API")
 @RequiredArgsConstructor
 @RequestMapping("/partnership")
 public class PartnershipController {
@@ -33,9 +33,10 @@ public class PartnershipController {
 
 	@PostMapping("/usage")
     @Operation(
-        summary = "유저의 인증 후 최종 제휴 데이터 기록 API",
+        summary = "제휴 사용내역 기록 API",
         description = "# [v1.0 (2025-12-23)](https://clumsy-seeder-416.notion.site/2681197c19ed8052804eddd5a1f3ce96?source=copy_link)\n" +
-            "- 인증 완료 화면 전에 호출되어 유저의 제휴 내역에 데이터를 기록합니다.\n" +
+            "- 제휴 제공 화면 전에 호출되어 유저의 제휴 내역에 데이터를 기록합니다.\n" +
+            "- 인증 이후 제휴를 받았다는 때 서버의 데이터 기록을 요청하는 API \n" +
             "- 개인 인증 케이스도 포함됩니다.\n\n" +
             "**Request Body:**\n" +
             "  - `storeId` (Long, required): 제휴 매장 ID\n" +
@@ -379,8 +380,8 @@ public class PartnershipController {
     }
 
     @Operation(
-            summary = "채팅방 내 제휴 확인 API(관리자용)",
-            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8078af77d65bfcc09087)\n" +
+            summary = "채팅방 내 제휴 확인 API",
+            description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-31f1197c19ed8017bceced3b3d65c0d7?source=copy_link)\n" +
                     "- 현재 로그인한 관리자와 파라미터로 받은 partnerId를 가진 제휴업체 간에 제휴를 조회합니다.\n" +
                     "- 비활성화 되지 않은 가장 최근 제휴 1건 조회.\n" +
                     "\n**Parameters:**\n" +
