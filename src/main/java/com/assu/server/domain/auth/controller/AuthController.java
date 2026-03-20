@@ -139,22 +139,22 @@ public class AuthController {
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
                     "- `application/json` 요청 바디를 사용합니다.\n" +
                     "- 처리: 유세인트 인증 → 학생 정보 추출 → 회원가입 완료\n" +
-                    "- 성공 시 201(Created)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
-                    "  - `StudentTokenSignUpRequest` 객체 (JSON, required): 숭실대 학생 토큰 가입 정보\n" +
+                    "  - `StudentTokenSignUpRequestDTO` 객체 (JSON, required): 숭실대 학생 토큰 가입 정보\n" +
                     "  - `phoneNumber` (String, required): 휴대폰 번호\n" +
                     "  - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
                     "  - `locationAgree` (Boolean, required): 위치 정보 수집 동의\n" +
-                    "  - `StudentTokenAuthPayload` (Object, required): 유세인트 토큰 정보\n" +
+                    "  - `studentTokenAuth` (StudentTokenAuthPayloadDTO, Object, required): 유세인트 토큰 정보\n" +
                     "    - `sToken` (String, required): 유세인트 sToken\n" +
-                    "    - `sIdno` (Integer, required): 유세인트 sIdno\n" +
+                    "    - `sIdno` (String, required): 유세인트 sIdno\n" +
                     "    - `university` (University enum, required): 대학 이름 (SSU)\n" +
                     "\n**Response:**\n" +
-                    "  - 성공 시 201(Created)과 `SignUpResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (STUDENT)\n" +
                     "  - `status` (ActivationStatus): 회원 상태 (ACTIVE)\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
+                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 학생 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
@@ -188,28 +188,42 @@ public class AuthController {
             summary = "제휴업체 회원가입 API",
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
-                    "- 파트: `payload`(JSON, PartnerSignUpRequest) + `licenseImage`(파일, 사업자등록증).\n" +
+                    "- 파트: `request`(JSON, PartnerSignUpRequestDTO) + `licenseImage`(파일, 사업자등록증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
-                    "- 성공 시 201(Created)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
-                    "  - `request` (JSON, required): `PartnerSignUpRequest` 객체\n" +
-                    "  - `email` (String, required): 이메일 주소\n" +
-                    "  - `password` (String, required): 비밀번호\n" +
-                    "  - `phoneNumber` (String, required): 휴대폰 번호\n" +
-                    "  - `companyName` (String, required): 회사명\n" +
-                    "  - `businessNumber` (String, required): 사업자등록번호\n" +
-                    "  - `representativeName` (String, required): 대표자명\n" +
-                    "  - `address` (String, required): 회사 주소\n" +
+                    "  - `request` (JSON, required): `PartnerSignUpRequestDTO` 객체\n" +
+                    "    - `phoneNumber` (String, required): 휴대폰 번호\n" +
+                    "    - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
+                    "    - `locationAgree` (Boolean, required): 위치 정보 수집 동의\n" +
+                    "    - `commonAuth` (CommonAuthPayloadDTO, required): 이메일/비밀번호 및 인증 관련 정보\n" +
+                    "      - `email` (String, required): 이메일 주소\n" +
+                    "      - `password` (String, required): 비밀번호(평문)\n" +
+                    "      - `university` (University enum, required): 대학교 Enum\n" +
+                    "      - `department` (Department enum, required): 단과대 Enum\n" +
+                    "      - `major` (Major enum, required): 전공 Enum\n" +
+                    "    - `commonInfo` (CommonInfoPayloadDTO, required): 사용자 기본 정보\n" +
+                    "      - `name` (String, required): 업체명\n" +
+                    "      - `detailAddress` (String, required): 상세 주소\n" +
+                    "      - `selectedPlace` (SelectedPlacePayload, required): 선택된 장소 정보\n" +
+                    "        - `placeId` (String, required): 장소 ID\n" +
+                    "        - `name` (String, required): 장소 이름\n" +
+                    "        - `address` (String, required): 장소 지번 주소\n" +
+                    "        - `roadAddress` (String, required): 장소 도로명 주소\n" +
+                    "        - `latitude` (Double, required): 장소 위도\n" +
+                    "        - `longitude` (Double, required): 장소 경도\n" +
                     "  - `licenseImage` (MultipartFile, required): 사업자등록증 이미지 파일\n" +
                     "\n**Response:**\n" +
-                    "  - 성공 시 201(Created)과 `SignUpResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (PARTNER)\n" +
                     "  - `status` (ActivationStatus): 회원 상태 (ACTIVE)\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
+                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 업체명\n" +
-                    "    - `university`, `department`, `major`: null (Partner는 해당 없음)"
+                    "    - `university` (String): null (Partner는 해당 없음)\n" +
+                    "    - `department` (String): null (Partner는 해당 없음)\n" +
+                    "    - `major` (String): null (Partner는 해당 없음)"
     )
     @PostMapping(value = "/partners/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<SignUpResponseDTO> signupPartner(
@@ -242,27 +256,37 @@ public class AuthController {
             summary = "관리자 회원가입 API",
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
-                    "- 파트: `payload`(JSON, AdminSignUpRequest) + `signImage`(파일, 신분증).\n" +
+                    "- 파트: `request`(JSON, AdminSignUpRequestDTO) + `signImage`(파일, 신분증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
-                    "- 성공 시 201(Created)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
-                    "  - `request` (JSON, required): `AdminSignUpRequest` 객체\n" +
-                    "  - `email` (String, required): 이메일 주소\n" +
-                    "  - `password` (String, required): 비밀번호\n" +
-                    "  - `university` (String, required): 대학교 Enum\n" +
-                    "  - `department` (String, required): 단과대 Enum\n" +
-                    "  - `major` (String, required): 전공 Enum\n" +
-                    "  - `phoneNumber` (String, required): 휴대폰 번호\n" +
-                    "  - `name` (String, required): 관리자 이름\n" +
-                    "  - `department` (String, required): 소속 부서\n" +
-                    "  - `position` (String, required): 직책\n" +
+                    "  - `request` (JSON, required): `AdminSignUpRequestDTO` 객체\n" +
+                    "    - `phoneNumber` (String, required): 휴대폰 번호\n" +
+                    "    - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
+                    "    - `locationAgree` (Boolean, required): 위치 정보 수집 동의\n" +
+                    "    - `commonAuth` (CommonAuthPayloadDTO, required): 이메일/비밀번호 및 인증 관련 정보\n" +
+                    "      - `email` (String, required): 이메일 주소\n" +
+                    "      - `password` (String, required): 비밀번호(평문)\n" +
+                    "      - `university` (University enum, required): 대학교 Enum\n" +
+                    "      - `department` (Department enum, required): 단과대 Enum\n" +
+                    "      - `major` (Major enum, required): 전공 Enum\n" +
+                    "    - `commonInfo` (CommonInfoPayloadDTO, required): 사용자 기본 정보\n" +
+                    "      - `name` (String, required): 단체명/관리자 이름\n" +
+                    "      - `detailAddress` (String, required): 상세 주소\n" +
+                    "      - `selectedPlace` (SelectedPlacePayload, required): 선택된 장소 정보\n" +
+                    "        - `placeId` (String, required): 장소 ID\n" +
+                    "        - `name` (String, required): 장소 이름\n" +
+                    "        - `address` (String, required): 장소 지번 주소\n" +
+                    "        - `roadAddress` (String, required): 장소 도로명 주소\n" +
+                    "        - `latitude` (Double, required): 장소 위도\n" +
+                    "        - `longitude` (Double, required): 장소 경도\n" +
                     "  - `signImage` (MultipartFile, required): 인감 이미지 파일\n" +
                     "\n**Response:**\n" +
-                    "  - 성공 시 201(Created)과 `SignUpResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (ADMIN)\n" +
                     "  - `status` (ActivationStatus): 회원 상태 (ACTIVE)\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
+                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 단체명/관리자 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
@@ -300,22 +324,24 @@ public class AuthController {
             summary = "공통 로그인 API",
             description = "# [v1.1 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed811c961be6a474de0e50)\n" +
                     "- `application/json`로 호출합니다.\n" +
-                    "- 바디: `LoginRequest(email, password)`.\n" +
+                    "- 바디: `CommonLoginRequestDTO(email, password)`.\n" +
                     "- 처리: 자격 증명 검증 후 Access/Refresh 토큰 발급 및 저장.\n" +
-                    "- 성공 시 200(OK)과 토큰, 만료시각, 기본 정보 반환.\n" +
+                    "- 성공 시 200(OK)과 토큰(accessToken/refreshToken), 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
-                    "  - `CommonLoginRequest` 객체 (JSON, required): 로그인 정보\n" +
+                    "  - `CommonLoginRequestDTO` 객체 (JSON, required): 로그인 정보\n" +
                     "  - `email` (String, required): 이메일 주소\n" +
                     "  - `password` (String, required): 비밀번호\n" +
                     "\n**Response:**\n" +
-                    "  - 성공 시 200(OK)과 `LoginResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `LoginResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (PARTNER/ADMIN)\n" +
                     "  - `status` (ActivationStatus): 회원 상태\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
+                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 업체명/단체명/관리자 이름\n" +
-                    "    - `university`, `department`, `major`: Admin의 경우 한글명, Partner의 경우 null"
+                    "    - `university` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
+                    "    - `department` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
+                    "    - `major` (String): Admin인 경우 한글명, Partner인 경우 null"
     )
     @PostMapping(value = "/commons/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<LoginResponseDTO> loginCommon(
@@ -338,20 +364,20 @@ public class AuthController {
             summary = "학생 로그인 API",
             description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80f6b495fa37f8c084a8)\n" +
                     "- `application/json`로 호출합니다.\n" +
-                    "- 바디: `StudentTokenLoginRequest(sToken, sIdno, university)`.\n" +
+                    "- 바디: `StudentTokenAuthPayloadDTO(sToken, sIdno, university)`.\n" +
                     "- 처리: 유세인트 인증 → 기존 회원 확인 → JWT 토큰 발급.\n" +
-                    "- 성공 시 200(OK)과 토큰, 만료시각, 기본 정보 반환.\n" +
+                    "- 성공 시 200(OK)과 토큰(accessToken/refreshToken), 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
-                    "  - `StudentTokenAuthPayload` 객체 (JSON, required): 숭실대 학생 토큰 로그인 정보\n" +
+                    "  - `StudentTokenAuthPayloadDTO` 객체 (JSON, required): 숭실대 학생 토큰 로그인 정보\n" +
                     "  - `sToken` (String, required): 유세인트 sToken\n" +
-                    "  - `sIdno` (Integer, required): 유세인트 sIdno\n" +
+                    "  - `sIdno` (String, required): 유세인트 sIdno\n" +
                     "  - `university` (University enum, required): 대학 이름 (SSU)\n" +
                    "\n**Response:**\n" +
-                    "  - 성공 시 200(OK)과 `LoginResponse` 객체 반환\n" +
+                    "  - 성공 시 200(OK)과 `LoginResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (STUDENT)\n" +
                     "  - `status` (ActivationStatus): 회원 상태\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken, expiresAt)\n" +
+                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 학생 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
@@ -385,18 +411,16 @@ public class AuthController {
             summary = "Access Token 갱신 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/2501197c19ed806ea8cff29f9cd8695a?source=copy_link)\n" +
                     "- 헤더로 호출합니다.\n" +
-                    "- 헤더: `Authorization: Bearer <accessToken>`(만료 허용), `RefreshToken: <refreshToken>`.\n" +
+                    "- 헤더: `RefreshToken: <refreshToken>`.\n" +
                     "- 처리: Refresh 검증/회전 후 신규 Access/Refresh 발급 및 저장.\n" +
-                    "- 성공 시 200(OK)과 새 토큰/만료시각 반환.\n" +
+                    "- 성공 시 200(OK)과 신규 토큰 반환.\n" +
                     "\n**Headers:**\n" +
-                    "  - `Authorization` (String, required): Bearer 토큰 형식의 액세스 토큰 (만료 허용)\n" +
                     "  - `RefreshToken` (String, required): 리프레시 토큰\n" +
                     "\n**Response:**\n" +
-                    "  - 성공 시 200(OK)과 `RefreshResponse` 객체 반환\n" +
-                    "  - 성공 시 200(OK)과 `RefreshResponse` 객체 반환\n" +
-                    "  - `accessToken` (String): 새로운 액세스 토큰\n" +
-                    "  - `refreshToken` (String): 새로운 리프레시 토큰\n" +
-                    "  - `expiresAt` (LocalDateTime): 새 토큰 만료 시각"
+                    "  - 성공 시 200(OK)과 `RefreshResponseDTO` 객체 반환\n" +
+                    "  - `memberId` (Long): 회원 ID\n" +
+                    "  - `newAccess` (String): 새로운 액세스 토큰\n" +
+                    "  - `newRefresh` (String): 새로운 리프레시 토큰"
     )
     @PostMapping("/tokens/refresh")
     public BaseResponse<RefreshResponseDTO> refreshToken(
@@ -441,14 +465,23 @@ public class AuthController {
             summary = "숭실대 유세인트 인증 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/23a1197c19ed808d9266e641e5c4ea14?source=copy_link)\n" +
                     "- `application/json`으로 호출합니다.\n" +
-                    "- 요청 바디: `USaintAuthRequest(sToken, sIdno)`.\n" +
+                    "\n**Request Body:**\n" +
+                    "  - `sToken` (String, required): 유세인트 sToken\n" +
+                    "  - `sIdno` (String, required): 유세인트 sIdno\n" +
                     "- 처리 순서:\n" +
                     "  1) 유세인트 SSO 로그인 시도 (sToken, sIdno 검증)\n" +
                     "  2) 응답 Body 검증 후 세션 쿠키 추출\n" +
                     "  3) 유세인트 포털 페이지 접근 및 HTML 파싱\n" +
                     "  4) 이름, 학번, 소속, 학적 상태, 학년/학기 정보 추출\n" +
                     "  5) 소속 문자열을 전공 Enum(`Major`)으로 매핑\n" +
-                    "  6) 인증 결과를 `USaintAuthResponse` DTO로 반환"
+                    "  6) 인증 결과를 `USaintAuthResponseDTO`로 반환\n" +
+                    "\n**Response:**\n" +
+                    "  - 성공 시 200(OK)과 `USaintAuthResponseDTO` 객체 반환\n" +
+                    "  - `studentNumber` (String): 학번\n" +
+                    "  - `name` (String): 이름\n" +
+                    "  - `enrollmentStatus` (String): 학적 상태\n" +
+                    "  - `yearSemester` (String): 학년/학기\n" +
+                    "  - `major` (Major enum): 전공/학과"
     )
     @PostMapping(value = "/students/ssu-verify", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<USaintAuthResponseDTO> ssuAuth(

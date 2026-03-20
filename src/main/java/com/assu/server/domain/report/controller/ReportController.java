@@ -2,7 +2,6 @@ package com.assu.server.domain.report.controller;
 
 import com.assu.server.domain.report.dto.ReportRequestDTO;
 import com.assu.server.domain.report.dto.ReportResponseDTO;
-import com.assu.server.domain.report.entity.enums.ReportTargetType;
 import com.assu.server.domain.report.service.ReportService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -28,9 +27,9 @@ public class ReportController {
             "- 자기 자신의 콘텐츠를 신고할 수 없습니다.\n" +
             "- 동일한 대상을 중복 신고할 수 없습니다.\n\n" +
             "**Request Body:**\n" +
-            "- `targetType` (String, required): 신고 대상 타입 (REVIEW, SUGGESTION)\n" +
+            "- `targetType` (ReportTargetType enum, required): 신고 대상 타입 (REVIEW, SUGGESTION)\n" +
             "- `targetId` (Long, required): 리뷰 ID 또는 건의글 ID\n" +
-            "- `reportType` (String, required): 신고 유형\n" +
+            "- `reportType` (ReportType enum, required): 신고 유형\n" +
             "  - 리뷰 신고: REVIEW_INAPPROPRIATE_CONTENT, REVIEW_FALSE_INFORMATION, REVIEW_SPAM\n" +
             "  - 건의글 신고: SUGGESTION_INAPPROPRIATE_CONTENT, SUGGESTION_FALSE_INFORMATION, SUGGESTION_SPAM\n\n" +
             "**Response:**\n" +
@@ -51,10 +50,10 @@ public class ReportController {
             "- 자기 자신을 신고할 수 없습니다.\n" +
             "- 동일한 작성자를 중복 신고할 수 없습니다.\n\n" +
             "**Request Body:**\n" +
-            "- `targetType` (String, required): 신고 대상 타입 (REVIEW, SUGGESTION)\n" +
+            "- `targetType` (ReportTargetType enum, required): 신고 대상 타입 (REVIEW, SUGGESTION)\n" +
             "- `targetId` (Long, required): 리뷰 ID 또는 건의글 ID\n" +
-            "- `reportType` (String, required): 신고 유형\n" +
-            "  - 사용자 신고: USER_SPAM, USER_INAPPROPRIATE_CONTENT, USER_HARASSMENT, USER_FRAUD, USER_PRIVACY_VIOLATION, USER_OTHER\n\n"
+            "- `reportType` (ReportType enum, required): 신고 유형\n" +
+            "  - 사용자 신고: STUDENT_USER_SPAM, STUDENT_USER_INAPPROPRIATE_CONTENT, STUDENT_USER_HARASSMENT, STUDENT_USER_FRAUD, STUDENT_USER_PRIVACY_VIOLATION, STUDENT_USER_OTHER\n\n"
             +
             "**Response:**\n" +
             "- 성공 시 201(CREATED)과 신고 ID 반환")
