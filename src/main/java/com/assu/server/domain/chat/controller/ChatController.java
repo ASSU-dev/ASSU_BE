@@ -8,11 +8,11 @@ import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,19 +20,21 @@ import java.util.List;
 
 @Slf4j
 @RestController
+@Tag(name = "Chatting", description = "채팅 API")
 @RequiredArgsConstructor
 @RequestMapping("/chat")
 public class ChatController {
     private final ChatService chatService;
-    private final SimpMessagingTemplate simpMessagingTemplate;
     private final BlockService blockService;
     private final ChattingRedisPublisher chattingRedisPublisher;
 
     @Operation(
-            summary = "채팅방을 생성하는 API",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed80c38871ec77deced713) 채팅방을 생성합니다.\n"+
-                    "- adminId: Request Body, Long\n" +
-                    "- partnerId: Request Body, Long\n"
+            summary = "채팅방 생성 API",
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed80c38871ec77deced713)\n" +
+                    "- 채팅방을 생성합니다.\n"+
+                    "\n**Request Body:**\n" +
+                    "- adminId (Long, required): 관리자 ID\n" +
+                    "- partnerId (Long, required) 제휴업체 ID\n"
     )
     @PostMapping("/rooms")
     public BaseResponse<ChatResponseDTO.CreateChatRoomResponseDTO> createChatRoom(
@@ -43,8 +45,9 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "채팅방 목록을 조회하는 API",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/API-1d71197c19ed819f8f70fb437e9ce62b?p=2241197c19ed816993c3c5ae17d6f099&pm=s) 채팅방 목록을 조회합니다.\n"
+            summary = "채팅방 목록 조회 API",
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/API-1d71197c19ed819f8f70fb437e9ce62b?p=2241197c19ed816993c3c5ae17d6f099&pm=s)\n" +
+                    "- 채팅방 목록을 조회합니다.\n"
     )
     @GetMapping("/rooms")
     public BaseResponse<List<ChatRoomListResultDTO>> getChatRoomList(
@@ -56,12 +59,13 @@ public class ChatController {
 
     @Operation(
             summary = "채팅 API",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2371197c19ed80968342e2bc8fe88cee&pm=s) 메시지를 전송합니다.\n"+
-                    "- roomId: Request Body, Long\n" +
-                    "- senderId: Request Body, Long\n"+
-                    "- receiverId: Request Body, Long\n" +
-                    "- message: Request Body, String\n" +
-                    "- unreadCountForSender: Request Body, int\n"
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2371197c19ed80968342e2bc8fe88cee&pm=s)\n" +
+                    "- 메시지를 전송합니다.\n"+
+                    "\n**Request:**\n" +
+                    "- roomId (Long, required): 채팅방 ID\n" +
+                    "- senderId (Long, required): 발신자 ID\n"+
+                    "- receiverId (Long, required): 수신자 ID\n" +
+                    "- message (String, required): 메시지\n"
     )
     @MessageMapping("/send")
     public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
@@ -77,10 +81,12 @@ public class ChatController {
 
     @Operation(
             summary = "메시지 읽음 처리 API",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2241197c19ed81ffa771cb18ab157b54&pm=s) 메시지를 읽음처리합니다.\n"+
-                    "- roomId: Path Variable, Long\n"
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2241197c19ed81ffa771cb18ab157b54&pm=s)\n" +
+                    "- 메시지를 읽음처리합니다.\n"+
+                    "\n**Path Variable:**\n" +
+                    "- roomId (Long, required): 채팅방 ID\n"
     )
-    @PatchMapping("rooms/{roomId}/read")
+    @PatchMapping("/rooms/{roomId}/read")
     public BaseResponse<ChatResponseDTO.ReadMessageResponseDTO> readMessage(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -92,10 +98,12 @@ public class ChatController {
 
     @Operation(
             summary = "채팅방 상세 조회 API",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2241197c19ed81399395fd66f73730af&pm=s) 채팅방을 클릭했을 때 메시지를 조회합니다.\n"+
-                    "- roomId: Path Variable, Long\n"
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2241197c19ed81399395fd66f73730af&pm=s)\n" +
+                    "- 채팅방을 클릭했을 때 메시지를 조회합니다.\n"+
+                    "\n**Path Variable:**\n" +
+                    "- roomId (Long, required): 채팅방 ID\n"
     )
-    @GetMapping("rooms/{roomId}/messages")
+    @GetMapping("/rooms/{roomId}/messages")
     public BaseResponse<ChatResponseDTO.ChatHistoryResponseDTO> getChatHistory(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -106,12 +114,14 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "채팅방을 나가는 API" +
-                    "참여자가 2명이면 채팅방이 살아있지만, 이미 한 명이 나갔다면 채팅방이 삭제됩니다.",
-            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2371197c19ed8079a6e1c2331cb4f534&pm=s) 채팅방을 나갑니다.\n"+
-                    "- roomId: Path Variable, Long\n"
+            summary = "채팅방 나가기 API",
+            description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/2241197c19ed800eab45c35073761c97?v=2241197c19ed8134b64f000cc26c5d31&p=2371197c19ed8079a6e1c2331cb4f534&pm=s)\n" +
+                    "- 채팅방을 나갑니다.\n"+
+                    "- 참여자가 2명이면 채팅방이 살아있지만, 이미 한 명이 나갔다면 채팅방이 삭제됩니다.\n"+
+                    "\n**Path Variable:**\n" +
+                    "- roomId (Long, required): 채팅방 ID\n"
     )
-    @DeleteMapping("rooms/{roomId}/leave")
+    @DeleteMapping("/rooms/{roomId}/leave")
     public BaseResponse<ChatResponseDTO.LeaveChattingRoomResponseDTO> leaveChattingRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long roomId
@@ -121,10 +131,12 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단하는 API" +
-                    "상대방을 차단합니다. 메시지를 주고받을 수 없습니다.",
-            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed804ba3dbf57ba36860c4) 상대방을 차단합니다.\n"+
-                    "- opponentId: Request Body, Long\n"
+            summary = "상대방 차단 API",
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed804ba3dbf57ba36860c4)\n" +
+                    "- 상대방을 차단합니다.\n" +
+                    "- 메시지를 주고받을 수 없습니다.\n" +
+                    "\n**Request Body:**\n" +
+                    "- opponentId (Long, required): 상대방 ID\n"
     )
     @PostMapping("/block")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> block(
@@ -136,10 +148,11 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단했는지 확인하는 API" +
-                    "상대방을 차단했는지 여부를 알려줍니다.",
-            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80769521eab9660ac53f) 상대방을 차단했는지 검사합니다.\n"+
-                    "- opponentId: Request Body, Long\n"
+            summary = "상대방 차단 여부 확인 API",
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80769521eab9660ac53f)\n" +
+                    "- 상대방을 차단했는지 검사합니다.\n"+
+                    "\n**Path Variable:**\n" +
+                    "- opponentId (Long, required): 상대방 ID\n"
     )
     @GetMapping("/check/block/{opponentId}")
     public BaseResponse<BlockResponseDTO.CheckBlockMemberDTO> checkBlock(
@@ -151,10 +164,11 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "상대방을 차단 해제하는 API" +
-                    "상대방을 차단해제합니다. 앞으로 다시 메시지를 주고받을 수 있습니다.",
-            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80b6a93fcbe277fc934c?pvs=74) 상대방을 차단 해제합니다.\n"+
-                    "- opponentId: Request Body, Long\n"
+            summary = "상대방 차단 해제 API",
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed80b6a93fcbe277fc934c?pvs=74)\n" +
+                    "- 상대방을 차단 해제합니다. 다시 메시지를 주고받을 수 있습니다.\n"+
+                    "\n**Request Parameter:**\n" +
+                    "- opponentId (Long, required): 상대방 ID\n"
     )
     @DeleteMapping("/unblock")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> unblock(
@@ -166,11 +180,11 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "차단한 대상을 조회합니다." +
-                    "본인이 차단한 대상을 모두 조회합니다.",
-            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f) 차단한 대상을 조회합니다..\n"
+            summary = "차단한 대상 조회 API",
+            description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f)\n" +
+                    "- 차단한 대상을 조회합니다.\n"
     )
-    @GetMapping("/blockList")
+    @GetMapping("/block-list")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {

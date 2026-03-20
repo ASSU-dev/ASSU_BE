@@ -27,7 +27,7 @@ public class MapController {
     private final PlaceSearchService placeSearchService;
 
     @Operation(
-            summary = "주변 장소 조회 API",
+            summary = "현재 위치 기반 주변 장소 조회 API",
             description = "# [v1.3 (2025-01-04)](https://clumsy-seeder-416.notion.site/2441197c19ed80bcb55fcad675dd9837?source=copy_link)\n" +
                     "- 로그인한 유저의 역할에 따라 Map 객체를 반환합니다.\n" +
                     "- 경도, 위도 순서로 입력한 Viewport 객체 입력.\n" +
@@ -97,18 +97,7 @@ public class MapController {
         };
     }
 
-    @Operation(
-            summary = "주변 장소 조회 API (학생 혜택 기반)",
-            description = "공간 인덱싱에 들어갈 좌표 4개를 경도, 위도 순서로 입력해주세요 (user -> store 조회)"
-    )
-    @GetMapping("/nearby/v2")
-    public BaseResponse<?> getLocationsV2(
-            @ModelAttribute MapRequestDTO viewport,
-            @AuthenticationPrincipal PrincipalDetails pd
-    ) {
-        Long memberId = pd.getMember().getId();
-        return BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStores(viewport, memberId));
-    }
+
 
     @Operation(
             summary = "검색어 기반 장소 조회 API",
@@ -183,7 +172,7 @@ public class MapController {
     }
 
     @Operation(
-            summary = "주소 입력 시 장소 검색용 API",
+            summary = "카카오맵 기반 장소 검색 API",
             description = "# [v1.3 (2025-01-04)](https://clumsy-seeder-416.notion.site/25d1197c19ed807eb7a7c5ede2e75040)\n" +
                     "- 검색어에 따라 Map 객체를 반환합니다.\n" +
                     "- 검색어(searchKeyword) 입력.\n" +

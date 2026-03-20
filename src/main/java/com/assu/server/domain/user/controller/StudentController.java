@@ -24,7 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@Tag(name = "유저 관련 api", description = "유저와 관련된 로직을 처리하는 api")
+@Tag(name = "Student", description = "학생 API")
 @RequiredArgsConstructor
 @RequestMapping("/students")
 public class StudentController {
@@ -105,7 +105,16 @@ public class StudentController {
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",
 			description = "# [v1.0 (2025-10-30)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
-					"- all = true면 전체 조회, false면 2개만 조회"
+					"- 현재 로그인한 사용자가 이용 가능한 제휴 목록을 조회합니다.\n" +
+					"- 활성 상태인 제휴만 반환합니다.\n\n" +
+					"**Request Parameters:**\n" +
+					"- `all` (Boolean, optional): 전체 조회 여부 - 기본값: false\n" +
+					"  - true: 모든 이용 가능한 제휴 조회\n" +
+					"  - false: 최대 2개만 조회\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 이용 가능한 제휴 목록 반환\n" +
+					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
 	)
 	@GetMapping("/usable")
 	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getUsablePartnership(
@@ -115,6 +124,20 @@ public class StudentController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
 	}
 
+	@Operation(
+			summary = "전체 학생의 사용 가능 제휴 동기화 API",
+			description = "# [v1.0 (2026-03-16)](https://clumsy-seeder-416.notion.site/3251197c19ed8066885cece9ffc455f6?source=copy_link)\n" +
+					"- 모든 학생의 user_paper 데이터를 동기화합니다.\n" +
+					"- 관리자 전용 API입니다.\n" +
+					"- 시스템 전체에 영향을 주는 작업이므로 주의해서 사용해야 합니다.\n\n" +
+					"**주의사항:**\n" +
+					"- 대량의 데이터 처리로 인해 시간이 오래 걸릴 수 있음\n" +
+					"- 실행 중에는 다른 제휴 관련 작업에 영향을 줄 수 있음\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 동기화 완료 메시지 반환\n" +
+					"- 403(FORBIDDEN): 관리자 권한 없음\n" +
+					"- 500(INTERNAL_SERVER_ERROR): 동기화 작업 실패"
+	)
 	@PostMapping("/sync/all")
 	public BaseResponse<String> syncAllStudentsNow() {
 		studentService.syncUserPapersForAllStudents();

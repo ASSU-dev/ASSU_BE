@@ -26,11 +26,19 @@ public class MemberController {
     private final ProfileImageService profileImageService;
 
     @Operation(
-            summary = "프로필 사진 업로드/교체 API",
+            summary = "프로필 이미지 업로드/교체 API",
             description = "# [v1.0 (2025-09-15)](https://clumsy-seeder-416.notion.site/26f1197c19ed8031bc50e3571e8ea18f?source=copy_link)\n" +
                     "- `multipart/form-data`로 프로필 이미지를 업로드합니다.\n" +
-                    "- 기존 이미지가 있으면 S3에서 삭제 후 새 이미지로 교체합니다.\n" +
-                    "- 성공 시 업로드된 이미지 key를 반환합니다."
+                    "- 기존 이미지가 있으면 S3에서 삭제 후 새 이미지로 교체합니다.\n\n" +
+                    "**Request Parts:**\n" +
+                    "- `image` (MultipartFile, required): 프로필 이미지 파일\n" +
+                    "  - 지원 형식: JPG, PNG, WEBP 등\n" +
+                    "  - 최대 파일 크기 제한 있음\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)와 업로드된 이미지 key 반환\n" +
+                    "- 400(BAD_REQUEST): 지원하지 않는 파일 형식 또는 파일 크기 초과\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+                    "- 500(INTERNAL_SERVER_ERROR): S3 업로드 실패"
     )
     @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<ProfileImageResponseDTO> uploadOrReplaceProfileImage(
@@ -54,7 +62,13 @@ public class MemberController {
             summary = "프로필 이미지 조회 API",
             description = "# [v1.0 (2025-09-18)](https://clumsy-seeder-416.notion.site/2711197c19ed8039bbe2c48380c9f4c8?source=copy_link)\n" +
                     "- 로그인한 사용자의 프로필 이미지 presigned URL을 반환합니다.\n" +
-                    "- URL은 일정 시간 동안만 유효합니다."
+                    "- 반환된 URL은 일정 시간 동안만 유효합니다.\n" +
+                    "- 프로필 이미지가 없는 경우 null 반환\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)와 presigned URL 반환\n" +
+                    "- URL 유효 시간: 10분\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+                    "- 500(INTERNAL_SERVER_ERROR): S3 presigned URL 생성 실패"
     )
     @GetMapping("/me/profile-image")
     public BaseResponse<ProfileImageResponseDTO> getProfileImage(
@@ -68,7 +82,13 @@ public class MemberController {
             summary = "프로필 이미지 삭제 API",
             description = "# [v1.0 (2025-09-18)](https://clumsy-seeder-416.notion.site/2dc1197c19ed809cb813f74a1b4c5c26?source=copy_link)\n" +
                     "- 로그인한 사용자의 프로필 이미지를 삭제합니다.\n" +
-                    "- 프론트의 기본 이미지를 표시합니다."
+                    "- S3에서 이미지 파일을 완전히 삭제합니다.\n" +
+                    "- 삭제 후 프론트에서 기본 이미지를 표시합니다.\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)와 성공 메시지 반환\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+                    "- 404(NOT_FOUND): 삭제할 프로필 이미지가 없음\n" +
+                    "- 500(INTERNAL_SERVER_ERROR): S3 삭제 실패"
     )
     @DeleteMapping("/me/profile-image")
     public BaseResponse<String> deleteProfileImage(
