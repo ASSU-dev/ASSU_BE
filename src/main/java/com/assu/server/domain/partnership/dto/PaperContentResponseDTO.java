@@ -73,18 +73,18 @@ public record PaperContentResponseDTO(
 		if (content.getCriterionType() == CriterionType.HEADCOUNT &&
 			content.getOptionType() == OptionType.SERVICE &&
 			isGoodsMultiple) {
-			result = peopleValue + "명 이상 식사 시 " + content.getCategory() + " 제공";
+			result = peopleValue + "명 이상 방문 시 " + content.getCategory() + " 제공";
 		}
 		// 2. HEADCOUNT + SERVICE + 단일 goods
 		else if (content.getCriterionType() == CriterionType.HEADCOUNT &&
 			content.getOptionType() == OptionType.SERVICE &&
 			isGoodsSingle) {
-			result = peopleValue + "명 이상 식사 시 " + goodsList.get(0) + " 제공";
+			result = peopleValue + "명 이상 방문 시 " + goodsList.get(0) + " 제공";
 		}
 		// 3. HEADCOUNT + DISCOUNT
 		else if (content.getCriterionType() == CriterionType.HEADCOUNT &&
 			content.getOptionType() == OptionType.DISCOUNT) {
-			result = peopleValue + "명 이상 식사 시 " + content.getDiscount() + "% 할인";
+			result = peopleValue + "명 이상 방문 시 " + content.getDiscount() + "% 할인";
 		}
 		// 4. PRICE + SERVICE + 여러 개 goods
 		else if (content.getCriterionType() == CriterionType.PRICE &&
