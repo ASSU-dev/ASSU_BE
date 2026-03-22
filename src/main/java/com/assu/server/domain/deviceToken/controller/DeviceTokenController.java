@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Device Token", description = "디바이스 토큰 등록/해제 API")
+@Tag(name = "Device Token", description = "디바이스 토큰 API")
 @RestController
 @RequestMapping("/device-tokens")
 @RequiredArgsConstructor
