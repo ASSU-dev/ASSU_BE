@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.entity.enums;
+package com.assu.server.domain.common.entity.enums;
 
 public enum Department {
     HUMANITIES("인문대학"),
@@ -9,7 +9,8 @@ public enum Department {
     BUSINESS("경영대학"),
     ENGINEERING("공과대학"),
     IT("IT대학"),
-    LIBERAL_ARTS("자유전공학부");
+    LIBERAL_STUDIES("자유전공학부"),
+    AI("AI대학");
 
     private final String displayName;
 

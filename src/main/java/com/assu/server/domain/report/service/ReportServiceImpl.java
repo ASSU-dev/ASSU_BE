@@ -14,7 +14,7 @@ import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.domain.report.exception.ReportException;
 import com.assu.server.domain.report.event.ReportProcessedEvent;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;

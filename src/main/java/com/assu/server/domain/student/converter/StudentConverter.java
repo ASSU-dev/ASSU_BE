@@ -1,7 +1,7 @@
-package com.assu.server.domain.user.converter;
+package com.assu.server.domain.student.converter;
 
-import com.assu.server.domain.user.dto.StudentResponseDTO;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
+import com.assu.server.domain.student.entity.Student;
 
 public class StudentConverter {
         public static StudentResponseDTO.CheckStampResponseDTO checkStampResponseDTO(Student student, String message) {

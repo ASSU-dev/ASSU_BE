@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.user.entity.StampEventApplicant;
-import com.assu.server.domain.user.repository.StampEventApplicantRepository;
+import com.assu.server.domain.student.entity.StampEventApplicant;
+import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.member.entity.Member;
@@ -16,10 +16,8 @@ import com.assu.server.domain.qr.dto.TemporaryQrRequestDTO;
 import com.assu.server.domain.qr.dto.TemporaryQrResponseDTO;
 import com.assu.server.domain.qr.entity.Qr;
 import com.assu.server.domain.qr.repository.TemporaryQrRepository;
-import com.assu.server.domain.store.entity.Store;
-import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.repository.StudentRepository;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 

@@ -3,7 +3,7 @@ import com.assu.server.domain.certification.entity.enums.SessionStatus;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
