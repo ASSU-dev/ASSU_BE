@@ -28,20 +28,20 @@ public class Student {
     private String name;
 
     @Enumerated(EnumType.STRING)
+    private Major major;
+
+    @Enumerated(EnumType.STRING)
     private Department department;
+
+    @Enumerated(EnumType.STRING)
+    private University university;
 
     @Enumerated(EnumType.STRING)
     private EnrollmentStatus enrollmentStatus;
 
     private String yearSemester;
 
-    @Enumerated(EnumType.STRING)
-    private University university;
-
     private int stamp;
-
-    @Enumerated(EnumType.STRING)
-    private Major major;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -57,10 +57,11 @@ public class Student {
      * 
      * @param name             학생 이름
      * @param major            전공
+     * @param department       학부
      * @param enrollmentStatus 학적 상태
      * @param yearSemester     학년/학기
      */
-    public void updateStudentInfo(String name, Major major, EnrollmentStatus enrollmentStatus, String yearSemester) {
+    public void updateStudentInfo(String name, Major major, Department department, EnrollmentStatus enrollmentStatus, String yearSemester) {
         this.name = name;
         this.major = major;
         this.enrollmentStatus = enrollmentStatus;

@@ -110,6 +110,7 @@ public class LoginServiceImpl implements LoginService {
         student.updateStudentInfo(
                 authResponse.name(),
                 authResponse.major(),
+                authResponse.major().getDepartment(),
                 parseEnrollmentStatus(authResponse.enrollmentStatus()),
                 authResponse.yearSemester()
         );
