@@ -67,7 +67,11 @@ public enum Major {
     MB(Department.IT, "미디어경영학과"),
 
     // 자유전공학부
-    LIBERAL_ARTS(Department.LIBERAL_ARTS, "자유전공학부");
+    LIBERAL_ARTS(Department.LIBERAL_ARTS, "자유전공학부"),
+
+    // AI 대학
+    AI_SOFTWARE(Department.AI, "AI소프트웨어학과"),
+    INFORMATION_SECURITY(Department.AI, "정보보호학과");
 
     private final Department department;
     private final String displayName;
