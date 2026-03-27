@@ -1,8 +1,8 @@
 package com.assu.server.domain.suggestion.dto;
 
 import com.assu.server.domain.suggestion.entity.Suggestion;
-import com.assu.server.domain.user.entity.enums.EnrollmentStatus;
-import com.assu.server.domain.user.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
+import com.assu.server.domain.common.entity.enums.Major;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 

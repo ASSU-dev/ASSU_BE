@@ -1,11 +1,11 @@
-package com.assu.server.domain.user.entity;
+package com.assu.server.domain.student.entity;
 
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.EnrollmentStatus;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 import jakarta.persistence.*;
 import lombok.*;
 

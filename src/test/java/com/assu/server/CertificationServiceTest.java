@@ -30,10 +30,10 @@ import com.assu.server.domain.certification.service.CertificationServiceImpl;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceImplTest {

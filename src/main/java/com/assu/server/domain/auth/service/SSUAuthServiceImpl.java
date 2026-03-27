@@ -3,7 +3,7 @@ package com.assu.server.domain.auth.service;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.exception.CustomAuthException;
-import com.assu.server.domain.user.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,7 +85,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
         String name = null;
         String enrollmentStatus = null;
         String yearSemester = null;
-        com.assu.server.domain.user.entity.enums.Major major = null;
+        Major major = null;
 
         // 3) HTML 파싱
         Document doc;

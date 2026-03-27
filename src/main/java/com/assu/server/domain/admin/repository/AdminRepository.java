@@ -1,7 +1,6 @@
 package com.assu.server.domain.admin.repository;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.assu.server.domain.admin.entity.Admin;
 import org.springframework.data.domain.Pageable;
@@ -9,9 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 
 public interface AdminRepository extends JpaRepository<Admin, Long> {
 

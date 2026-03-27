@@ -1,6 +1,6 @@
-package com.assu.server.domain.user.repository;
+package com.assu.server.domain.student.repository;
 
-import com.assu.server.domain.user.entity.StampEventApplicant;
+import com.assu.server.domain.student.entity.StampEventApplicant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

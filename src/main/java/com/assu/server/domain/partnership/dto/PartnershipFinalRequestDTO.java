@@ -3,8 +3,8 @@ package com.assu.server.domain.partnership.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.assu.server.domain.user.entity.PartnershipUsage;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.PartnershipUsage;
+import com.assu.server.domain.student.entity.Student;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
