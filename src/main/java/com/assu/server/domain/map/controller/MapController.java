@@ -156,7 +156,7 @@ public class MapController {
 
         return switch (role) {
             case STUDENT -> {
-                List<StoreMapResponseDTO> list = mapService.searchStores(keyword);
+                List<StoreMapResponseDTO> list = mapService.searchStores(keyword, memberId);
                 yield BaseResponse.onSuccess(SuccessStatus._OK, list);
             }
             case ADMIN -> {
