@@ -10,7 +10,7 @@ import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.certification.repository.QRCertificationRepository;
-import com.assu.server.domain.user.repository.PartnershipUsageRepository;
+import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.assu.server.domain.partner.entity.Partner;

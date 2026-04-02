@@ -30,10 +30,10 @@ import com.assu.server.domain.certification.service.CertificationServiceImpl;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceImplTest {
@@ -68,7 +68,7 @@ class CertificationServiceImplTest {
 		// 빌더를 사용하여 필요한 정보만 담은 실제 Student 객체 생성
 		Student studentProfile = Student.builder()
 			.university(University.SSU) // Enum 상수를 직접 사용
-			.major(Major.COM)
+			.major(Major.COMPUTER_SCIENCE)
 			.department(Department.IT) // 필요한 경우 추가
 			.build();
 
@@ -86,7 +86,7 @@ class CertificationServiceImplTest {
 
 		// 학적 매칭 성공 설정
 		Admin matchingAdmin = Admin.builder().id(77L).build();
-		when(adminService.findMatchingAdmins(eq(University.SSU), any(), eq(Major.COM)))
+		when(adminService.findMatchingAdmins(eq(University.SSU), any(), eq(Major.COMPUTER_SCIENCE)))
 			.thenReturn(List.of(matchingAdmin));
 
 		// 중복 체크 및 인원 상태 설정
@@ -168,7 +168,7 @@ class CertificationServiceImplTest {
 		// Student 및 Member 설정
 		Student studentProfile = Student.builder()
 			.university(University.SSU)
-			.major(Major.COM)
+			.major(Major.COMPUTER_SCIENCE)
 			.build();
 		Member mockMember = mock(Member.class);
 		when(mockMember.getId()).thenReturn(1L);

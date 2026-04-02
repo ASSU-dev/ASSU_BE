@@ -1,6 +1,6 @@
-package com.assu.server.domain.user.repository;
+package com.assu.server.domain.student.repository;
 
-import com.assu.server.domain.user.entity.UserPaper;
+import com.assu.server.domain.student.entity.UserPaper;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

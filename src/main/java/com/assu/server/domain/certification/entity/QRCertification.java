@@ -3,7 +3,7 @@ package com.assu.server.domain.certification.entity;
 import java.time.LocalDateTime;
 
 import com.assu.server.domain.common.entity.BaseEntity;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

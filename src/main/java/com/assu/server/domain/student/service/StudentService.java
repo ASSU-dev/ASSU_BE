@@ -1,11 +1,11 @@
-package com.assu.server.domain.user.service;
+package com.assu.server.domain.student.service;
 
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import com.assu.server.domain.user.dto.StudentResponseDTO;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
 
 public interface StudentService {
 	StudentResponseDTO.MyPartnership getMyPartnership(Long studentId, int year, int month);

@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.service;
+package com.assu.server.domain.student.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;

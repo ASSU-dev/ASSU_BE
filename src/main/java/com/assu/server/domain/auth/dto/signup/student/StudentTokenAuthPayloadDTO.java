@@ -1,6 +1,6 @@
 package com.assu.server.domain.auth.dto.signup.student;
 
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.common.entity.enums.University;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

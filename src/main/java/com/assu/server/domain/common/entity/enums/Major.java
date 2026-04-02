@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.entity.enums;
+package com.assu.server.domain.common.entity.enums;
 
 public enum Major {
     // 인문대학
@@ -58,16 +58,19 @@ public enum Major {
     MATERIALS_SCIENCE(Department.ENGINEERING, "신소재공학과"),
 
     // IT대학
-    SW(Department.IT, "소프트웨어학부"),
-    GM(Department.IT, "글로벌미디어학부"),
-    COM(Department.IT, "컴퓨터학부"),
-    EE(Department.IT, "전자정보공학부"),
-    IP(Department.IT, "정보보호학과"),
-    AI(Department.IT, "AI융합학부"),
-    MB(Department.IT, "미디어경영학과"),
+    SOFTWARE(Department.IT, "소프트웨어학부"),
+    GLOBAL_MEDIA(Department.IT, "글로벌미디어학부"),
+    COMPUTER_SCIENCE(Department.IT, "컴퓨터학부"),
+    ELECTRONIC_ENGINEERING(Department.IT, "전자정보공학부"),
+    AI_CONVERGENCE(Department.IT, "AI융합학부"),
+    DIGITAL_MEDIA(Department.IT, "디지털미디어학과"),
 
     // 자유전공학부
-    LIBERAL_ARTS(Department.LIBERAL_ARTS, "자유전공학부");
+    LIBERAL_STUDIES(Department.LIBERAL_STUDIES, "자유전공학부"),
+
+    // AI대학
+    AI_SOFTWARE(Department.AI, "AI소프트웨어학부"),
+    INFORMATION_SECURITY(Department.AI, "정보보호학과");
 
     private final Department department;
     private final String displayName;
@@ -83,5 +86,14 @@ public enum Major {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public static Major fromDisplayName(String rawStr) {
+        for (Major m : Major.values()) {
+            if (m.displayName.equals(rawStr)) {
+                return m;
+            }
+        }
+        throw new IllegalArgumentException("해당하는 학과가 없습니다: " + rawStr);
     }
 }
