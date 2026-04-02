@@ -138,7 +138,7 @@ public class StudentServiceImpl implements StudentService {
 
 	@Override
 	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all) {
-		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, LocalDate.now());
+		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
 
 		// Goods 일괄 조회 (N+1 방지)
 		List<Long> contentIds = userPapers.stream()
