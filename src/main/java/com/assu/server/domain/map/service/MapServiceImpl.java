@@ -237,7 +237,7 @@ public class MapServiceImpl implements MapService {
 
         Map<Store, List<Paper>> storePaperMap = userPapers.stream()
                 .map(UserPaper::getPaper)
-                .filter(paper -> paper.getStore().getName().toLowerCase().contains(keyword.toLowerCase()))
+                .filter(paper -> paper.getStore().getName().toLowerCase().replace(" ","").contains(keyword.toLowerCase().replace(" ","")))
                 .collect(Collectors.groupingBy(Paper::getStore));
 
         if (storePaperMap.isEmpty()) {
