@@ -19,8 +19,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         ORDER BY p.id DESC
     """)
-    List<UserPaper> findActivePartnershipsByStudentId(@Param("studentId") Long studentId,
-                                                      @Param("today") LocalDate today);
+    List<UserPaper> findActivePartnershipsByStudentId(@Param("studentId") Long studentId);
 
     boolean existsByStudentIdAndPaperId(Long studentId, Long paperId);
 

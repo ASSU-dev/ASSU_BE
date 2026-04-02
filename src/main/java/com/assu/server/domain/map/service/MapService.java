@@ -12,7 +12,7 @@ public interface MapService {
     List<PartnerMapResponseDTO>  getPartners(MapRequestDTO viewport, Long memberId);
     List<StoreMapResponseDTO>    getStores(MapRequestDTO viewport, Long memberId);
 
-    List<StoreMapResponseDTO>    searchStores(String keyword);
+    List<StoreMapResponseDTO>    searchStores(String keyword, Long memberId);
     List<PartnerMapResponseDTO>  searchPartner(String keyword, Long memberId);
     List<AdminMapResponseDTO>    searchAdmin(String keyword, Long memberId);
 }
