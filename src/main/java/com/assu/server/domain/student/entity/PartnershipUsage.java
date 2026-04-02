@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.entity;
+package com.assu.server.domain.student.entity;
 import java.time.LocalDate;
 
 import com.assu.server.domain.common.entity.BaseEntity;

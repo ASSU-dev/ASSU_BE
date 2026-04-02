@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.dto;
+package com.assu.server.domain.student.dto;
 
 import java.util.List;
 

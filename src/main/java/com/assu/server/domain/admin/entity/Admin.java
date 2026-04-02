@@ -1,9 +1,9 @@
 package com.assu.server.domain.admin.entity;
 
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -31,6 +31,13 @@ public class Admin {
 
     @Column(name = "name", length = 255, nullable = false)
     private String name;
+
+    // Todo: 2학기 버전 출시시에 NotNull 처리
+    private String phoneNum;
+
+    @Column(name = "is_phone_verified", nullable = false)
+    @NotNull
+    private Boolean isPhoneVerified;
 
     @Column(name = "office_address", length = 255, nullable = false)
     private String officeAddress;

@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.service;
+package com.assu.server.domain.student.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -7,8 +7,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.user.entity.StampEventApplicant;
-import com.assu.server.domain.user.repository.StampEventApplicantRepository;
+import com.assu.server.domain.student.entity.StampEventApplicant;
+import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,14 +25,14 @@ import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
-import com.assu.server.domain.user.converter.StudentConverter;
-import com.assu.server.domain.user.dto.StudentResponseDTO;
-import com.assu.server.domain.user.entity.PartnershipUsage;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.UserPaper;
-import com.assu.server.domain.user.repository.PartnershipUsageRepository;
-import com.assu.server.domain.user.repository.StudentRepository;
-import com.assu.server.domain.user.repository.UserPaperRepository;
+import com.assu.server.domain.student.converter.StudentConverter;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
+import com.assu.server.domain.student.entity.PartnershipUsage;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.student.entity.UserPaper;
+import com.assu.server.domain.student.repository.PartnershipUsageRepository;
+import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 

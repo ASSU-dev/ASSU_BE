@@ -3,7 +3,7 @@ package com.assu.server.domain.review.dto;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.review.entity.Review;
 import com.assu.server.domain.store.entity.Store;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import org.springframework.web.multipart.MultipartFile;

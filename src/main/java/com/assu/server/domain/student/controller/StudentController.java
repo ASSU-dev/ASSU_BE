@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.controller;
+package com.assu.server.domain.student.controller;
 
 import java.util.List;
 
@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.assu.server.domain.user.dto.StudentResponseDTO;
-import com.assu.server.domain.user.service.StudentService;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import com.assu.server.global.util.PrincipalDetails;

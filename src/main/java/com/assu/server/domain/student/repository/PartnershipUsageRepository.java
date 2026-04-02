@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.repository;
+package com.assu.server.domain.student.repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.assu.server.domain.user.entity.PartnershipUsage;
+import com.assu.server.domain.student.entity.PartnershipUsage;
 
 public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsage, Long> {
 

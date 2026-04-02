@@ -1,6 +1,6 @@
 package com.assu.server.domain.auth.dto.ssu;
 
-import com.assu.server.domain.user.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.Major;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "유세인트 인증 응답")

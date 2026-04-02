@@ -14,7 +14,7 @@ import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.dto.email.EmailVerificationCheckRequestDTO;
 import com.assu.server.domain.auth.service.*;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,6 +49,7 @@ public class AuthController {
             description = "# [v1.1 (2025-09-25)](https://clumsy-seeder-416.notion.site/2241197c19ed801bbcd9f61c3e5f5457?source=copy_link)\n" +
                     "- 입력한 휴대폰 번호로 1회용 인증번호(OTP)를 발송합니다.\n" +
                     "- 중복된 전화번호가 있으면 에러를 반환합니다.\n" +
+                    "- 관리자와 제휴업체의 회원가입 이전에 사용하여 전화번호를 검증합니다.\n" +
                     "- 유효시간/재요청 제한 정책은 서버 설정에 따릅니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `phoneNumber` (String, required): 인증번호를 받을 휴대폰 번호\n" +
@@ -77,7 +78,6 @@ public class AuthController {
             summary = "휴대폰 인증번호 검증 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/2241197c19ed81bb8c05d9061c0306c0?source=copy_link)\n" +
                     "- 발송된 인증번호(OTP)를 검증합니다.\n" +
-                    "- 성공 시 서버에 휴대폰 인증 상태가 기록됩니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `phoneNumber` (String, required): 인증받을 휴대폰 번호\n" +
                     "  - `authNumber` (String, required): 발송받은 인증번호(OTP)\n" +
@@ -136,19 +136,18 @@ public class AuthController {
 
     @Operation(
             summary = "학생 회원가입 API",
-            description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
+            description = "# [v1.3 (2026-04-02)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
                     "- `application/json` 요청 바디를 사용합니다.\n" +
                     "- 처리: 유세인트 인증 → 학생 정보 추출 → 회원가입 완료\n" +
                     "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
                     "  - `StudentTokenSignUpRequestDTO` 객체 (JSON, required): 숭실대 학생 토큰 가입 정보\n" +
-                    "  - `phoneNumber` (String, required): 휴대폰 번호\n" +
-                    "  - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
-                    "  - `locationAgree` (Boolean, required): 위치 정보 수집 동의\n" +
-                    "  - `studentTokenAuth` (StudentTokenAuthPayloadDTO, Object, required): 유세인트 토큰 정보\n" +
-                    "    - `sToken` (String, required): 유세인트 sToken\n" +
-                    "    - `sIdno` (String, required): 유세인트 sIdno\n" +
-                    "    - `university` (University enum, required): 대학 이름 (SSU)\n" +
+                    "    - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
+                    "    - `locationAgree` (Boolean, required): 위치 정보 수집 동의\n" +
+                    "    - `studentTokenAuth` (StudentTokenAuthPayloadDTO, Object, required): 유세인트 토큰 정보\n" +
+                    "      - `sToken` (String, required): 유세인트 sToken\n" +
+                    "      - `sIdno` (String, required): 유세인트 sIdno\n" +
+                    "      - `university` (University enum, required): 대학 이름 (SSU)\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +

@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.entity.enums;
+package com.assu.server.domain.common.entity.enums;
 
 public enum University {
     SSU("숭실대학교");

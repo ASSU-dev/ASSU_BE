@@ -1,4 +1,4 @@
-package com.assu.server.domain.user.entity;
+package com.assu.server.domain.student.entity;
 
 import com.assu.server.domain.common.entity.BaseEntity;
 import jakarta.persistence.*;
