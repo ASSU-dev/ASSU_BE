@@ -1,4 +1,4 @@
-package com.assu.server.domain.mapping.dto;
+package com.assu.server.domain.admin.dto;
 
 public record StoreUsageWithPaper(
         Long paperId,

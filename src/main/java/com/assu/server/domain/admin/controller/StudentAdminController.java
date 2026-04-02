@@ -1,7 +1,7 @@
-package com.assu.server.domain.mapping.controller;
+package com.assu.server.domain.admin.controller;
 
-import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
-import com.assu.server.domain.mapping.service.StudentAdminService;
+import com.assu.server.domain.admin.dto.StudentAdminResponseDTO;
+import com.assu.server.domain.admin.service.StudentAdminService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import com.assu.server.global.util.PrincipalDetails;

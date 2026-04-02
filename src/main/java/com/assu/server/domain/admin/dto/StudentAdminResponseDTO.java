@@ -1,4 +1,4 @@
-package com.assu.server.domain.mapping.dto;
+package com.assu.server.domain.admin.dto;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.partnership.entity.Paper;
