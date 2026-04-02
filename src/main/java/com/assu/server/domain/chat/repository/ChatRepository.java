@@ -51,8 +51,8 @@ public interface ChatRepository extends JpaRepository<ChattingRoom, Long> {
      CASE
           WHEN pm.id   IS NULL AND am.id = :memberId THEN '-1'
           WHEN am.id   IS NULL AND pm.id = :memberId THEN '-1'
-          WHEN pm.id = :memberId THEN am.phoneNum
-          ELSE pm.phoneNum
+          WHEN pm.id = :memberId THEN a.phoneNum
+          ELSE p.phoneNum
         END
             )
             FROM ChattingRoom r

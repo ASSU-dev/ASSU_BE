@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
+    boolean existsByPhoneNum(String phoneNum);
+
     // 현재 admin과 'ACTIVE' 상태로 제휴 중인 partner를 제외한 후보 수
     @Query(value = """
         SELECT COUNT(*)

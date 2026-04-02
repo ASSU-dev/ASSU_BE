@@ -58,7 +58,7 @@ public record PartnerMapResponseDTO(
                 partner.getLatitude(),
                 partner.getLongitude(),
                 profileUrl,
-                partner.getMember().getPhoneNum()
+                partner.getPhoneNum()
         );
     }
 }

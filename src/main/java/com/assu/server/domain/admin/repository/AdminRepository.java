@@ -14,6 +14,8 @@ import com.assu.server.domain.common.entity.enums.University;
 
 public interface AdminRepository extends JpaRepository<Admin, Long> {
 
+    boolean existsByPhoneNum(String phoneNum);
+
 	@Query("""
 		SELECT a FROM Admin a
 		WHERE a.university = :university

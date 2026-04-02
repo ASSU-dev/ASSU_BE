@@ -56,9 +56,8 @@ public record StoreMapResponseDTO(
         final String profileUrl = (key != null && !key.isBlank())
                 ? s3Manager.generatePresignedUrl(key) : null;
         final String phoneNumber = (store.getPartner() != null
-                && store.getPartner().getMember() != null
-                && store.getPartner().getMember().getPhoneNum() != null)
-                ? store.getPartner().getMember().getPhoneNum() : "";
+                && store.getPartner().getPhoneNum() != null)
+                ? store.getPartner().getPhoneNum() : "";
 
         List<PartnershipInfo> partnerships = new java.util.ArrayList<>();
         if (adminId1 != null) {
@@ -93,9 +92,8 @@ public record StoreMapResponseDTO(
         final String profileUrl = (key != null && !key.isBlank())
                 ? s3Manager.generatePresignedUrl(key) : null;
         final String phoneNumber = (store.getPartner() != null
-                && store.getPartner().getMember() != null
-                && store.getPartner().getMember().getPhoneNum() != null)
-                ? store.getPartner().getMember().getPhoneNum() : "";
+                && store.getPartner().getPhoneNum() != null)
+                ? store.getPartner().getPhoneNum() : "";
 
         return new StoreMapResponseDTO(
                 store.getId(),

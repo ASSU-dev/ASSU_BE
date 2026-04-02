@@ -85,7 +85,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn(String.valueOf(targetPeople));
 
 		// 학적 매칭 성공 설정
-		Admin matchingAdmin = Admin.builder().id(77L).build();
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(eq(University.SSU), any(), eq(Major.COMPUTER_SCIENCE)))
 			.thenReturn(List.of(matchingAdmin));
 
@@ -134,7 +134,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("4");
 
 		// 학적 인증 통과 설정
-		Admin matchingAdmin = Admin.builder().id(77L).build();
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 
 		// 현재 인증된 유저 리스트 (이미 1명 있고, 이번에 참여자가 추가되어 총 2명이 된 상황)
@@ -182,7 +182,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn(String.valueOf(storeId));
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn(String.valueOf(targetPeople));
 
-		Admin matchingAdmin = Admin.builder().id(77L).build();
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 		when(sessionManager.hasUser(sessionId, 1L)).thenReturn(false);
 
