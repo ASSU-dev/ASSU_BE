@@ -262,18 +262,24 @@ public class MapServiceImpl implements MapService {
                     Store store = entry.getKey();
                     List<Paper> papers = entry.getValue();
 
-                    List<StoreMapResponseDTO.PartnershipInfo> partnerships = papers.stream()
-                            .map(paper -> {
-                                List<String> benefits = contentsByPaperId.getOrDefault(paper.getId(), List.of()).stream()
+                    Map<Long, List<Paper>> papersByAdmin = papers.stream()
+                            .collect(Collectors.groupingBy(p -> p.getAdmin().getId()));
+
+                    List<StoreMapResponseDTO.PartnershipInfo> partnerships = papersByAdmin.entrySet().stream()
+                            .map(adminEntry -> {
+                                Long adminId = adminEntry.getKey();
+                                List<Paper> adminPapers = adminEntry.getValue();
+
+                                List<String> combinedBenefits = adminPapers.stream()
+                                        .flatMap(paper -> contentsByPaperId.getOrDefault(paper.getId(), List.of()).stream())
                                         .map(this::resolveBenefit)
                                         .filter(benefit -> benefit != null && !benefit.isBlank())
+                                        .distinct() // 혜택 중복 제거
                                         .toList();
 
-                                return new StoreMapResponseDTO.PartnershipInfo(
-                                        paper.getAdmin().getId(),
-                                        paper.getAdmin().getName(),
-                                        benefits
-                                );
+                                String adminName = adminPapers.get(0).getAdmin().getName();
+
+                                return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, combinedBenefits);
                             })
                             .filter(p -> !p.benefits().isEmpty())
                             .toList();
