@@ -229,6 +229,8 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public List<StoreMapResponseDTO> searchStores(String keyword, Long memberId) {
+        String normalizedKeyword = (keyword == null) ? "" : keyword.replace(" ", "").toLowerCase();
+
         List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
 
         if (userPapers.isEmpty()) {
@@ -237,7 +239,10 @@ public class MapServiceImpl implements MapService {
 
         Map<Store, List<Paper>> storePaperMap = userPapers.stream()
                 .map(UserPaper::getPaper)
-                .filter(paper -> paper.getStore().getName().toLowerCase().replace(" ","").contains(keyword.toLowerCase().replace(" ","")))
+                .filter(paper -> {
+                    String storeName = paper.getStore().getName().replace(" ","").toLowerCase();
+                    return storeName.contains(normalizedKeyword);
+                })
                 .collect(Collectors.groupingBy(Paper::getStore));
 
         if (storePaperMap.isEmpty()) {
