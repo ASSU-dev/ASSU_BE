@@ -32,6 +32,13 @@ public class Admin {
     @Column(name = "name", length = 255, nullable = false)
     private String name;
 
+    // Todo: 2학기 버전 출시시에 NotNull 처리
+    private String phoneNum;
+
+    @Column(name = "is_phone_verified", nullable = false)
+    @NotNull
+    private Boolean isPhoneVerified;
+
     @Column(name = "office_address", length = 255, nullable = false)
     private String officeAddress;
 

@@ -33,12 +33,6 @@ public class Member extends BaseEntity {
     private Long id;
 
     @NotNull
-    private String phoneNum;
-
-    @NotNull
-    private Boolean isPhoneVerified;
-
-    @NotNull
     private Boolean isLocationTermAgreed;
 
     @NotNull

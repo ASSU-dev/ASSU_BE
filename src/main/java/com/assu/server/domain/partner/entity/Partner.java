@@ -3,6 +3,7 @@ package com.assu.server.domain.partner.entity;
 
 import com.assu.server.domain.member.entity.Member;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -28,6 +29,13 @@ public class Partner {
 
     @Column(name = "name", length = 255, nullable = false)
     private String name;
+
+    // Todo: 2학기 버전 출시시에 NotNull 처리
+    private String phoneNum;
+
+    @Column(name = "is_phone_verified", nullable = false)
+    @NotNull
+    private Boolean isPhoneVerified;
 
     @Column(name = "address", length = 255, nullable = false)
     private String address;

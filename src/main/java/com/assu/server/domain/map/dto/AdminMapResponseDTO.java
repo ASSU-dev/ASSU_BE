@@ -58,7 +58,7 @@ public record AdminMapResponseDTO(
                 admin.getLatitude(),
                 admin.getLongitude(),
                 profileUrl,
-                admin.getMember().getPhoneNum()
+                admin.getPhoneNum()
         );
     }
 }
