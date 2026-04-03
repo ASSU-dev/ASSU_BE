@@ -133,7 +133,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 }
                 case "소속" -> {
                     majorStr = strong.text();
-                    if (Major.existsByDisplayName(majorStr)) {
+                    if (!Major.existsByDisplayName(majorStr)) {
                         throw new CustomAuthException((ErrorStatus.SSU_SAINT_UNSUPPORTED_MAJOR));
                     }
                 }
