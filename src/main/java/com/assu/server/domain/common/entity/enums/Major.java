@@ -96,4 +96,15 @@ public enum Major {
         }
         throw new IllegalArgumentException("해당하는 학과가 없습니다: " + rawStr);
     }
+
+    public static boolean existsByDisplayName(String rawStr) {
+        if (rawStr == null) return false;
+
+        for (Major m : Major.values()) {
+            if (m.displayName.equals(rawStr)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
