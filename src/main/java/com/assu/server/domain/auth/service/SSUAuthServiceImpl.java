@@ -85,7 +85,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
         String name = null;
         String enrollmentStatus = null;
         String yearSemester = null;
-        Major major = null;
+        String majorStr = null;
 
         // 3) HTML 파싱
         Document doc;
@@ -132,8 +132,10 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                     }
                 }
                 case "소속" -> {
-                    String majorStr = strong.text();
-                    major = Major.fromDisplayName(majorStr);
+                    majorStr = strong.text();
+                    if (Major.existsByDisplayName(majorStr)) {
+                        throw new CustomAuthException((ErrorStatus.SSU_SAINT_UNSUPPORTED_MAJOR));
+                    }
                 }
                 case "과정/학기" -> enrollmentStatus = strong.text();
                 case "학년/학기" -> yearSemester = strong.text();
@@ -145,7 +147,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 name,
                 enrollmentStatus,
                 yearSemester,
-                major
+                majorStr
         );
     }
 

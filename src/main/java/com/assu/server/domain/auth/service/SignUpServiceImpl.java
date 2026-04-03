@@ -12,6 +12,7 @@ import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
@@ -93,11 +94,13 @@ public class SignUpServiceImpl implements SignUpService {
         adapter.registerCredentials(member, authResponse.studentNumber(), ""); // 더미 패스워드
 
         // 4) Student 프로필 생성 (크롤링된 정보 사용)
+        Major major = Major.fromDisplayName(authResponse.majorStr());
+
         Student student = Student.builder()
                 .member(member)
                 .name(authResponse.name())
-                .department(authResponse.major().getDepartment())
-                .major(authResponse.major())
+                .department(major.getDepartment())
+                .major(major)
                 .enrollmentStatus(parseEnrollmentStatus(authResponse.enrollmentStatus()))
                 .yearSemester(authResponse.yearSemester())
                 .university(University.SSU) // Todo: 추후 다른 대학도 추가할 시 로직 변경 필요
