@@ -70,4 +70,14 @@ public class Member extends BaseEntity {
 
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private CommonAuth commonAuth;
+
+    public void setProfile(Object profile) {
+        if (profile instanceof Student s) {
+            this.studentProfile = s;
+        } else if (profile instanceof Partner p) {
+            this.partnerProfile = p;
+        } else if (profile instanceof Admin a) {
+            this.adminProfile = a;
+        }
+    }
 }

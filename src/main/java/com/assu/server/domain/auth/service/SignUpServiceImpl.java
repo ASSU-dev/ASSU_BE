@@ -96,7 +96,7 @@ public class SignUpServiceImpl implements SignUpService {
         // 4) Student 프로필 생성 (크롤링된 정보 사용)
         Major major = Major.fromDisplayName(authResponse.majorStr());
 
-        Student student = Student.builder()
+        Student student = studentRepository.save(Student.builder()
                 .member(member)
                 .name(authResponse.name())
                 .department(major.getDepartment())
@@ -105,9 +105,8 @@ public class SignUpServiceImpl implements SignUpService {
                 .yearSemester(authResponse.yearSemester())
                 .university(University.SSU) // Todo: 추후 다른 대학도 추가할 시 로직 변경 필요
                 .stamp(0)
-                .build();
-
-        studentRepository.save(student);
+                .build());
+        member.setProfile(student);
 
         // 5) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -166,6 +165,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
+        member.setProfile(partner);
 
         // store 생성/연결
         Optional<Store> storeOpt = storeRepository.findBySameAddress(address, info.detailAddress());
@@ -252,6 +252,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
+        member.setProfile(admin);
 
         // 4) 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
