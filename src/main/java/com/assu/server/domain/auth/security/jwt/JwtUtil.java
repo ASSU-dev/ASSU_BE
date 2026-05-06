@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @RequiredArgsConstructor
-// @Profile("!test")
+@Profile("!test")
 public class JwtUtil {
 
     @Value("${jwt.secret}")
