@@ -107,8 +107,7 @@ jobs:
             sudo chmod +x /home/ubuntu/cicd/deploy.sh
             sudo /home/ubuntu/cicd/deploy.sh
 
-      # 4-1. 테스트 서버 전용 파일 전송
-      - name: [TEST] Copy Files to Test EC2
+      - name: TEST Copy Files to Test EC2
         uses: appleboy/scp-action@v0.1.3
         with:
           host: ${{ secrets.TEST_EC2_HOST }}
@@ -117,8 +116,7 @@ jobs:
           source: "./application-secret.yml,./service-account.json,./docker-compose.test.yml"
           target: "/home/ubuntu/cicd_temp/"
 
-      # 4-2. 테스트 서버 환경 정리 (폴더 생성 및 파일 이동)
-      - name: [TEST] Organize Files and Directories
+      - name: TEST Organize Files and Directories
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.TEST_EC2_HOST }}
@@ -131,8 +129,7 @@ jobs:
             mv /home/ubuntu/cicd_temp/docker-compose.test.yml /home/ubuntu/cicd/
             rm -rf /home/ubuntu/cicd_temp
 
-      # 4-3. 테스트 서버 도커 로그인 및 이미지 갱신
-      - name: [TEST] Docker Login and Pull
+      - name: TEST Docker Login and Pull
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.TEST_EC2_HOST }}
@@ -143,8 +140,7 @@ jobs:
             cd /home/ubuntu/cicd
             docker compose -f docker-compose.test.yml pull
 
-      # 4-4. 테스트 서버 컨테이너 실행
-      - name: [TEST] Deploy Containers
+      - name: TEST Deploy Containers
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.TEST_EC2_HOST }}
