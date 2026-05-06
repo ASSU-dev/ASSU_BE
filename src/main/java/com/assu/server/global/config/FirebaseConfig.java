@@ -13,7 +13,7 @@ import org.springframework.core.io.Resource;
 import java.io.InputStream;
 
 @Configuration
-@Profile("!test")
+// @Profile("!test")
 public class FirebaseConfig {
 
     @Value("${firebase.project-id}")

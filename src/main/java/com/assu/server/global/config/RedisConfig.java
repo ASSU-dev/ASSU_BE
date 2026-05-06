@@ -19,7 +19,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 @RequiredArgsConstructor
 @EnableRedisRepositories
-@Profile("!test")
+// @Profile("!test")
 public class RedisConfig {
 
     @Bean
