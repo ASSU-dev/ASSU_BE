@@ -20,6 +20,7 @@ public class SecurityConfig {
                 .cors(cors -> {}) // 기본 CORS 구성 사용(필요하면 CorsConfigurationSource 빈 추가)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/verify").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // ✅ WebSocket 핸드셰이크 허용 (네이티브 + SockJS 모두 포함)
