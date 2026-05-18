@@ -16,6 +16,7 @@ WORKDIR /build
 
 COPY --from=dependencies /build /build
 COPY src src
+COPY ASSU_config ASSU_config
 
 RUN ./gradlew bootJar -x test --build-cache --no-daemon
 
