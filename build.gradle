@@ -115,3 +115,18 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.register('copyPrivateConfig', Copy) {
+	from './ASSU_config/local'
+	from './ASSU_config/dev'
+	from './ASSU_config/prod'
+
+	into 'src/main/resources'
+
+	exclude '.git'
+	exclude 'README.md'
+}
+
+tasks.named('processResources') {
+	dependsOn 'copyPrivateConfig'
+}
