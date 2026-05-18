@@ -44,6 +44,9 @@ out/
 
 ### Secret ###
 src/main/resources/application-secret.yml
+src/main/resources/application-local.yml
+src/main/resources/application-dev.yml
+src/main/resources/application-prod.yml
 
 ### Firebase ###
 src/main/resources/firebase/
