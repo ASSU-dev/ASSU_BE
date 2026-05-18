@@ -1,0 +1,3 @@
+[submodule "ASSU_config"]
+	path = ASSU_config
+	url = https://github.com/ASSU-dev/ASSU_config.git

@@ -9,9 +9,7 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=blue
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/config/
     volumes:
-      - /home/ubuntu/secret/application-secret.yml:/app/config/application-secret.yml:ro
       - /home/ubuntu/secret/service-account.json:/app/config/service-account.json:ro
     networks:
       - assu-network
@@ -26,9 +24,7 @@ services:
       - "8081:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=green
-      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/config/
     volumes:
-      - /home/ubuntu/secret/application-secret.yml:/app/config/application-secret.yml:ro
       - /home/ubuntu/secret/service-account.json:/app/config/service-account.json:ro
     networks:
       - assu-network
