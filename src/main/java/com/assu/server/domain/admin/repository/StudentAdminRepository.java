@@ -1,8 +1,7 @@
-package com.assu.server.domain.mapping.repository;
+package com.assu.server.domain.admin.repository;
 
-import com.assu.server.domain.mapping.dto.StoreUsageWithPaper;
-import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
-import com.assu.server.domain.mapping.entity.StudentAdmin;
+import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
+import com.assu.server.domain.admin.entity.StudentAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
