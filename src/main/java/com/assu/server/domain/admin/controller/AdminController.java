@@ -31,7 +31,7 @@ public class AdminController {
                     "  - `partnerAddress` (String): 제휴업체 주소\n" +
                     "  - `partnerDetailAddress` (String): 제휴업체 상세주소\n" +
                     "  - `partnerName` (String): 제휴업체 상호명\n" +
-                    "  - `partnerUrl` (String): 제휴업체 카카오맵 URL\n" +
+                    "  - `partnerUrl` (String): 제휴업체 프로필 이미지 URL (S3 주소)\n" +
                     "  - `partnerPhone` (String): 제휴업체 전화번호\n")
     @GetMapping("/partner-recommend")
     public BaseResponse<AdminResponseDTO> randomPartnerRecommend(
