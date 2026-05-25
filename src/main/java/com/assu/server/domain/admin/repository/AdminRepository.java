@@ -29,42 +29,39 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 		@Param("department") Department department,
 		@Param("major") Major major);
 
-    // 후보 수 카운트: 해당 partner와 ACTIVE 제휴가 없는 admin 수
-    @Query(value = """
-        SELECT COUNT(*)
-        FROM admin a
+	// 후보 수 카운트
+	@Query("""
+        SELECT COUNT(a)
+        FROM Admin a
         WHERE NOT EXISTS (
-            SELECT 1 FROM paper pa
-            WHERE pa.admin_id = a.id
-              AND pa.partner_id = :partnerId
-              AND pa.is_activated = 'ACTIVE'
+            SELECT 1 FROM Paper pa
+            WHERE pa.admin = a
+              AND pa.partner.id = :partnerId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         )
-        """, nativeQuery = true)
-    long countPartner(@Param("partnerId") Long partnerId);
+        """)
+	long countPartner(@Param("partnerId") Long partnerId);
 
-    // 랜덤 오프셋으로 1~N건 가져오기 (LIMIT :offset, :limit)
-    @Query(value = """
-        SELECT a.*
-        FROM admin a
+	// 랜덤 오프셋 조회
+	@Query("""
+        SELECT a
+        FROM Admin a
         WHERE NOT EXISTS (
-            SELECT 1 FROM paper pa
-            WHERE pa.admin_id = a.id
-              AND pa.partner_id = :partnerId
-              AND pa.is_activated = 'ACTIVE'
+            SELECT 1 FROM Paper pa
+            WHERE pa.admin = a
+              AND pa.partner.id = :partnerId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         )
-        LIMIT :offset, :limit
-        """, nativeQuery = true)
-    List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId,
-                                       @Param("offset") int offset,
-                                       @Param("limit") int limit);
+        """)
+	List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId, Pageable pageable);
 
     @Query("""
         SELECT DISTINCT a
         FROM Admin a
         LEFT JOIN FETCH a.member
         WHERE a.point IS NOT NULL
-          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), a.point) = true
-        """)
+      AND ST_Contains(ST_GeomFromText(:wkt, 4326), a.point) = true
+    """)
     List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt, Pageable pageable);
 
     @Query("""
