@@ -42,7 +42,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
         """)
 	long countPartner(@Param("partnerId") Long partnerId);
 
-	// 랜덤 오프셋 조회 (네이티브 빼고 Pageable 적용)
+	// 랜덤 오프셋 조회
 	@Query("""
         SELECT a
         FROM Admin a

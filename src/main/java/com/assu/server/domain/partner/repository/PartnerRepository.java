@@ -12,7 +12,6 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     boolean existsByPhoneNum(String phoneNum);
 
-    // 미제휴 제휴업체 수 조회
     @Query("""
         SELECT COUNT(p)
         FROM Partner p
@@ -20,12 +19,11 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
             SELECT 1 FROM Paper pa
             WHERE pa.partner = p
               AND pa.admin.id = :adminId
-              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+              AND pa.isActivated = :status
         )
         """)
-    long countUnpartneredActiveByAdmin(@Param("adminId") Long adminId);
+    long countUnpartneredActiveByAdmin(@Param("adminId") Long adminId, @Param("status") com.assu.server.domain.common.enums.ActivationStatus status);
 
-    // 미제휴 제휴업체 랜덤 오프셋 조회
     @Query("""
         SELECT p
         FROM Partner p
@@ -33,10 +31,10 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
             SELECT 1 FROM Paper pa
             WHERE pa.partner = p
               AND pa.admin.id = :adminId
-              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+              AND pa.isActivated = :status
         )
         """)
-    List<Partner> findUnpartneredActiveByAdminWithOffset(@Param("adminId") Long adminId, Pageable pageable);
+    List<Partner> findUnpartneredActiveByAdminWithOffset(@Param("adminId") Long adminId, @Param("status") com.assu.server.domain.common.enums.ActivationStatus status, Pageable pageable);
 
     // 반경 내 제휴업체 조회
     @Query("""

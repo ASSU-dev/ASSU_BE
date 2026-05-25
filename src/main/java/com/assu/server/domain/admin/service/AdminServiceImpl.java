@@ -39,7 +39,7 @@ public class AdminServiceImpl implements AdminService {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
-        long total = partnerRepository.countUnpartneredActiveByAdmin(admin.getId());
+        long total = partnerRepository.countUnpartneredActiveByAdmin(admin.getId(), com.assu.server.domain.common.enums.ActivationStatus.ACTIVE);
         if (total <= 0) {
             throw new DatabaseException(ErrorStatus.NO_AVAILABLE_PARTNER);
         }
@@ -47,7 +47,7 @@ public class AdminServiceImpl implements AdminService {
         int offset = ThreadLocalRandom.current().nextInt((int)total);
 
         Pageable pageable = PageRequest.of(offset, 1);
-        List<Partner> pickedList = partnerRepository.findUnpartneredActiveByAdminWithOffset(admin.getId(), pageable);
+        List<Partner> pickedList = partnerRepository.findUnpartneredActiveByAdminWithOffset(admin.getId(), com.assu.server.domain.common.enums.ActivationStatus.ACTIVE, pageable);
 
         if (pickedList.isEmpty()) {
             throw new DatabaseException(ErrorStatus.NO_AVAILABLE_PARTNER);
