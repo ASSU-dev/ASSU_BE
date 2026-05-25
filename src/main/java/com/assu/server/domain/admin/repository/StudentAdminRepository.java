@@ -33,7 +33,7 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
     );
 
     @Query("""
-    SELECT new com.assu.server.domain.mapping.dto.StoreUsageWithPaper(
+    SELECT new com.assu.server.domain.admin.dto.StoreUsageWithPaper(
       p.id, p.store.id, p.store.name, COUNT(pu.id)
     )
     FROM PartnershipUsage pu
