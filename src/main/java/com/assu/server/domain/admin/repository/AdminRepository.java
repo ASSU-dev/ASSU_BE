@@ -29,7 +29,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 		@Param("department") Department department,
 		@Param("major") Major major);
 
-    // 후보 수 카운트: 해당 partner와 ACTIVE 제휴가 없는 admin 수
+    // 후보 수 카운트
     @Query(value = """
         SELECT COUNT(*)
         FROM admin a
@@ -37,12 +37,11 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
             SELECT 1 FROM paper pa
             WHERE pa.admin_id = a.id
               AND pa.partner_id = :partnerId
-              AND pa.is_activated = 'ACTIVE'
+              AND CAST(pa.is_activated AS VARCHAR) = 'ACTIVE'
         )
         """, nativeQuery = true)
     long countPartner(@Param("partnerId") Long partnerId);
 
-    // 랜덤 오프셋으로 1~N건 가져오기 (LIMIT :offset, :limit)
     @Query(value = """
         SELECT a.*
         FROM admin a
@@ -50,21 +49,21 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
             SELECT 1 FROM paper pa
             WHERE pa.admin_id = a.id
               AND pa.partner_id = :partnerId
-              AND pa.is_activated = 'ACTIVE'
+              AND CAST(pa.is_activated AS VARCHAR) = 'ACTIVE'
         )
         LIMIT :offset, :limit
         """, nativeQuery = true)
     List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId,
-                                       @Param("offset") int offset,
-                                       @Param("limit") int limit);
+                                      @Param("offset") int offset,
+                                      @Param("limit") int limit);
 
     @Query("""
         SELECT DISTINCT a
         FROM Admin a
         LEFT JOIN FETCH a.member
         WHERE a.point IS NOT NULL
-          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), a.point) = true
-        """)
+      AND ST_Contains(ST_GeomFromText(:wkt, 4326), a.point) = true
+    """)
     List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt, Pageable pageable);
 
     @Query("""
