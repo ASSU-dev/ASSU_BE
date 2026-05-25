@@ -30,10 +30,10 @@ import com.assu.server.domain.certification.service.CertificationServiceImpl;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.Department;
-import com.assu.server.domain.user.entity.enums.Major;
-import com.assu.server.domain.user.entity.enums.University;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.common.entity.enums.Department;
+import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.entity.enums.University;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceImplTest {
@@ -68,7 +68,7 @@ class CertificationServiceImplTest {
 		// 빌더를 사용하여 필요한 정보만 담은 실제 Student 객체 생성
 		Student studentProfile = Student.builder()
 			.university(University.SSU) // Enum 상수를 직접 사용
-			.major(Major.COM)
+			.major(Major.COMPUTER_SCIENCE)
 			.department(Department.IT) // 필요한 경우 추가
 			.build();
 
@@ -85,8 +85,8 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn(String.valueOf(targetPeople));
 
 		// 학적 매칭 성공 설정
-		Admin matchingAdmin = Admin.builder().id(77L).build();
-		when(adminService.findMatchingAdmins(eq(University.SSU), any(), eq(Major.COM)))
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
+		when(adminService.findMatchingAdmins(eq(University.SSU), any(), eq(Major.COMPUTER_SCIENCE)))
 			.thenReturn(List.of(matchingAdmin));
 
 		// 중복 체크 및 인원 상태 설정
@@ -134,7 +134,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("4");
 
 		// 학적 인증 통과 설정
-		Admin matchingAdmin = Admin.builder().id(77L).build();
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 
 		// 현재 인증된 유저 리스트 (이미 1명 있고, 이번에 참여자가 추가되어 총 2명이 된 상황)
@@ -168,7 +168,7 @@ class CertificationServiceImplTest {
 		// Student 및 Member 설정
 		Student studentProfile = Student.builder()
 			.university(University.SSU)
-			.major(Major.COM)
+			.major(Major.COMPUTER_SCIENCE)
 			.build();
 		Member mockMember = mock(Member.class);
 		when(mockMember.getId()).thenReturn(1L);
@@ -182,7 +182,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn(String.valueOf(storeId));
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn(String.valueOf(targetPeople));
 
-		Admin matchingAdmin = Admin.builder().id(77L).build();
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 		when(sessionManager.hasUser(sessionId, 1L)).thenReturn(false);
 

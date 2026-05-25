@@ -1,7 +1,7 @@
 package com.assu.server.domain.auth.dto.common;
 
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 

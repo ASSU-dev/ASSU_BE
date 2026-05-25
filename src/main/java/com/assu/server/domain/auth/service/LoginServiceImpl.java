@@ -13,10 +13,11 @@ import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
+import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.EnrollmentStatus;
-import com.assu.server.domain.user.repository.StudentRepository;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -107,9 +108,12 @@ public class LoginServiceImpl implements LoginService {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
 
+        Major major = Major.fromDisplayName(authResponse.majorStr());
+
         student.updateStudentInfo(
                 authResponse.name(),
-                authResponse.major(),
+                major,
+                major.getDepartment(),
                 parseEnrollmentStatus(authResponse.enrollmentStatus()),
                 authResponse.yearSemester()
         );

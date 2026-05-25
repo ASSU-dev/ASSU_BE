@@ -12,6 +12,7 @@ import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
@@ -20,10 +21,10 @@ import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.user.entity.Student;
-import com.assu.server.domain.user.entity.enums.EnrollmentStatus;
-import com.assu.server.domain.user.entity.enums.University;
-import com.assu.server.domain.user.repository.StudentRepository;
+import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
+import com.assu.server.domain.common.entity.enums.University;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
@@ -66,9 +67,6 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public SignUpResponseDTO signupSsuStudent(StudentTokenSignUpRequestDTO req) {
-        if (memberRepository.existsByPhoneNum(req.phoneNumber())) {
-            throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
-        }
 
         // 1) 유세인트 인증 및 학생 정보 추출
         USaintAuthRequestDTO authRequest = new USaintAuthRequestDTO(
@@ -85,8 +83,6 @@ public class SignUpServiceImpl implements SignUpService {
         // 2) member 생성
         Member member = memberRepository.save(
                 Member.builder()
-                        .phoneNum(req.phoneNumber())
-                        .isPhoneVerified(true)
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.STUDENT)
@@ -98,18 +94,19 @@ public class SignUpServiceImpl implements SignUpService {
         adapter.registerCredentials(member, authResponse.studentNumber(), ""); // 더미 패스워드
 
         // 4) Student 프로필 생성 (크롤링된 정보 사용)
-        Student student = Student.builder()
+        Major major = Major.fromDisplayName(authResponse.majorStr());
+
+        Student student = studentRepository.save(Student.builder()
                 .member(member)
                 .name(authResponse.name())
-                .department(authResponse.major().getDepartment())
-                .major(authResponse.major())
+                .department(major.getDepartment())
+                .major(major)
                 .enrollmentStatus(parseEnrollmentStatus(authResponse.enrollmentStatus()))
                 .yearSemester(authResponse.yearSemester())
                 .university(University.SSU) // Todo: 추후 다른 대학도 추가할 시 로직 변경 필요
                 .stamp(0)
-                .build();
-
-        studentRepository.save(student);
+                .build());
+        member.setProfile(student);
 
         // 5) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -124,15 +121,14 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
-        if (memberRepository.existsByPhoneNum(req.phoneNumber())) {
+        if (partnerRepository.existsByPhoneNum(req.phoneNumber())
+                || adminRepository.existsByPhoneNum(req.phoneNumber())) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
         // 1) member 생성
         Member member = memberRepository.save(
                 Member.builder()
-                        .phoneNum(req.phoneNumber())
-                        .isPhoneVerified(true)
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.PARTNER)
@@ -160,6 +156,8 @@ public class SignUpServiceImpl implements SignUpService {
                 Partner.builder()
                         .member(member)
                         .name(info.name())
+                        .phoneNum(req.phoneNumber())
+                        .isPhoneVerified(true)
                         .address(address)
                         .detailAddress(info.detailAddress())
                         .licenseUrl(licenseUrl)
@@ -167,6 +165,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
+        member.setProfile(partner);
 
         // store 생성/연결
         Optional<Store> storeOpt = storeRepository.findBySameAddress(address, info.detailAddress());
@@ -205,15 +204,14 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
-        if (memberRepository.existsByPhoneNum(req.phoneNumber())) {
+        if (partnerRepository.existsByPhoneNum(req.phoneNumber())
+                || adminRepository.existsByPhoneNum(req.phoneNumber())) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
         // 1) member 생성
         Member member = memberRepository.save(
                 Member.builder()
-                        .phoneNum(req.phoneNumber())
-                        .isPhoneVerified(true)
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.ADMIN)
@@ -245,6 +243,8 @@ public class SignUpServiceImpl implements SignUpService {
                         .university(req.commonAuth().university())
                         .member(member)
                         .name(info.name())
+                        .phoneNum(req.phoneNumber())
+                        .isPhoneVerified(true)
                         .officeAddress(address)
                         .detailAddress(info.detailAddress())
                         .signImageUrl(signUrl)
@@ -252,6 +252,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
+        member.setProfile(admin);
 
         // 4) 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(

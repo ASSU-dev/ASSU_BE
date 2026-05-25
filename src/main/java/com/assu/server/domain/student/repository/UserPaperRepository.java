@@ -1,6 +1,6 @@
-package com.assu.server.domain.user.repository;
+package com.assu.server.domain.student.repository;
 
-import com.assu.server.domain.user.entity.UserPaper;
+import com.assu.server.domain.student.entity.UserPaper;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,8 +19,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         ORDER BY p.id DESC
     """)
-    List<UserPaper> findActivePartnershipsByStudentId(@Param("studentId") Long studentId,
-                                                      @Param("today") LocalDate today);
+    List<UserPaper> findActivePartnershipsByStudentId(@Param("studentId") Long studentId);
 
     boolean existsByStudentIdAndPaperId(Long studentId, Long paperId);
 

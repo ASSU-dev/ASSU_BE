@@ -30,7 +30,7 @@ public record AdminResponseDTO (
                 partner.getAddress(),
                 partner.getDetailAddress(),
                 partner.getMember() != null ? partner.getMember().getProfileUrl() : null,
-                partner.getMember() != null ? partner.getMember().getPhoneNum() : null
+                partner.getPhoneNum()
         );
     }
 

@@ -7,7 +7,7 @@ import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.partner.entity.Partner;
-import com.assu.server.domain.user.entity.Student;
+import com.assu.server.domain.student.entity.Student;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -31,12 +31,6 @@ public class Member extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @NotNull
-    private String phoneNum;
-
-    @NotNull
-    private Boolean isPhoneVerified;
 
     @NotNull
     private Boolean isLocationTermAgreed;
@@ -76,4 +70,14 @@ public class Member extends BaseEntity {
 
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private CommonAuth commonAuth;
+
+    public void setProfile(Object profile) {
+        if (profile instanceof Student s) {
+            this.studentProfile = s;
+        } else if (profile instanceof Partner p) {
+            this.partnerProfile = p;
+        } else if (profile instanceof Admin a) {
+            this.adminProfile = a;
+        }
+    }
 }

@@ -23,7 +23,7 @@ public record PartnerResponseDTO (
                     admin.getDetailAddress(),
                     admin.getName(),
                     admin.getMember() != null ? admin.getMember().getProfileUrl() : null,
-                    admin.getMember() != null ? admin.getMember().getPhoneNum() : null
+                    admin.getPhoneNum()
             );
         }
     }

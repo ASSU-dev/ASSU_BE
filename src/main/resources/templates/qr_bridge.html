@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASSU 연결 중</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8f9fa; }
+        .container { text-align: center; padding: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        a { color: #3498db; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="spinner"></div>
+    <p>앱으로 연결 중입니다...</p>
+    <p style="font-size: 0.9em; color: #666;">연결이 되지 않으면 <a th:href="${playStoreUrl}">여기</a>를 클릭하여 설치해 주세요.</p>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const appLink = [[${appLink}]];
+    const storeUrl = [[${playStoreUrl}]];
+
+    // 1. 앱 실행 시도
+    window.location.href = appLink;
+
+    // 2. 앱이 없어서 브라우저가 계속 포그라운드에 있으면 2초 뒤 스토어로 이동
+    setTimeout(function() {
+        if (!document.hidden) {
+            window.location.href = storeUrl;
+        }
+    }, 2000);
+    /*]]>*/
+</script>
+</body>
+</html>
