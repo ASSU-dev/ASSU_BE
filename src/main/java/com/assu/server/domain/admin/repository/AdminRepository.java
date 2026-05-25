@@ -29,33 +29,31 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 		@Param("department") Department department,
 		@Param("major") Major major);
 
-    // 후보 수 카운트
-    @Query(value = """
-        SELECT COUNT(*)
-        FROM admin a
+	// 후보 수 카운트
+	@Query("""
+        SELECT COUNT(a)
+        FROM Admin a
         WHERE NOT EXISTS (
-            SELECT 1 FROM paper pa
-            WHERE pa.admin_id = a.id
-              AND pa.partner_id = :partnerId
-              AND CAST(pa.is_activated AS VARCHAR) = 'ACTIVE'
+            SELECT 1 FROM Paper pa
+            WHERE pa.admin = a
+              AND pa.partner.id = :partnerId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         )
-        """, nativeQuery = true)
-    long countPartner(@Param("partnerId") Long partnerId);
+        """)
+	long countPartner(@Param("partnerId") Long partnerId);
 
-    @Query(value = """
-        SELECT a.*
-        FROM admin a
+	// 랜덤 오프셋 조회 (네이티브 빼고 Pageable 적용)
+	@Query("""
+        SELECT a
+        FROM Admin a
         WHERE NOT EXISTS (
-            SELECT 1 FROM paper pa
-            WHERE pa.admin_id = a.id
-              AND pa.partner_id = :partnerId
-              AND CAST(pa.is_activated AS VARCHAR) = 'ACTIVE'
+            SELECT 1 FROM Paper pa
+            WHERE pa.admin = a
+              AND pa.partner.id = :partnerId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
         )
-        LIMIT :offset, :limit
-        """, nativeQuery = true)
-    List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId,
-                                      @Param("offset") int offset,
-                                      @Param("limit") int limit);
+        """)
+	List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId, Pageable pageable);
 
     @Query("""
         SELECT DISTINCT a

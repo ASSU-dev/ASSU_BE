@@ -1,6 +1,7 @@
 package com.assu.server.domain.partner.repository;
 
 import com.assu.server.domain.partner.entity.Partner;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,41 +12,43 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     boolean existsByPhoneNum(String phoneNum);
 
-    // 현재 admin과 'ACTIVE' 상태로 제휴 중인 partner를 제외한 후보 수
-    @Query(value = """
-        SELECT COUNT(*)
-        FROM partner p
-        LEFT JOIN paper pa
-          ON pa.partner_id = p.id
-         AND pa.admin_id = :adminId
-         AND pa.is_activated = 'ACTIVE'
-        WHERE pa.id IS NULL
-        """, nativeQuery = true)
+    // 미제휴 제휴업체 수 조회
+    @Query("""
+        SELECT COUNT(p)
+        FROM Partner p
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Paper pa
+            WHERE pa.partner = p
+              AND pa.admin.id = :adminId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+        )
+        """)
     long countUnpartneredActiveByAdmin(@Param("adminId") Long adminId);
 
-    // 위 후보들 중에서 offset 하나만 가져오기 (랜덤 오프셋으로 1건)
-    @Query(value = """
-        SELECT p.*
-        FROM partner p
-        LEFT JOIN paper pa
-          ON pa.partner_id = p.id
-         AND pa.admin_id = :adminId
-         AND pa.is_activated = 'ACTIVE'
-        WHERE pa.id IS NULL
-        LIMIT :offset, 1
-        """, nativeQuery = true)
-    Partner findUnpartneredActiveByAdminWithOffset(@Param("adminId") Long adminId,
-                                                   @Param("offset") int offset);
+    // 미제휴 제휴업체 랜덤 오프셋 조회
+    @Query("""
+        SELECT p
+        FROM Partner p
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Paper pa
+            WHERE pa.partner = p
+              AND pa.admin.id = :adminId
+              AND pa.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+        )
+        """)
+    List<Partner> findUnpartneredActiveByAdminWithOffset(@Param("adminId") Long adminId, Pageable pageable);
 
+    // 반경 내 제휴업체 조회
     @Query("""
         SELECT DISTINCT p
         FROM Partner p
         LEFT JOIN FETCH p.member
         WHERE p.point IS NOT NULL
-          AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), p.point) = true
+          AND ST_Contains(ST_GeomFromText(:wkt, 4326), p.point) = true
         """)
     List<Partner> findAllWithinViewportWithMember(@Param("wkt") String wkt);
 
+    // 키워드 검색
     @Query("""
         SELECT DISTINCT p
         FROM Partner p
@@ -55,6 +58,4 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
     List<Partner> searchPartnerByKeywordWithMember(
             @Param("keyword") String keyword
     );
-
-
 }
