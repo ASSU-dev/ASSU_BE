@@ -1,0 +1,134 @@
+name: CD dev - Docker (Legacy TEST EC2)
+
+# dev 환경 Docker Compose 배포 (TEST_EC2_HOST 방식).
+# 트리거 브랜치: develop
+# 사용처: dev K3S 준비 전까지 기존 TEST EC2 컨테이너 배포 유지.
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.ACTION_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Create buildx builder
+        run: |
+          docker buildx create --use --name mybuilder
+          docker buildx inspect --bootstrap
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Dependency Cache
+        run: |
+          docker buildx build \
+          --builder mybuilder \
+          --platform linux/amd64 \
+          --push \
+          --file Dockerfile \
+          --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+          --target dependencies \
+          --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache,mode=max \
+          .
+
+      - name: Build & Push Final App Image
+        run: |
+          docker buildx build \
+            --builder mybuilder \
+            --platform linux/amd64 \
+            --push \
+            --file Dockerfile \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }} \
+            --build-arg DEPENDENCY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            .
+
+      - name: Create service-account.json
+        run: echo "${{ secrets.SERVICE_ACCOUNT_B64 }}" | base64 -d > ./service-account.json
+        shell: bash
+
+      - name: TEST Copy Files to Test EC2
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          host: ${{ secrets.TEST_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.TEST_EC2_SSH_KEY }}
+          source: "./service-account.json,./docker-compose.test.yml"
+          target: "/home/ubuntu/cicd_temp/"
+
+      - name: TEST Organize Files and Directories
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TEST_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.TEST_EC2_SSH_KEY }}
+          script: |
+            mkdir -p /home/ubuntu/secret /home/ubuntu/cicd
+            mv /home/ubuntu/cicd_temp/service-account.json /home/ubuntu/secret/
+            mv /home/ubuntu/cicd_temp/docker-compose.test.yml /home/ubuntu/cicd/
+            rm -rf /home/ubuntu/cicd_temp
+
+      - name: TEST Docker Login and Pull
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TEST_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.TEST_EC2_SSH_KEY }}
+          script: |
+            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            cd /home/ubuntu/cicd
+            docker compose -f docker-compose.test.yml pull
+
+      - name: TEST Deploy Containers
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.TEST_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.TEST_EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/cicd
+            docker compose -f docker-compose.test.yml up -d
+
+      - name: Send Discord Notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+
+          HEALTH_STATUS="❌ dev 서버 비정상 작동"
+          for i in {1..20}; do
+          if curl -sSf https://dev.assu.shop/actuator/health >/dev/null; then
+          HEALTH_STATUS="✅ dev 서버 정상 작동"
+          break
+          fi
+          echo "서버 응답 대기 중... ($i/20)"
+          sleep 10
+          done
+
+          MESSAGE="$EMOJI **assu dev 배포 결과 (Docker/TEST EC2)**\\n상태: $STATUS\\n$HEALTH_STATUS\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"$MESSAGE\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }} || true

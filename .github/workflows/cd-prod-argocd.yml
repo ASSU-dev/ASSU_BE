@@ -1,0 +1,114 @@
+name: CD prod - ArgoCD GitOps (K3S)
+
+# prod 환경 K3S 배포 (ArgoCD GitOps).
+# 트리거 브랜치: main
+# 동작: 이미지 빌드/푸시 -> ASSU_BE_manifest 의 prod/deployment.yml 이미지 태그 갱신 커밋.
+#       ArgoCD 가 변경을 감지해 prod 클러스터에 자동 동기화.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- 소스 코드 체크아웃 ---
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.ACTION_TOKEN }}
+
+      # --- 이미지 빌드 / 푸시 ---
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Create buildx builder
+        run: |
+          docker buildx create --use --name mybuilder
+          docker buildx inspect --bootstrap
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Dependency Cache
+        run: |
+          docker buildx build \
+            --builder mybuilder \
+            --platform linux/amd64 \
+            --push \
+            --file Dockerfile \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            --target dependencies \
+            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache,mode=max \
+            .
+
+      - name: Build & Push Final App Image
+        run: |
+          docker buildx build \
+            --builder mybuilder \
+            --platform linux/amd64 \
+            --push \
+            --file Dockerfile \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }} \
+            --build-arg DEPENDENCY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            .
+
+      # --- manifest repo 갱신 (prod) ---
+      - name: Checkout manifest repo
+        uses: actions/checkout@v4
+        with:
+          repository: ASSU-dev/ASSU_BE_manifest
+          ref: main
+          token: ${{ secrets.ACTION_TOKEN }}
+          path: manifest-repo
+
+      - name: Update prod image tag in manifest
+        run: |
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }}"
+          echo "Updating prod/deployment.yml to ${IMAGE}"
+          sed -i -E "s|image:[[:space:]]*${{ secrets.DOCKERHUB_USERNAME }}/assu-app:.*|image: ${IMAGE}|g" \
+            manifest-repo/prod/deployment.yml
+
+      - name: Commit and push manifest
+        working-directory: manifest-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No manifest changes to commit."
+            exit 0
+          fi
+          git add prod/deployment.yml
+          git commit \
+            -m "[DEPLOY] bump image to ${{ github.sha }} (prod)" \
+            -m "Triggered-by: ${{ github.actor }}"
+          git push origin main
+
+      # --- 알림 ---
+      - name: Send Discord Notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+
+          MESSAGE="$EMOJI **assu prod manifest 갱신 (ArgoCD)**\\n상태: $STATUS\\n이미지: ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }}\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}\\nArgoCD 동기화 결과는 클러스터에서 확인하세요."
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"$MESSAGE\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }} || true
