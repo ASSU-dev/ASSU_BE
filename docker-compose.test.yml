@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app-test:
+    image: andylee259/assu-app:latest
+    container_name: app-test
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/config/
+    volumes:
+      - /home/ubuntu/secret/application-secret.yml:/app/config/application-secret.yml:ro
+      - /home/ubuntu/secret/service-account.json:/app/config/service-account.json:ro
+    depends_on:
+      - test-redis
+      - test-rabbitmq
+    networks:
+      - assu-network
+
+  test-redis:
+    image: redis:latest
+    container_name: test-redis
+    networks:
+      - assu-network
+
+  test-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: test-rabbitmq
+    networks:
+      - assu-network
+
+networks:
+  assu-network:
+    external: true

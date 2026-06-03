@@ -1,0 +1,131 @@
+name: CD prod - Docker (Legacy EC2)
+
+# prod 환경 Docker Compose 배포 (기존 EC2_HOST 방식).
+# 트리거 브랜치: main
+# 사용처: ArgoCD 전환 검증 중 rollback, 또는 prod K3S 미사용 시점의 자동 배포.
+
+on:
+  # push:
+  #   branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.ACTION_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Create buildx builder
+        run: |
+          docker buildx create --use --name mybuilder
+          docker buildx inspect --bootstrap
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Dependency Cache
+        run: |
+          docker buildx build \
+          --builder mybuilder \
+          --platform linux/amd64 \
+          --push \
+          --file Dockerfile \
+          --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+          --target dependencies \
+          --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache,mode=max \
+          .
+
+      - name: Build & Push Final App Image
+        run: |
+          docker buildx build \
+            --builder mybuilder \
+            --platform linux/amd64 \
+            --push \
+            --file Dockerfile \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }} \
+            --build-arg DEPENDENCY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            .
+
+      - name: Create service-account.json
+        run: echo "${{ secrets.SERVICE_ACCOUNT_B64 }}" | base64 -d > ./service-account.json
+        shell: bash
+
+      - name: Copy service-account.json to EC2
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          username: ubuntu
+          host: ${{ secrets.EC2_HOST }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ./service-account.json
+          target: /home/ubuntu/secret/
+
+      - name: Copy docker-compose.yml
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          username: ubuntu
+          host: ${{ secrets.EC2_HOST }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ./docker-compose.yml
+          target: /home/ubuntu/cicd/
+
+      - name: Upload deploy.sh to EC2
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ./deploy.sh
+          target: /home/ubuntu/cicd/
+
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest
+            sudo chmod +x /home/ubuntu/cicd/deploy.sh
+            sudo /home/ubuntu/cicd/deploy.sh
+
+      - name: Send Discord Notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+          else
+            EMOJI="❌"
+          fi
+
+          HEALTH_STATUS="❌ 서버 비정상 작동"
+          for i in {1..20}; do
+          if curl -sSf https://assu.shop/actuator/health >/dev/null; then
+          HEALTH_STATUS="✅ 서버 정상 작동"
+          break
+          fi
+          echo "서버 응답 대기 중... ($i/20)"
+          sleep 10
+          done
+
+          MESSAGE="$EMOJI **assu prod 배포 결과 (Docker/EC2)**\\n상태: $STATUS\\n$HEALTH_STATUS\\n🔗 프로젝트: ${{ github.repository }}\\n👤 커밋: ${{ github.actor }}"
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"$MESSAGE\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }} || true
