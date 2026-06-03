@@ -1,6 +1,6 @@
-package com.assu.server.domain.mapping.service;
+package com.assu.server.domain.admin.service;
 
-import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
+import com.assu.server.domain.admin.dto.StudentAdminResponseDTO;
 
 public interface StudentAdminService {
     StudentAdminResponseDTO.CountAdminAuthResponseDTO getCountAdminAuth(Long memberId);

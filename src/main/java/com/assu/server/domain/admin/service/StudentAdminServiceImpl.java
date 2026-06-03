@@ -1,10 +1,10 @@
-package com.assu.server.domain.mapping.service;
+package com.assu.server.domain.admin.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.mapping.dto.StoreUsageWithPaper;
-import com.assu.server.domain.mapping.dto.StudentAdminResponseDTO;
-import com.assu.server.domain.mapping.repository.StudentAdminRepository;
+import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
+import com.assu.server.domain.admin.dto.StudentAdminResponseDTO;
+import com.assu.server.domain.admin.repository.StudentAdminRepository;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;

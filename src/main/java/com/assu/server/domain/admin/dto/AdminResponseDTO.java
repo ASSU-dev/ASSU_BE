@@ -17,7 +17,7 @@ public record AdminResponseDTO (
         @Schema(description = "제휴업체 상세주소", example = "2층 201호")
         String partnerDetailAddress,
 
-        @Schema(description = "제휴업체 URL", example = "https://www.beer.co.kr")
+        @Schema(description = "제휴업체 프로필 이미지 URL (S3 주소)", example = "https://assu-bucket.s3.amazonaws.com/profile.png")
         String partnerUrl,
 
         @Schema(description = "제휴업체 전화번호", example = "02-123-4567")

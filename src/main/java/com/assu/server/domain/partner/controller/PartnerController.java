@@ -29,7 +29,7 @@ public class PartnerController {
                     "  - `adminAddress` (String): 관리자 주소\n" +
                     "  - `adminDetailAddress` (String): 관리자 상세주소\n" +
                     "  - `adminName` (String): 관리자 상호명\n" +
-                    "  - `adminUrl` (String): 관리자 카카오맵 URL\n" +
+                    "  - `adminUrl` (String): 관리자 프로필 이미지 URL (S3 주소)\n" +
                     "  - `adminPhone` (String): 관리자 전화번호\n")
     @GetMapping("/admin-recommend")
     public BaseResponse<PartnerResponseDTO> randomAdminRecommend(

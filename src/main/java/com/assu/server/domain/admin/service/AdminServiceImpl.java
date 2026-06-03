@@ -11,6 +11,8 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,14 +26,11 @@ public class AdminServiceImpl implements AdminService {
     private final AdminRepository adminRepository;
     private final PartnerRepository partnerRepository;
 
-	@Override
-	@Transactional
-	public List<Admin> findMatchingAdmins(University university, Department department, Major major){
-
-		List<Admin> adminList = adminRepository.findMatchingAdmins(university, department, major);
-
-		return adminList;
-	}
+    @Override
+    @Transactional
+    public List<Admin> findMatchingAdmins(University university, Department department, Major major){
+        return adminRepository.findMatchingAdmins(university, department, major);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -40,19 +39,22 @@ public class AdminServiceImpl implements AdminService {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
-        long total = partnerRepository.countUnpartneredActiveByAdmin(admin.getId());
+        long total = partnerRepository.countUnpartneredActiveByAdmin(admin.getId(), com.assu.server.domain.common.enums.ActivationStatus.ACTIVE);
         if (total <= 0) {
             throw new DatabaseException(ErrorStatus.NO_AVAILABLE_PARTNER);
         }
 
         int offset = ThreadLocalRandom.current().nextInt((int)total);
 
-        Partner picked = partnerRepository.findUnpartneredActiveByAdminWithOffset(admin.getId(), offset);
-        if(picked == null) {
+        Pageable pageable = PageRequest.of(offset, 1);
+        List<Partner> pickedList = partnerRepository.findUnpartneredActiveByAdminWithOffset(admin.getId(), com.assu.server.domain.common.enums.ActivationStatus.ACTIVE, pageable);
+
+        if (pickedList.isEmpty()) {
             throw new DatabaseException(ErrorStatus.NO_AVAILABLE_PARTNER);
         }
 
+        Partner picked = pickedList.get(0);
+
         return AdminResponseDTO.from(picked);
     }
-
 }

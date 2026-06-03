@@ -1,4 +1,4 @@
-package com.assu.server.domain.mapping.entity;
+package com.assu.server.domain.admin.entity;
 
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.student.entity.Student;
