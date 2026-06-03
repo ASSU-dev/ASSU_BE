@@ -7,6 +7,7 @@ name: CD dev - Docker (Legacy TEST EC2)
 on:
   push:
     branches: [ develop ]
+  workflow_dispatch:
 
 jobs:
   cd:
