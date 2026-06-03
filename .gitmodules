@@ -1,3 +1,6 @@
-[submodule "ASSU_config"]
-	path = ASSU_config
-	url = https://github.com/ASSU-dev/ASSU_config.git
+[submodule "config"]
+	path = config
+	url = https://github.com/ASSU-dev/ASSU_BE_config.git
+[submodule "manifest"]
+	path = manifest
+	url = https://github.com/ASSU-dev/ASSU_BE_manifest.git
