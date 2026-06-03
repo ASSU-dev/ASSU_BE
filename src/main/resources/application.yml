@@ -5,6 +5,7 @@ spring:
     group:
       "local": "local"
       "dev": "dev"
+      "prod": "prod"
       "green": "green, prod"
       "blue": "blue, prod"
     active: local
