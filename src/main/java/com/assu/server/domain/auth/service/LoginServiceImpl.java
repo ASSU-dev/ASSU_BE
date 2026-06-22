@@ -14,11 +14,13 @@ import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -36,7 +38,6 @@ public class LoginServiceImpl implements LoginService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final SSUAuthService ssuAuthService;
-    private final CommonAuthRepository commonAuthRepository;
     private final StudentRepository studentRepository;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
@@ -66,6 +67,10 @@ public class LoginServiceImpl implements LoginService {
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
         Member member = adapter.loadMember(authentication.getName());
+
+        if (member.getRole() == UserRole.BACKOFFICE) {
+            throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
+        }
 
         // 토큰 발급 (Access 미저장, Refresh는 Redis 저장)
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -144,6 +149,11 @@ public class LoginServiceImpl implements LoginService {
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RefreshResponseDTO refresh(String refreshToken) {
+        io.jsonwebtoken.Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
+        if (jwtUtil.isBackofficeAudience(refreshClaims)) {
+            throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
+        }
+
         TokensDTO rotated = jwtUtil.rotateRefreshToken(refreshToken);
 
         Long memberId = ((Number) jwtUtil.validateTokenOnlySignature(rotated.accessToken()).get("userId")).longValue();
