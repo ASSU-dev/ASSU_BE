@@ -1,5 +1,6 @@
 package com.assu.server.domain.member.entity;
 
+import com.assu.server.domain.backoffice.entity.BackofficeUser;
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.entity.SSUAuth;
@@ -42,7 +43,7 @@ public class Member extends BaseEntity {
     @Column(name = "role", nullable = false)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @NotNull
-    private UserRole role; // STUDENT, ADMIN, PARTNER
+    private UserRole role; // STUDENT, ADMIN, PARTNER, BACKOFFICE
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -64,6 +65,9 @@ public class Member extends BaseEntity {
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
     private Partner partnerProfile;
 
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    private BackofficeUser backofficeProfile;
+
     // 연관관계 (1:1) — 양방향 필요 없으면 아래 필드 제거해도 됨
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private SSUAuth ssuAuth;
@@ -78,6 +82,8 @@ public class Member extends BaseEntity {
             this.partnerProfile = p;
         } else if (profile instanceof Admin a) {
             this.adminProfile = a;
+        } else if (profile instanceof BackofficeUser b) {
+            this.backofficeProfile = b;
         }
     }
 }
