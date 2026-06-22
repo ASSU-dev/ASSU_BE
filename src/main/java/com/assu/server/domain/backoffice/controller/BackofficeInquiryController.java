@@ -26,7 +26,23 @@ public class BackofficeInquiryController {
     private final InquiryService inquiryService;
 
     @BackofficeAudited(action = "INQUIRY_ANSWER", targetId = "#inquiryId")
-    @Operation(summary = "운영자 문의 답변 API")
+    @Operation(
+            summary = "운영자 문의 답변 API",
+            description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed8064808fcca568b8912a?source=copy_link)\n" +
+                    "- 문의에 답변을 등록하고 상태를 ANSWERED로 변경합니다.\n" +
+                    "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
+                    "**Path Variable:**\n" +
+                    "- `inquiryId` (Long, required): 문의 ID\n\n" +
+                    "**Request Body:**\n" +
+                    "- `answer` (String, required): 답변 내용\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)과 성공 메시지 반환\n" +
+                    "- 400(BAD_REQUEST): 빈 답변 내용\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
+                    "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
+                    "- 404(NOT_FOUND): 존재하지 않는 문의 ID\n" +
+                    "- 409(CONFLICT): 이미 답변된 문의"
+    )
     @PatchMapping("/{inquiryId}/answer")
     public BaseResponse<String> answer(
             @PathVariable("inquiryId") Long inquiryId,
