@@ -1,6 +1,7 @@
 package com.assu.server.domain.certification.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @Tag(name = "Certification", description = "QR인증 API")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('STUDENT')")
 public class CertificationController {
 
 	private final CertificationService certificationService;

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ import java.util.List;
 @Tag(name = "Chatting", description = "채팅 API")
 @RequiredArgsConstructor
 @RequestMapping("/chat")
+@PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
 public class ChatController {
     private final ChatService chatService;
     private final BlockService blockService;
