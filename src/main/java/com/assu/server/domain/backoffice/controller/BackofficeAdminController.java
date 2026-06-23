@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
 import com.assu.server.domain.backoffice.dto.BackofficeAdminCreateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeAdminCreateResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeAdminFetchResponseDTO;
@@ -39,6 +40,7 @@ public class BackofficeAdminController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, backofficeAdminService.fetchAdmin());
 	}
 
+	@BackofficeAudited(action = "ADMIN_CREATE", targetId = "#req.email")
 	@Operation(summary = "학생회 계정 임의 추가 API", description = "인감 정보나 전화번호 없이 백오피스에서 임의로 학생회 계정을 추가합니다.")
 	@PostMapping
 	public BaseResponse<BackofficeAdminCreateResponseDTO> createAdmin(
@@ -47,6 +49,7 @@ public class BackofficeAdminController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, backofficeAdminService.createAdmin(req));
 	}
 
+	@BackofficeAudited(action = "ADMIN_UPDATE", targetId = "#adminId")
 	@Operation(summary = "학생회 계정 임의 수정 API", description = "학생회(Admin) 계정 정보를 수정합니다. 입력된 필드만 반영됩니다.")
 	@PatchMapping("/{adminId}")
 	public BaseResponse<BackofficeAdminUpdateResponseDTO> updateAdmin(
@@ -56,6 +59,7 @@ public class BackofficeAdminController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, backofficeAdminService.updateAdmin(adminId, req));
 	}
 
+	@BackofficeAudited(action = "ADMIN_DELETE", targetId = "#adminId")
 	@Operation(summary = "학생회 계정 임의 삭제 API", description = "학생회(Admin) 계정과 이에 연관된 모든 데이터(Member, CommonAuth)를 영구 삭제합니다.")
 	@DeleteMapping("/{adminId}")
 	public BaseResponse<Void> deleteAdmin(
@@ -65,4 +69,5 @@ public class BackofficeAdminController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, null);
 	}
 }
+
 
