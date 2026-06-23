@@ -57,6 +57,15 @@ public class BackofficePaperService {
         paperRepository.save(paper);
     }
 
+    public void expirePaper(Long paperId) {
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+
+        paper.setIsActivated(ActivationStatus.INACTIVE);
+        paperRepository.save(paper);
+    }
+
+
     private List<WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {
         if (papers == null || papers.isEmpty()) return List.of();
 

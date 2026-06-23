@@ -59,4 +59,15 @@ public class BackofficePaperController {
         backofficePaperService.rejectPaper(paperId);
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
+
+    @BackofficeAudited(action = "PAPER_EXPIRE", targetId = "#paperId")
+    @Operation(summary = "제휴 계약서 만료 API (백오피스용)", description = "제휴 계약서를 강제 만료하여 제휴 상태를 INACTIVE로 변경합니다.")
+    @PatchMapping("/{paperId}/expire")
+    public BaseResponse<Void> expirePaper(
+            @PathVariable @Parameter(description = "계약서 ID", required = true) Long paperId
+    ) {
+        backofficePaperService.expirePaper(paperId);
+        return BaseResponse.onSuccess(SuccessStatus._OK, null);
+    }
 }
+

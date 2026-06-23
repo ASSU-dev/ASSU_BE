@@ -115,4 +115,25 @@ class BackofficePaperServiceTest {
         assertThat(paper.getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         verify(paperRepository).save(paper);
     }
+
+    @Test
+    @DisplayName("제휴 계약서를 만료 처리하여 INACTIVE 상태로 바꾼다")
+    void expirePaper_Success() {
+        // given
+        Long paperId = 10L;
+        Paper paper = Paper.builder()
+                .id(paperId)
+                .isActivated(ActivationStatus.ACTIVE)
+                .build();
+
+        when(paperRepository.findById(paperId)).thenReturn(Optional.of(paper));
+
+        // when
+        backofficePaperService.expirePaper(paperId);
+
+        // then
+        assertThat(paper.getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        verify(paperRepository).save(paper);
+    }
 }
+
