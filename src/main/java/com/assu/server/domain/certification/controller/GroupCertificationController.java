@@ -4,6 +4,7 @@ import java.security.Principal;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Component
 @RequestMapping("/app")
+@PreAuthorize("hasRole('STUDENT')")
 public class GroupCertificationController {
 
 	private final CertificationService certificationService;

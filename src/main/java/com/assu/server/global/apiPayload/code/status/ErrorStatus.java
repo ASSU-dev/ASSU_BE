@@ -44,6 +44,11 @@ public enum ErrorStatus implements BaseErrorCode {
     // 멤버 에러
     NO_SUCH_MEMBER(HttpStatus.NOT_FOUND,"MEMBER_4001","존재하지 않는 멤버 ID입니다."),
     NO_STUDENT_TYPE(HttpStatus.BAD_REQUEST, "MEMBER4002", "학생 타입이 아닌 멤버입니다."),
+    NO_BACKOFFICE_TYPE(HttpStatus.FORBIDDEN, "MEMBER4011", "백오피스 운영자 타입이 아닌 멤버입니다."),
+    JWT_AUDIENCE_MISMATCH(HttpStatus.UNAUTHORIZED, "AUTH4008", "토큰 audience가 요청과 일치하지 않습니다."),
+    BACKOFFICE_BOOTSTRAP_DISABLED(HttpStatus.BAD_REQUEST, "BACKOFFICE4001", "백오피스 bootstrap이 비활성화되어 있습니다."),
+    LAST_BACKOFFICE_OPERATOR(HttpStatus.BAD_REQUEST, "BACKOFFICE4002", "마지막 백오피스 운영자는 비활성화할 수 없습니다."),
+    BACKOFFICE_USE_DEDICATED_LOGIN(HttpStatus.FORBIDDEN, "BACKOFFICE4003", "백오피스 계정은 /auth/backoffice/login을 사용해야 합니다."),
 
     NO_SUCH_ADMIN(HttpStatus.NOT_FOUND,"MEMBER_4002","존재하지 않는 admin ID 입니다."),
     NO_SUCH_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4003","존재하지 않는 partner ID 입니다."),

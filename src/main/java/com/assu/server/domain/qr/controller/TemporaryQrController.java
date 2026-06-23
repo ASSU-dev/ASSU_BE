@@ -3,6 +3,7 @@ package com.assu.server.domain.qr.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,6 +28,7 @@ import okhttp3.Response;
 @RequiredArgsConstructor
 @Tag(name="Temp QR", description="임시 QR 인증 API")
 @RequestMapping("/temporary-qr")
+@PreAuthorize("hasRole('STUDENT')")
 public class TemporaryQrController {
 
 	private final TemporaryQrService temporaryQrService;

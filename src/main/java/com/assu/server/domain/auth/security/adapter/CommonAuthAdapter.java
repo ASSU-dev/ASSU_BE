@@ -69,14 +69,14 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
             throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
         }
         String hash = passwordEncoder.encode(rawPassword);
-        commonAuthRepository.save(
-                CommonAuth.builder()
-                        .member(member)
-                        .email(email)
-                        .hashedPassword(hash)
-                        .lastLoginAt(LocalDateTime.now())
-                        .build()
-        );
+        CommonAuth commonAuth = CommonAuth.builder()
+                .member(member)
+                .email(email)
+                .hashedPassword(hash)
+                .lastLoginAt(LocalDateTime.now())
+                .build();
+        commonAuthRepository.save(commonAuth);
+        member.setCommonAuth(commonAuth);
     }
 
     @Override

@@ -79,9 +79,12 @@ public class NotificationQueryServiceImpl implements NotificationQueryService {
     }
 
     private Set<NotificationType> getVisibleTypes(UserRole role) {
-        return role == UserRole.ADMIN
-                ? EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL)
-                : EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
+        return switch (role) {
+            case ADMIN -> EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL);
+            case PARTNER -> EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
+            case STUDENT -> EnumSet.of(NotificationType.STAMP);
+            case BACKOFFICE -> EnumSet.noneOf(NotificationType.class);
+        };
     }
 
     private Map<String, Boolean> buildSettings(Long memberId, Set<NotificationType> visible) {

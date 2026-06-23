@@ -51,6 +51,12 @@ public record UserBasicInfoDTO(
                     name = partner.getName();
                 }
             }
+            case BACKOFFICE -> {
+                var backofficeUser = member.getBackofficeProfile();
+                if (backofficeUser != null) {
+                    name = backofficeUser.getName();
+                }
+            }
         }
 
         return new UserBasicInfoDTO(name, university, department, major);
