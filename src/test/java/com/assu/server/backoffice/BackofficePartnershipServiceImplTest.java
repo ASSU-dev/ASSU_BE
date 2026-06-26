@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,14 +22,20 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.assu.server.domain.admin.entity.Admin;
+import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.backoffice.dto.BackofficePartnershipCreateRequestDTO;
 import com.assu.server.domain.backoffice.service.BackofficePartnershipServiceImpl;
 import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
+import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.infra.s3.AmazonS3Manager;
 
 @ExtendWith(MockitoExtension.class)
 class BackofficePartnershipServiceImplTest {
@@ -40,6 +48,18 @@ class BackofficePartnershipServiceImplTest {
 
     @Mock
     private PaperContentRepository paperContentRepository;
+
+    @Mock
+    private AdminRepository adminRepository;
+
+    @Mock
+    private StoreRepository storeRepository;
+
+    @Mock
+    private GoodsRepository goodsRepository;
+
+    @Mock
+    private AmazonS3Manager amazonS3Manager;
 
     @Test
     @DisplayName("백오피스 전용: 특정 학생회 ID 기준 활성 제휴 목록을 정상 조회한다")

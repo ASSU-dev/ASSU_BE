@@ -40,7 +40,6 @@ public class BackofficePartnershipController {
     }
 
     @BackofficeAudited(action = "PARTNERSHIP_BY_ADMIN_READ", targetId = "#adminId")
-
     @Operation(summary = "학생회별 제휴 목록 조회 API (백오피스용)", description = "특정 학생회 ID(adminId) 기준 맺어진 활성화된 제휴 목록을 조회합니다.")
     @GetMapping("/admin/{adminId}")
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnershipsByAdmin(
@@ -60,4 +59,3 @@ public class BackofficePartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnershipsByStore(storeId, pageable));
     }
 }
-

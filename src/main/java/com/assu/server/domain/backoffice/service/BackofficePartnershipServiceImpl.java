@@ -47,7 +47,6 @@ public class BackofficePartnershipServiceImpl implements BackofficePartnershipSe
                 .toList();
         List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
-
     }
 
     @Override
@@ -59,7 +58,6 @@ public class BackofficePartnershipServiceImpl implements BackofficePartnershipSe
         List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
-
 
     private List<WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {
         if (papers == null || papers.isEmpty()) return List.of();

@@ -10,4 +10,3 @@ public interface BackofficePartnershipService {
     Page<WritePartnershipResponseDTO> getPartnershipsByStore(Long storeId, Pageable pageable);
     Page<WritePartnershipResponseDTO> getPartnerships(Pageable pageable);
 }
-
