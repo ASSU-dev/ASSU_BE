@@ -37,11 +37,17 @@ import java.util.concurrent.TimeUnit;
 @Profile("!test")
 public class JwtUtil {
 
+    public static final String AUD_APP = "app";
+    public static final String AUD_BACKOFFICE = "backoffice";
+
     @Value("${jwt.secret}")
     public String secretKey;
 
     @Value("${jwt.access-valid-seconds:3600}")      // 1시간 기본
     private int accessValidSeconds;
+
+    @Value("${jwt.backoffice-access-valid-seconds:1800}")
+    private int backofficeAccessValidSeconds;
 
     @Value("${jwt.refresh-valid-seconds:1209600}")  // 14일 기본
     private int refreshValidSeconds;
@@ -103,16 +109,26 @@ public class JwtUtil {
      * @return 발급된 토큰 세트
      */
     public TokensDTO issueTokens(Long memberId, String username, UserRole role, String authRealm) {
+        return issueTokens(memberId, username, role, authRealm, AUD_APP);
+    }
+
+    public TokensDTO issueBackofficeTokens(Long memberId, String username, UserRole role, String authRealm) {
+        return issueTokens(memberId, username, role, authRealm, AUD_BACKOFFICE);
+    }
+
+    public TokensDTO issueTokens(Long memberId, String username, UserRole role, String authRealm, String audience) {
         Map<String, Object> baseClaims = new HashMap<>();
         baseClaims.put("userId", memberId);
         baseClaims.put("username", username);
         baseClaims.put("role", role.name());
         baseClaims.put("authRealm", authRealm);
+        baseClaims.put("aud", audience);
 
         String accessJti = UUID.randomUUID().toString();
         String refreshJti = UUID.randomUUID().toString();
 
-        String accessToken = generateToken(baseClaims, accessValidSeconds, accessJti);
+        int accessSeconds = AUD_BACKOFFICE.equals(audience) ? backofficeAccessValidSeconds : accessValidSeconds;
+        String accessToken = generateToken(baseClaims, accessSeconds, accessJti);
         String refreshToken = generateToken(baseClaims, refreshValidSeconds, refreshJti);
 
         String refreshKey = String.format("refresh:%d:%s", memberId, refreshJti);
@@ -178,7 +194,30 @@ public class JwtUtil {
      * @return 인증 객체
      */
     public Authentication getAuthentication(String accessToken) {
-        Claims claims = validateToken(accessToken); // 만료/서명 체크
+        Claims claims = validateToken(accessToken);
+        return buildAuthentication(claims);
+    }
+
+    public void assertAudience(Claims claims, String requiredAudience) {
+        String audience = resolveAudience(claims);
+        if (!requiredAudience.equals(audience)) {
+            throw new CustomAuthException(ErrorStatus.JWT_AUDIENCE_MISMATCH);
+        }
+    }
+
+    public String resolveAudience(Claims claims) {
+        Object aud = claims.get("aud");
+        if (aud == null || aud.toString().isBlank()) {
+            return AUD_APP;
+        }
+        return aud.toString();
+    }
+
+    public boolean isBackofficeAudience(Claims claims) {
+        return AUD_BACKOFFICE.equals(resolveAudience(claims));
+    }
+
+    private Authentication buildAuthentication(Claims claims) {
         Long memberId = ((Number) claims.get("userId")).longValue();
         String roleName = (String) claims.get("role");
         String authRealmName = (String) claims.get("authRealm");
@@ -307,6 +346,7 @@ public class JwtUtil {
         String roleString = (String) refreshClaims.get("role");
         String authRealm = (String) refreshClaims.get("authRealm");
         String refreshJti = refreshClaims.getId();
+        String audience = resolveAudience(refreshClaims);
 
         UserRole role = UserRole.valueOf(roleString);
 
@@ -319,6 +359,9 @@ public class JwtUtil {
 
         // 4) 기존 RT 삭제 후 새 토큰 발급
         redisTemplate.delete(refreshKey);
+        if (AUD_BACKOFFICE.equals(audience)) {
+            return issueBackofficeTokens(memberId, username, role, authRealm);
+        }
         return issueTokens(memberId, username, role, authRealm);
     }
 

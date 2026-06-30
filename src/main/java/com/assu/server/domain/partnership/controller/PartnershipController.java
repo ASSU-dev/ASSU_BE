@@ -17,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,38 +28,39 @@ import java.util.List;
 @Tag(name = "Partnership", description = "제휴 제안 API")
 @RequiredArgsConstructor
 @RequestMapping("/partnership")
+@PreAuthorize("hasAnyRole('STUDENT','ADMIN','PARTNER')")
 public class PartnershipController {
 
-	private final PartnershipService partnershipService;
+    private final PartnershipService partnershipService;
 
-	@PostMapping("/usage")
+    @PostMapping("/usage")
     @Operation(
-        summary = "제휴 사용내역 기록 API",
-        description = "# [v1.0 (2025-12-23)](https://clumsy-seeder-416.notion.site/2681197c19ed8052804eddd5a1f3ce96?source=copy_link)\n" +
-            "- 제휴 제공 화면 전에 호출되어 유저의 제휴 내역에 데이터를 기록합니다.\n" +
-            "- 인증 이후 제휴를 받았다는 때 서버의 데이터 기록을 요청하는 API \n" +
-            "- 개인 인증 케이스도 포함됩니다.\n\n" +
-            "**Request Body:**\n" +
-            "  - `storeId` (Long, required): 제휴 매장 ID\n" +
-            "  - `tableNumber` (String, required): 테이블 번호\n" +
-            "  - `adminName` (String, required): 관리자 이름\n" +
-            "  - `placeName` (String, required): 제휴 장소 이름\n" +
-            "  - `partnershipContent` (String, required): 제휴 내용\n" +
-            "  - `contentId` (Long, required): 제휴 컨텐츠 ID\n" +
-            "  - `discount` (Long, optional): 할인 금액\n" +
-            "  - `userIds` (List<Long>, optional): 인증 대상 유저 ID 목록\n\n" +
-            "**Response:**\n" +
-            "  - 성공: 200 OK, `isSuccess=true`, `result=null`\n" +
-            "  - 실패: 적절한 에러 코드 및 메시지"
+    summary = "제휴 사용내역 기록 API",
+    description = "# [v1.0 (2025-12-23)](https://clumsy-seeder-416.notion.site/2681197c19ed8052804eddd5a1f3ce96?source=copy_link)\n" +
+        "- 제휴 제공 화면 전에 호출되어 유저의 제휴 내역에 데이터를 기록합니다.\n" +
+        "- 인증 이후 제휴를 받았다는 때 서버의 데이터 기록을 요청하는 API \n" +
+        "- 개인 인증 케이스도 포함됩니다.\n\n" +
+        "**Request Body:**\n" +
+        "  - `storeId` (Long, required): 제휴 매장 ID\n" +
+        "  - `tableNumber` (String, required): 테이블 번호\n" +
+        "  - `adminName` (String, required): 관리자 이름\n" +
+        "  - `placeName` (String, required): 제휴 장소 이름\n" +
+        "  - `partnershipContent` (String, required): 제휴 내용\n" +
+        "  - `contentId` (Long, required): 제휴 컨텐츠 ID\n" +
+        "  - `discount` (Long, optional): 할인 금액\n" +
+        "  - `userIds` (List<Long>, optional): 인증 대상 유저 ID 목록\n\n" +
+        "**Response:**\n" +
+        "  - 성공: 200 OK, `isSuccess=true`, `result=null`\n" +
+        "  - 실패: 적절한 에러 코드 및 메시지"
     )
-	public ResponseEntity<BaseResponse<Void>> finalPartnershipRequest(
-		@AuthenticationPrincipal PrincipalDetails pd, @RequestBody PartnershipFinalRequestDTO dto
-	) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<BaseResponse<Void>> finalPartnershipRequest(
+            @AuthenticationPrincipal PrincipalDetails pd, @RequestBody PartnershipFinalRequestDTO dto
+    ) {
+        partnershipService.recordPartnershipUsage(dto, pd.getMember());
 
-		partnershipService.recordPartnershipUsage(dto, pd.getMember());
-
-		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.USER_PAPER_REQUEST_SUCCESS, null));
-	}
+        return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.USER_PAPER_REQUEST_SUCCESS, null));
+    }
 
     @Operation(
             summary = "제휴 제안서 초안 생성 API",
@@ -72,6 +74,7 @@ public class PartnershipController {
                     "  - 성공 시 200(OK)과 `CreateDraftResponse` 객체 반환.\n" +
                     "  - `paperId` (Long): 생성된 제안서 ID\n")
     @PostMapping("/proposal/draft")
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<PartnershipDraftResponseDTO> createDraftPartnership(
             @RequestBody PartnershipDraftRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -145,6 +148,7 @@ public class PartnershipController {
                     "        - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "        - `goodsName` (String): 서비스 제공 항목명\n")
     @PostMapping(value = "/passivity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<ManualPartnershipResponseDTO> createManualPartnership(
             @RequestPart("request") @Parameter ManualPartnershipRequestDTO request,
             @RequestPart(value = "contractImage")
@@ -206,6 +210,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @PatchMapping("/proposal")
+    @PreAuthorize("hasAnyRole('ADMIN','PARTNER')")
     public BaseResponse<WritePartnershipResponseDTO> updatePartnership(
             @RequestBody WritePartnershipRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -230,11 +235,14 @@ public class PartnershipController {
                     "  - `newStatus` (String): 제안서의 이전 상태\n"+
                     "  - `changedAt` (LocalDateTime): 상태 변경 시간\n")
     @PatchMapping("/{partnershipId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','PARTNER')")
     public BaseResponse<PartnershipStatusUpdateResponseDTO> updatePartnershipStatus(
             @PathVariable("partnershipId") @Parameter(required = true) Long partnershipId,
-            @RequestBody PartnershipStatusUpdateRequestDTO request
+            @RequestBody PartnershipStatusUpdateRequestDTO request,
+            @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnershipStatus(partnershipId, request));
+        return BaseResponse.onSuccess(SuccessStatus._OK,
+                partnershipService.updatePartnershipStatus(partnershipId, request, pd.getId(), pd.getRole()));
     }
 
     @Operation(
@@ -267,9 +275,11 @@ public class PartnershipController {
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/{partnershipId}")
     public BaseResponse<PartnershipDetailResponseDTO> getPartnership(
-            @PathVariable @Parameter(required = true) Long partnershipId
+            @PathVariable @Parameter(required = true) Long partnershipId,
+            @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getPartnership(partnershipId));
+        return BaseResponse.onSuccess(SuccessStatus._OK,
+                partnershipService.getPartnership(partnershipId, pd.getId(), pd.getRole()));
     }
 
     @Operation(
@@ -280,10 +290,12 @@ public class PartnershipController {
                     "\n**Parameters:**\n" +
                     "  - `paperId` (Long, required): 삭제할 제안서 ID\n")
     @DeleteMapping("/proposal/delete/{paperId}")
+    @PreAuthorize("hasAnyRole('ADMIN','PARTNER')")
     public BaseResponse<Void> deletePartnership(
-            @PathVariable @Parameter(required = true) Long paperId
+            @PathVariable @Parameter(required = true) Long paperId,
+            @AuthenticationPrincipal PrincipalDetails pd
     ) {
-        partnershipService.deletePartnership(paperId);
+        partnershipService.deletePartnership(paperId, pd.getId(), pd.getRole());
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 
@@ -318,6 +330,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<Page<WritePartnershipResponseDTO>> listForAdmin(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -356,6 +369,7 @@ public class PartnershipController {
                     "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
                     "      - `goodsName` (String): 서비스 제공 항목명\n")
     @GetMapping("/partner")
+    @PreAuthorize("hasRole('PARTNER')")
     public BaseResponse<Page<WritePartnershipResponseDTO>> listForPartner(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -373,6 +387,7 @@ public class PartnershipController {
                     "  - `partnerName` (String): 제휴업체 이름\n"+
                     "  - `createdAt` (LocalDateTime): 제휴 생성 일자\n")
     @GetMapping("/suspended")
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<List<SuspendedPaperResponseDTO>> suspendPartnership(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -395,6 +410,7 @@ public class PartnershipController {
                     "  - `partnerName` (String): 제휴업체 이름\n"+
                     "  - `partnerAddress` (String): 제휴업체 주소\n")
     @GetMapping("/check/admin/{partnerId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<AdminPartnershipCheckResponseDTO> checkAdminPartnership(
             @PathVariable @Parameter(required = true) Long partnerId,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -418,6 +434,7 @@ public class PartnershipController {
                     "  - `adminName` (String): 관리자 이름\n"+
                     "  - `adminAddress` (String): 관리자 주소\n")
     @GetMapping("/check/partner/{adminId}")
+    @PreAuthorize("hasRole('PARTNER')")
     public BaseResponse<PartnerPartnershipCheckResponseDTO> checkPartnerPartnership(
             @PathVariable @Parameter(required = true) Long adminId,
             @AuthenticationPrincipal PrincipalDetails pd

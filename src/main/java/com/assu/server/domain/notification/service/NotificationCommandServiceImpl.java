@@ -256,6 +256,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
             case ADMIN -> EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL);
             case PARTNER -> EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
             case STUDENT -> EnumSet.of(NotificationType.STAMP);
+            case BACKOFFICE -> EnumSet.noneOf(NotificationType.class);
         };
 
         Map<String, Boolean> result = new LinkedHashMap<>();

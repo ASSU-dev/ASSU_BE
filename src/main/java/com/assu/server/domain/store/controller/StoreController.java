@@ -18,9 +18,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import com.assu.server.global.util.PrincipalDetails;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.List;
@@ -28,6 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Store", description = "가게 API")
 @RequestMapping("/store")
+@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'BACKOFFICE')")
 public class StoreController {
 
     private final StoreService storeService;
@@ -78,6 +79,7 @@ public class StoreController {
 	@Parameters({
 		@Parameter(name = "storeId", description = "QR에서 추출한 storeId를 입력해주세요")
 	})
+	@PreAuthorize("hasRole('STUDENT')")
 	public ResponseEntity<BaseResponse<PaperResponseDTO>> getStorePaperContent(@PathVariable Long storeId,
 		@AuthenticationPrincipal PrincipalDetails pd
 	) {
@@ -115,22 +117,22 @@ public class StoreController {
 			"  - `rank` (Long): 그 주 순위 (1부터)\n" +
 			"  - `usageCount` (Long): 그 주 사용 건수"
 	)
-    @GetMapping("/ranking")
-    public ResponseEntity<BaseResponse<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRank(
-            @AuthenticationPrincipal PrincipalDetails pd) {
-        return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, storeService.getWeeklyRank(pd.getId())));
-    }
+        @GetMapping("/ranking")
+	@PreAuthorize("hasRole('PARTNER')")
+        public ResponseEntity<BaseResponse<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRank(
+                @AuthenticationPrincipal PrincipalDetails pd) {
+            return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, storeService.getWeeklyRank(pd.getId())));
+        }
 
-    @Operation(
-            summary = "내 가게 순위 6주치 조회 API",
-            description = "partnerId로 접근해주세요"
-    )
-    @GetMapping("/ranking/weekly")
-    public BaseResponse<List<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRankByPartnerId(
-            @AuthenticationPrincipal PrincipalDetails pd
-    ){
-        return BaseResponse.onSuccess(SuccessStatus._OK, storeService.getListWeeklyRank(pd.getId()).items());
-    }
-
-
+        @Operation(
+                summary = "내 가게 순위 6주치 조회 API",
+                description = "partnerId로 접근해주세요"
+        )
+        @GetMapping("/ranking/weekly")
+	@PreAuthorize("hasRole('PARTNER')")
+        public BaseResponse<List<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRankByPartnerId(
+                @AuthenticationPrincipal PrincipalDetails pd
+        ){
+            return BaseResponse.onSuccess(SuccessStatus._OK, storeService.getListWeeklyRank(pd.getId()).items());
+        }
 }

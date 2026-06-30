@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/reviews")
 @Tag(name = "Review", description = "리뷰 API")
+@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN', 'PARTNER')")
 public class ReviewController {
     private final ReviewService reviewService;
 
@@ -34,6 +36,7 @@ public class ReviewController {
                     "- Authentication: JWT 토큰 필요 (Student 권한)"
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<ReviewResponseDTO.WriteReviewResponseDTO> writeReview(
             @AuthenticationPrincipal PrincipalDetails pd,
             @RequestPart("request") ReviewRequestDTO.WriteReviewRequestDTO request,
@@ -48,6 +51,7 @@ public class ReviewController {
                     "- 로그인한 학생 사용자가 작성한 리뷰 목록을 페이징하여 조회합니다."
     )
     @GetMapping("/student")
+    @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<Page<ReviewResponseDTO.CheckReviewResponseDTO>> checkStudent(
             @AuthenticationPrincipal PrincipalDetails pd, Pageable pageable
     ) {
@@ -60,6 +64,7 @@ public class ReviewController {
                     "- 로그인한 파트너 계정의 가게에 달린 리뷰 목록을 페이징하여 조회합니다."
     )
     @GetMapping("/partner")
+    @PreAuthorize("hasRole('PARTNER')")
     public BaseResponse<Page<ReviewResponseDTO.CheckReviewResponseDTO>> checkPartnerReview(
             @AuthenticationPrincipal PrincipalDetails pd, Pageable pageable
     ){
@@ -84,6 +89,7 @@ public class ReviewController {
                     "- 본인이 작성한 리뷰를 ID를 기반으로 삭제합니다."
     )
     @DeleteMapping("/{reviewId}")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<BaseResponse<ReviewResponseDTO.DeleteReviewResponseDTO>> deleteReview(
             @PathVariable Long reviewId) {
         return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, reviewService.deleteReview(reviewId)));
@@ -107,6 +113,7 @@ public class ReviewController {
                     "- 파트너 로그인 시 본인 가게의 평균 평점을 조회합니다."
     )
     @GetMapping("/average")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<BaseResponse<ReviewResponseDTO.StandardScoreResponseDTO>> getMyStoreAverage(
             @AuthenticationPrincipal PrincipalDetails pd
     ){

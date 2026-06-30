@@ -11,6 +11,7 @@ import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/suggestion")
+@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
 public class SuggestionController {
 
     private final SuggestionService suggestionService;
@@ -41,6 +43,7 @@ public class SuggestionController {
                     "  - `storeName` (String): 희망 가게 이름\n" +
                     "  - `suggestionBenefit` (String): 희망 혜택\n")
     @PostMapping
+    @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<WriteSuggestionResponseDTO> writeSuggestion(
             @RequestBody WriteSuggestionRequestDTO suggestionRequestDTO,
             @AuthenticationPrincipal PrincipalDetails pd
@@ -61,6 +64,7 @@ public class SuggestionController {
                     "  - `majorId` (Long): 학부/학과 학생회 ID\n" +
                     "  - `majorName` (String): 학부/학과 학생회 이름\n")
     @GetMapping("/admin")
+    @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<GetSuggestionAdminsDTO> getSuggestionAdmins(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
@@ -82,6 +86,7 @@ public class SuggestionController {
                     "  - `studentMajor` (Long): 건의자의 학부/학과\n" +
                     "  - `enrollmentStatus` (EnrollmentStatus): 재학 상태\n")
     @GetMapping("/list")
+    @PreAuthorize("hasRole('ADMIN')")
     public BaseResponse<List<GetSuggestionResponseDTO>> getSuggestions(
             @AuthenticationPrincipal PrincipalDetails pd
     ) {

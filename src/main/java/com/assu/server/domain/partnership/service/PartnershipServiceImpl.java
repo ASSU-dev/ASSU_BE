@@ -7,6 +7,7 @@ import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.service.ChatService;
 import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
@@ -186,9 +187,10 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional(readOnly = true)
-    public PartnershipDetailResponseDTO getPartnership(Long partnershipId) {
+    public PartnershipDetailResponseDTO getPartnership(Long partnershipId, Long memberId, UserRole role) {
         Paper paper = paperRepository.findById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
+        assertPaperAccess(paper, memberId, role);
 
         List<PaperContent> contents = paperContentRepository.findAllByOnePaperIdInFetchGoods(partnershipId);
 
@@ -212,9 +214,15 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional
-    public PartnershipStatusUpdateResponseDTO updatePartnershipStatus(Long partnershipId, PartnershipStatusUpdateRequestDTO request) {
+    public PartnershipStatusUpdateResponseDTO updatePartnershipStatus(
+            Long partnershipId,
+            PartnershipStatusUpdateRequestDTO request,
+            Long memberId,
+            UserRole role
+    ) {
         Paper paper = paperRepository.findById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
+        assertPaperAccess(paper, memberId, role);
 
         if(request == null || request.status() == null){
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
@@ -381,9 +389,10 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     @Override
     @Transactional
-    public void deletePartnership(Long paperId) {
+    public void deletePartnership(Long paperId, Long memberId, UserRole role) {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
+        assertPaperAccess(paper, memberId, role);
 
         // 0. paperContent + goods 삭제
         List<PaperContent> contentsToDelete = paperContentRepository.findByPaperId(paperId);
@@ -416,6 +425,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         }
     }
 
+    // Todo: 추후 checkPartnershipWithPartner와 checkPartnershipWithAdmin를 Role 기반 로직으로 변경하여 메소드 합칠 것
     @Override
     @Transactional(readOnly = true)
     public AdminPartnershipCheckResponseDTO checkPartnershipWithPartner(Long adminId, Long partnerId) {
@@ -500,5 +510,17 @@ public class PartnershipServiceImpl implements PartnershipService {
 
     private String pickDisplayAddress(String road, String jibun) {
         return (road != null && !road.isBlank()) ? road : jibun;
+    }
+
+    private void assertPaperAccess(Paper paper, Long memberId, UserRole role) {
+        if (role == UserRole.ADMIN && paper.getAdmin().getId().equals(memberId)) {
+            return;
+        }
+        if (role == UserRole.PARTNER
+                && paper.getPartner() != null
+                && paper.getPartner().getId().equals(memberId)) {
+            return;
+        }
+        throw new GeneralException(ErrorStatus._FORBIDDEN);
     }
 }

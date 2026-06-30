@@ -8,6 +8,7 @@ import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/admin/dashBoard")
 @Tag(name = "Admin Dashboard", description = "관리자 대시보드 및 통계 API")
+@PreAuthorize("hasRole('ADMIN')")
 public class StudentAdminController {
 
     private final StudentAdminService studentAdminService;

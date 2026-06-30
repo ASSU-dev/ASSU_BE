@@ -17,9 +17,14 @@ spring:
 jwt:
   header: Authorization
   prefix: Bearer
-  secret: dummy-secret-key-for-testing
+  secret: S3csfifR3TrgwiKeyM2023WClokeyAppWIFNEGIBKWMGJ
   access-valid-seconds: 3600
+  backoffice-access-valid-seconds: 1800
   refresh-valid-seconds: 1209600
+
+backoffice:
+  bootstrap:
+    enabled: false
 
 assu:
   security:

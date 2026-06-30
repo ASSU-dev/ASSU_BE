@@ -1,7 +1,6 @@
 package com.assu.server.domain.inquiry.controller;
 
 import com.assu.server.domain.common.dto.PageResponseDTO;
-import com.assu.server.domain.inquiry.dto.InquiryAnswerRequestDTO;
 import com.assu.server.domain.inquiry.dto.InquiryCreateRequestDTO;
 import com.assu.server.domain.inquiry.dto.InquiryResponseDTO;
 import com.assu.server.domain.inquiry.entity.Inquiry;
@@ -15,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RequestMapping("/inquiries")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('STUDENT')")
 public class InquiryController {
 
     private final InquiryService inquiryService;
@@ -75,7 +76,6 @@ public class InquiryController {
         return BaseResponse.onSuccess(SuccessStatus._OK, inquiryResponseDTO);
     }
 
-    /** 단건 상세 조회 */
     @Operation(
             summary = "문의 내역 단건 상세 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed800f8a1fffc5a101f3c0?source=copy_link)\n" +
@@ -95,30 +95,5 @@ public class InquiryController {
     {
         InquiryResponseDTO inquiryResponseDTO = inquiryService.get(inquiryId, pd.getId());
         return BaseResponse.onSuccess(SuccessStatus._OK, inquiryResponseDTO);
-    }
-
-    /** 문의 답변 (운영자) */
-    @Operation(
-            summary = "운영자 답변 API",
-            description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed8064808fcca568b8912a?source=copy_link)\n" +
-                    "- 문의에 답변을 저장하고 상태를 ANSWERED로 변경합니다.\n\n" +
-                    "**Path Variable:**\n" +
-                    "- `inquiryId` (Long, required): 문의 ID\n\n" +
-                    "**Request Body:**\n" +
-                    "- `answer` (String, required): 답변 내용\n\n" +
-                    "**Response:**\n" +
-                    "- 성공 시 200(OK)과 성공 메시지 반환\n" +
-                    "- 400(BAD_REQUEST): 빈 답변 내용\n" +
-                    "- 403(FORBIDDEN): 운영자 권한 없음\n" +
-                    "- 404(NOT_FOUND): 존재하지 않는 문의 ID\n" +
-                    "- 409(CONFLICT): 이미 답변된 문의"
-    )
-    @PatchMapping("/{inquiryId}/answer")
-    public BaseResponse<String> answer(
-            @PathVariable("inquiryId") Long inquiryId,
-            @RequestBody @Valid InquiryAnswerRequestDTO inquiryAnswerRequestDTO
-    ) {
-        inquiryService.answer(inquiryId, inquiryAnswerRequestDTO.answer());
-        return BaseResponse.onSuccess(SuccessStatus._OK, "The inquiry answered successfully. id=" + inquiryId);
     }
 }

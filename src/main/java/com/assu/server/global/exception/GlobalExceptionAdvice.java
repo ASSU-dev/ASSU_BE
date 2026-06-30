@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -114,6 +115,13 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
             GeneralException generalException, HttpServletRequest request) {
         ErrorReasonDTO errorReasonHttpStatus = generalException.getErrorReasonHttpStatus();
         return handleExceptionInternal(generalException, errorReasonHttpStatus, null, request);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Object> handleAccessDeniedException(
+            AccessDeniedException exception, HttpServletRequest request) {
+        ErrorReasonDTO reason = ErrorStatus._FORBIDDEN.getReasonHttpStatus();
+        return handleExceptionInternal(exception, reason, null, request);
     }
 
     private ResponseEntity<Object> handleExceptionInternal(
