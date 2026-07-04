@@ -32,7 +32,8 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         jwtUtil.blacklistAccess(rawAccessToken);
     }
 
-    private void withdrawMember(Long memberId) {
+    @Override
+    public void withdrawMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
