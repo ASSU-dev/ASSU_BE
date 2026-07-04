@@ -33,7 +33,8 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
         CommonAuth ca = commonAuthRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
         var m = ca.getMember();
-        boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE;
+        boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE
+                || m.getIsActivated() == ActivationStatus.SUSPEND;
         String authority = "ROLE_" + m.getRole().name();
 
         return org.springframework.security.core.userdetails.User
