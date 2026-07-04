@@ -55,7 +55,7 @@ public class Member extends BaseEntity {
     // 소프트 삭제를 위한 삭제 시점
     private LocalDateTime deletedAt;
 
-    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     @Builder.Default
     private Boolean chatBlocked = false;
 
