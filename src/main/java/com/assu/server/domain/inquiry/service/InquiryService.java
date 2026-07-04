@@ -13,4 +13,8 @@ public interface InquiryService {
     InquiryResponseDTO get(Long inquiryId, Long memberId);
     void answer(Long inquiryId, String answerText);
     Page<InquiryResponseDTO> list(Inquiry.StatusFilter status, Pageable pageable, Long memberId);
+
+    // 백오피스 전용 (소유권 검증 없음)
+    PageResponseDTO<InquiryResponseDTO> getAllInquiries(Inquiry.StatusFilter status, String keyword, int page, int size);
+    InquiryResponseDTO getById(Long inquiryId);
 }
