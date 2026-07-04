@@ -63,6 +63,13 @@ public enum ErrorStatus implements BaseErrorCode {
     EXISTED_STUDENT(HttpStatus.CONFLICT,"MEMBER_4009","이미 존재하는 학번입니다."),
 
     MEMBER_ALREADY_WITHDRAWN(HttpStatus.BAD_REQUEST, "MEMBER_4010", "이미 탈퇴된 회원입니다."),
+    MEMBER_NOT_PENDING_APPROVAL(HttpStatus.BAD_REQUEST, "MEMBER_4012", "승인 대기 상태가 아닌 회원입니다."),
+    CANNOT_WITHDRAW_BACKOFFICE_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER_4013", "백오피스 운영자는 강제 탈퇴할 수 없습니다."),
+    MEMBER_NOT_DELETED(HttpStatus.BAD_REQUEST, "MEMBER_4014", "탈퇴 상태가 아닌 회원입니다."),
+    LICENSE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4015", "사업자등록증 파일이 없습니다."),
+    SIGN_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4016", "인감 이미지 파일이 없습니다."),
+    MEMBER_APPROVAL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "MEMBER_4017", "승인/거절 대상이 아닌 회원 역할입니다."),
+    MEMBER_PENDING_APPROVAL(HttpStatus.FORBIDDEN, "MEMBER_4018", "가입 승인 대기 중입니다. 백오피스 승인 후 로그인할 수 있습니다."),
 
     // 제휴 에러
     NO_SUCH_PAPER(HttpStatus.NOT_FOUND, "PAPER_9001", "제휴를 찾을 수 없습니다."),
