@@ -24,7 +24,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")  // 클라이언트 WebSocket 연결 지점
                 .setAllowedOriginPatterns(
                         "*",
-                        "https://assu.shop",
+                        "https://assu.site",
                         "http://localhost:63342",
                         "http://localhost:5173",     // Vite 기본
                         "http://localhost:3000",     // CRA/Next 기본

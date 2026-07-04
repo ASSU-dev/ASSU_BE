@@ -88,6 +88,8 @@ public enum ErrorStatus implements BaseErrorCode {
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4003","존재하지 않는 알림입니다."),
     NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN,"NOTIFICATION_4004","해당 알림에 접근할 권한이 없습니다."),
     MISSING_NOTIFICATION_FIELD(HttpStatus.BAD_REQUEST,"NOTIFICATION_4005","알림 생성에 필요한 필드가 누락되었습니다."),
+    OUTBOX_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4006","존재하지 않는 알림 Outbox입니다."),
+    OUTBOX_NOT_FAILED(HttpStatus.BAD_REQUEST,"NOTIFICATION_4007","FAILED 상태인 Outbox만 수동 재전송할 수 있습니다."),
 
     // 문의(Inquiry)
     INVALID_INQUIRY_STATUS_FILTER(HttpStatus.BAD_REQUEST,"INQUIRY_4001","status는 [all, waiting, answered] 중 하나여야 합니다."),

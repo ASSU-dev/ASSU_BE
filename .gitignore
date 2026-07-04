@@ -50,3 +50,10 @@ src/main/resources/application-prod.yml
 
 ### Firebase ###
 src/main/resources/firebase/
+
+### macOS ###
+.DS_Store
+**/.DS_Store
+
+### Node ###
+node_modules/
