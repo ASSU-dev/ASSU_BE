@@ -14,6 +14,7 @@ import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.student.entity.Student;
@@ -39,6 +40,7 @@ public class LoginServiceImpl implements LoginService {
     private final JwtUtil jwtUtil;
     private final SSUAuthService ssuAuthService;
     private final StudentRepository studentRepository;
+    private final CommonAuthRepository commonAuthRepository;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
 
@@ -66,13 +68,19 @@ public class LoginServiceImpl implements LoginService {
 
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
-        Member member = adapter.loadMember(authentication.getName());
+        Member memberPreview = commonAuthRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER))
+                .getMember();
 
-        if (member.getRole() == UserRole.BACKOFFICE) {
+        if (memberPreview.getIsActivated() == ActivationStatus.SUSPEND) {
+            throw new CustomAuthException(ErrorStatus.MEMBER_PENDING_APPROVAL);
+        }
+
+        if (memberPreview.getRole() == UserRole.BACKOFFICE) {
             throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
         }
 
-        // 토큰 발급 (Access 미저장, Refresh는 Redis 저장)
+        Member member = adapter.loadMember(authentication.getName());
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authentication.getName(),
