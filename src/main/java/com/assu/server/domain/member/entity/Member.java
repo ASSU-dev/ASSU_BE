@@ -55,6 +55,10 @@ public class Member extends BaseEntity {
     // 소프트 삭제를 위한 삭제 시점
     private LocalDateTime deletedAt;
 
+    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
+    @Builder.Default
+    private Boolean chatBlocked = false;
+
     // 역할별 프로필 - 선택적으로 연관
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
     private Student studentProfile;
