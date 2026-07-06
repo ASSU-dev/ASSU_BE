@@ -24,7 +24,6 @@ import java.util.List;
 @Tag(name = "Chatting", description = "채팅 API")
 @RequiredArgsConstructor
 @RequestMapping("/chat")
-@PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
 public class ChatController {
     private final ChatService chatService;
     private final BlockService blockService;
@@ -38,6 +37,7 @@ public class ChatController {
                     "- adminId (Long, required): 관리자 ID\n" +
                     "- partnerId (Long, required) 제휴업체 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @PostMapping("/rooms")
     public BaseResponse<ChatResponseDTO.CreateChatRoomResponseDTO> createChatRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -51,6 +51,7 @@ public class ChatController {
             description = "# [v1.0 (2025-08-05)](https://clumsy-seeder-416.notion.site/API-1d71197c19ed819f8f70fb437e9ce62b?p=2241197c19ed816993c3c5ae17d6f099&pm=s)\n" +
                     "- 채팅방 목록을 조회합니다.\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @GetMapping("/rooms")
     public BaseResponse<List<ChatRoomListResultDTO>> getChatRoomList(
             @AuthenticationPrincipal PrincipalDetails pd
@@ -88,6 +89,7 @@ public class ChatController {
                     "\n**Path Variable:**\n" +
                     "- roomId (Long, required): 채팅방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @PatchMapping("/rooms/{roomId}/read")
     public BaseResponse<ChatResponseDTO.ReadMessageResponseDTO> readMessage(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -105,6 +107,7 @@ public class ChatController {
                     "\n**Path Variable:**\n" +
                     "- roomId (Long, required): 채팅방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @GetMapping("/rooms/{roomId}/messages")
     public BaseResponse<ChatResponseDTO.ChatHistoryResponseDTO> getChatHistory(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -123,6 +126,7 @@ public class ChatController {
                     "\n**Path Variable:**\n" +
                     "- roomId (Long, required): 채팅방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @DeleteMapping("/rooms/{roomId}/leave")
     public BaseResponse<ChatResponseDTO.LeaveChattingRoomResponseDTO> leaveChattingRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -140,6 +144,7 @@ public class ChatController {
                     "\n**Request Body:**\n" +
                     "- opponentId (Long, required): 상대방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @PostMapping("/block")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> block(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -156,6 +161,7 @@ public class ChatController {
                     "\n**Path Variable:**\n" +
                     "- opponentId (Long, required): 상대방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @GetMapping("/check/block/{opponentId}")
     public BaseResponse<BlockResponseDTO.CheckBlockMemberDTO> checkBlock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -172,6 +178,7 @@ public class ChatController {
                     "\n**Request Parameter:**\n" +
                     "- opponentId (Long, required): 상대방 ID\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @DeleteMapping("/unblock")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> unblock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -186,6 +193,7 @@ public class ChatController {
             description = "# [v1.0 (2025-09-25)](https://clumsy-seeder-416.notion.site/2db1197c19ed8000b047d9857bcbbb2f)\n" +
                     "- 차단한 대상을 조회합니다.\n"
     )
+    @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
     @GetMapping("/block-list")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
             @AuthenticationPrincipal PrincipalDetails pd
