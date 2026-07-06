@@ -30,6 +30,7 @@
         .log-msg { margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 2px; }
         .log-sent { color: #81D4FA; } /* 보낸 메시지 색상 */
         .log-recv { color: #A5D6A7; } /* 받은 메시지 색상 */
+        .log-error { color: #EF9A9A; } /* 에러 색상 */
     </style>
 </head>
 <body>
@@ -37,8 +38,12 @@
 <div class="container">
     <div class="box">
         <h2>🚀 연결 설정</h2>
-        <label>서버 포트 (8080 또는 8081):</label>
+        <label>서버 IP:</label>
+        <input type="text" id="serverIp" value="43.201.21.224" placeholder="서버 IP">
+        <label>서버 포트:</label>
         <input type="number" id="port" value="8080" placeholder="포트 번호">
+        <label>JWT 토큰 (Bearer 제외):</label>
+        <input type="text" id="token" placeholder="access token 입력">
         <button class="connect" onclick="connect()">연결하기</button>
         <button onclick="disconnect()" id="btnDisconnect" disabled>연결 해제</button>
 
@@ -88,26 +93,33 @@
         const roomId = document.getElementById('roomId').value;
         const receiverId = document.getElementById("senderId").value; // 내 아이디로 큐 구독
 
-        // 1. 엔드포인트 주의: /ws 로 설정됨
-        const socket = new WebSocket("ws://localhost:8080/ws");
+        const ip = document.getElementById('serverIp').value;
+        const socket = new WebSocket(`ws://${ip}:${port}/ws`);
         stompClient = Stomp.over(socket);
 
-        stompClient.connect({}, function (frame) {
+        const token = document.getElementById('token').value;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+        stompClient.connect(headers, function (frame) {
             log(`✅ 포트 ${port} 서버 연결 성공!`);
             document.getElementById('btnDisconnect').disabled = false;
             document.getElementById('btnSend').disabled = false;
 
-            // 2. 채팅방 구독
+            // 채팅방 구독
             stompClient.subscribe(`/sub/chat/${roomId}`, function (msg) {
                 const body = JSON.parse(msg.body);
                 log(`📨 [채팅수신] ${body.message}`, 'log-recv');
             });
 
-            // 3. 내 알림 큐 구독 (채팅방 목록 갱신용)
-            // /user/queue/updates 경로로 오는 개인 메시지를 받습니다.
+            // 개인 알림 큐 구독
             stompClient.subscribe(`/user/queue/updates`, function (msg) {
                 const body = JSON.parse(msg.body);
                 log(`🔔 [목록갱신] 방 ${body.roomId} 업데이트 알림 도착!`, 'log-recv');
+            });
+
+            // 서버 에러 구독
+            stompClient.subscribe(`/user/queue/errors`, function (msg) {
+                log(`🚨 [서버에러] ${msg.body}`, 'log-error');
             });
 
             log(`📡 구독 완료: /sub/chat/${roomId} & /user/queue/updates`);
@@ -115,6 +127,13 @@
         }, function(error) {
             log(`❌ 연결 실패: ${error}`);
         });
+
+        // STOMP 프레임 레벨 에러 핸들러
+        stompClient.onreceive = function(frame) {
+            if (frame.command === 'ERROR') {
+                log(`🚨 [STOMP ERROR] ${frame.headers.message} / ${frame.body}`, 'log-error');
+            }
+        };
     }
 
     function disconnect() {
