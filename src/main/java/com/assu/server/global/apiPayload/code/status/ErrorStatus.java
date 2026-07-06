@@ -124,7 +124,9 @@ public enum ErrorStatus implements BaseErrorCode {
     REVIEW_REPORT_SELF_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REPORT_4003", "자신의 리뷰를 신고할 수 없습니다."),
     SUGGESTION_REPORT_SELF_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REPORT_4004", "자신의 건의글을 신고할 수 없습니다."),
     INVALID_REPORT_TYPE(HttpStatus.BAD_REQUEST, "REPORT_4005", "유효하지 않은 신고 타입입니다."),
-    NO_USAGE_DATA(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 관리자의 제휴 이용 내역이 없습니다.");
+    NO_USAGE_DATA(HttpStatus.NOT_FOUND, "ADMIN4001", "해당 관리자의 제휴 이용 내역이 없습니다."),
+    NO_SUCH_REPORT(HttpStatus.NOT_FOUND, "REPORT_4006", "존재하지 않는 신고 ID입니다.");
+
 
     private final HttpStatus httpStatus;
     private final String code;
