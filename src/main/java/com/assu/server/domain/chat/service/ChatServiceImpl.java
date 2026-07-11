@@ -5,6 +5,7 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.chat.dto.*;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
+import com.assu.server.domain.chat.entity.enums.ChatEventType;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
@@ -45,12 +46,12 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ChatRoomListResultDTO> getChatRoomList(Long memberId) {
-
         List<ChatRoomListResultDTO> chatRoomList = chatRepository.findChattingRoomsByMemberId(memberId);
         return ChatRoomListResultDTO.ofList(chatRoomList);
     }
 
     @Override
+    @Transactional
     public ChatResponseDTO.CreateChatRoomResponseDTO createChatRoom(ChatRequestDTO.CreateChatRoomRequestDTO request, Long memberId) {
 
         Long adminId = request.adminId();
@@ -63,52 +64,22 @@ public class ChatServiceImpl implements ChatService {
         Store store = storeRepository.findByPartnerId(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 
-
         if (!store.getPartner().getMember().getId().equals(partner.getMember().getId())) {
             throw new DatabaseException(ErrorStatus.NO_SUCH_STORE_WITH_THAT_PARTNER);
         }
 
-        boolean isExist = chatRepository.checkChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
-
-        if(!isExist) {
-            ChattingRoom room = ChattingRoom.of(admin, partner);
-
-            room.updateStatus(ActivationStatus.ACTIVE);
-
-            room.updateMemberCount(2);
-
-            room.updateName(
-                    partner.getName(),
-                    admin.getName()
-            );
-            ChattingRoom savedRoom = chatRepository.save(room);
-            return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
-        } else {
-            ChattingRoom existChatRoom = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
+        ChattingRoom existChatRoom = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
+        if (existChatRoom != null) {
             return ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existChatRoom);
         }
+
+        ChattingRoom room = ChattingRoom.of(admin, partner);
+        room.updateStatus(ActivationStatus.ACTIVE);
+        room.updateMemberCount(2);
+        room.updateName(partner.getName(), admin.getName());
+        ChattingRoom savedRoom = chatRepository.save(room);
+        return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
     }
-
-//    @Override
-//    @Transactional
-//    public ChatResponseDTO.SendMessageResponseDTO handleMessage(ChatRequestDTO.ChatMessageRequestDTO request) {
-//        // 유효성 검사
-//        ChattingRoom room = chatRepository.findById(request.getRoomId())
-//                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
-//        Member sender = memberRepository.findById(request.getSenderId())
-//                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
-//        Member receiver = memberRepository.findById(request.getReceiverId())
-//                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
-//
-//        Message message = ChatConverter.toMessageEntity(request, room, sender, receiver);
-//        Message saved = messageRepository.saveAndFlush(message);
-//        log.info("saved message id={}, roomId={}, senderId={}, receiverId={}",
-//                saved.getId(), room.getId(), sender.getId(), receiver.getId());
-//
-//        return ChatConverter.toSendMessageDTO(saved);
-//    }
-
-    // ChatService의 handleMessage 메서드 (수정)
 
     @Override
     @Transactional
@@ -201,8 +172,13 @@ public class ChatServiceImpl implements ChatService {
         }
         unreadMessages.forEach(Message::markAsRead);
 
+        if (!readMessagesIdList.isEmpty()) {
+            ChatResponseDTO.ReadMessageResponseDTO receipt =
+                    new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
+            simpMessagingTemplate.convertAndSend("/sub/chat/" + roomId, receipt);
+        }
 
-        return new ChatResponseDTO.ReadMessageResponseDTO(roomId, memberId,readMessagesIdList, unreadMessages.size(), true);
+        return new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
     }
 
     @Override
