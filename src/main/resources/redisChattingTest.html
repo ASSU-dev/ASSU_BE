@@ -53,7 +53,7 @@
         <label>채팅방 ID (RoomId):</label>
         <input type="number" id="roomId" value="1">
 
-        <label>보내는 사람 ID (SenderId):</label>
+        <label>내 ID (구독용 / SenderId):</label>
         <input type="number" id="senderId" value="100">
 
         <label>받는 사람 ID (ReceiverId):</label>
@@ -64,6 +64,11 @@
                onkeydown="if(event.isComposing) return; if(event.key==='Enter') sendMessage()">
 
         <button class="send" onclick="sendMessage()" id="btnSend" disabled>전송 (Send)</button>
+
+        <hr style="margin: 20px 0;">
+
+        <h2>✅ 읽음 처리</h2>
+        <button style="background-color: #FF9800; color: white;" onclick="markAsRead()" id="btnRead">읽음 처리 (PATCH)</button>
     </div>
 
     <div class="box">
@@ -91,7 +96,7 @@
     function connect() {
         const port = document.getElementById('port').value;
         const roomId = document.getElementById('roomId').value;
-        const receiverId = document.getElementById("senderId").value; // 내 아이디로 큐 구독
+        const myId = document.getElementById("senderId").value;
 
         const ip = document.getElementById('serverIp').value;
         const socket = new WebSocket(`ws://${ip}:${port}/ws`);
@@ -105,16 +110,22 @@
             document.getElementById('btnDisconnect').disabled = false;
             document.getElementById('btnSend').disabled = false;
 
-            // 채팅방 구독
+            // 채팅방 구독 (MESSAGE + READ_RECEIPT 통합)
             stompClient.subscribe(`/sub/chat/${roomId}`, function (msg) {
                 const body = JSON.parse(msg.body);
-                log(`📨 [채팅수신] ${body.message}`, 'log-recv');
+                if (body.eventType === 'MESSAGE') {
+                    log(`📨 [MESSAGE] "${body.message}" | unread=${body.unreadCountForSender}`, 'log-recv');
+                } else if (body.eventType === 'READ_RECEIPT') {
+                    log(`👁 [READ_RECEIPT] reader=${body.readerId} | ${body.readCount}개 읽음 | ids=${JSON.stringify(body.readMessagesId)}`, 'log-recv');
+                } else {
+                    log(`📨 [수신] ${JSON.stringify(body)}`, 'log-recv');
+                }
             });
 
-            // 개인 알림 큐 구독
-            stompClient.subscribe(`/user/queue/updates`, function (msg) {
+            // 채팅방 목록 업데이트 구독 (내 userId 기반)
+            stompClient.subscribe(`/sub/chat/list/${myId}`, function (msg) {
                 const body = JSON.parse(msg.body);
-                log(`🔔 [목록갱신] 방 ${body.roomId} 업데이트 알림 도착!`, 'log-recv');
+                log(`🔔 [목록갱신] 방 ${body.roomId} | 마지막메시지="${body.lastMessage}" | 안읽음=${body.unreadCount}`, 'log-recv');
             });
 
             // 서버 에러 구독
@@ -122,7 +133,7 @@
                 log(`🚨 [서버에러] ${msg.body}`, 'log-error');
             });
 
-            log(`📡 구독 완료: /sub/chat/${roomId} & /user/queue/updates`);
+            log(`📡 구독 완료: /sub/chat/${roomId} & /sub/chat/list/${myId}`);
 
         }, function(error) {
             log(`❌ 연결 실패: ${error}`);
@@ -143,6 +154,24 @@
         document.getElementById('btnDisconnect').disabled = true;
         document.getElementById('btnSend').disabled = true;
         log("Disconnected");
+    }
+
+    function markAsRead() {
+        const ip = document.getElementById('serverIp').value;
+        const port = document.getElementById('port').value;
+        const roomId = document.getElementById('roomId').value;
+        const token = document.getElementById('token').value;
+
+        fetch(`http://${ip}:${port}/chat/rooms/${roomId}/read`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => log(`✅ [읽음처리] 방 ${roomId} → ${JSON.stringify(data)}`, 'log-recv'))
+        .catch(err => log(`❌ [읽음처리 실패] ${err}`, 'log-error'));
     }
 
     function sendMessage() {

@@ -72,6 +72,7 @@ public class ChatController {
     )
     @MessageMapping("/send")
     public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
+        log.info("[STOMP SEND] roomId={}, senderId={}, receiverId={}", request.roomId(), request.senderId(), request.receiverId());
         // 1. 서비스 호출
         MessageHandlingResult result = chatService.handleMessage(request);
         // 2. [항상 전송] 채팅방 메시지 전송
