@@ -43,7 +43,13 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     List<Paper> findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Sort sort);
     Page<Paper>  findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Pageable pageable);
     long countByStore_Id(Long storeId);
-    Page<Paper> findByStore_IdAndIsActionStatus(Long storeId, ActivationStatus status, Pageable pageable);
+
+    @Query("SELECT p FROM Paper p WHERE p.store.id = :storeId AND p.isActivated = :status")
+    Page<Paper> findByStore_IdAndActivationStatus(
+            @Param("storeId") Long storeId,
+            @Param("status") ActivationStatus status,
+            Pageable pageable
+    );
 
 
     @Query("""

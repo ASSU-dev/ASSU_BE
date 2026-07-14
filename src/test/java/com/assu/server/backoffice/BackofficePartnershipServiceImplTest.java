@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,6 @@ import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.backoffice.service.BackofficePartnershipServiceImpl;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
@@ -117,7 +115,7 @@ class BackofficePartnershipServiceImplTest {
                 .build();
 
         Page<Paper> paperPage = new PageImpl<>(List.of(paper), pageable, 1);
-        when(paperRepository.findByStore_IdAndIsActionStatus(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
+        when(paperRepository.findByStore_IdAndActivationStatus(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(paperPage);
 
         Page<PaperContent> paperContentPage = new PageImpl<>(List.of());

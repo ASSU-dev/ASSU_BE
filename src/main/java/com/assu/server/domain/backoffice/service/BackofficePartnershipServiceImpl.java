@@ -41,7 +41,7 @@ public class BackofficePartnershipServiceImpl implements BackofficePartnershipSe
 
     @Override
     public Page<WritePartnershipResponseDTO> getPartnershipsByStore(Long storeId, Pageable pageable) {
-        Page<Paper> paperPage = paperRepository.findByStore_IdAndIsActionStatus(storeId, ActivationStatus.ACTIVE, pageable);
+        Page<Paper> paperPage = paperRepository.findByStore_IdAndActivationStatus(storeId, ActivationStatus.ACTIVE, pageable);
         List<Paper> papers = paperPage.getContent().stream()
                 .filter(p -> p.getAdmin() != null)
                 .toList();
