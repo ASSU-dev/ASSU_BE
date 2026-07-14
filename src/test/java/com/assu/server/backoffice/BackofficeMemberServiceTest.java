@@ -10,6 +10,8 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,9 @@ class BackofficeMemberServiceTest {
     @Autowired
     private WithdrawalService withdrawalService;
 
+    @Autowired
+    private StoreRepository storeRepository;
+
     @Test
     @DisplayName("SUSPEND Partner 회원을 승인하면 ACTIVE 및 license verified 처리")
     void approvePartnerMember() {
@@ -54,6 +59,9 @@ class BackofficeMemberServiceTest {
         assertThat(updated.getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
         assertThat(updated.getPartnerProfile().getIsLicenseVerified()).isTrue();
         assertThat(updated.getPartnerProfile().getLicenseVerifiedAt()).isNotNull();
+
+        Store store = storeRepository.findByPartner(updated.getPartnerProfile()).orElseThrow();
+        assertThat(store.getIsActivate()).isEqualTo(ActivationStatus.ACTIVE);
     }
 
     @Test
@@ -83,6 +91,19 @@ class BackofficeMemberServiceTest {
         assertThat(result.deletedAt()).isNull();
         Member updated = memberRepository.findById(member.getId()).orElseThrow();
         assertThat(updated.getDeletedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("거절(INACTIVE)된 회원도 다시 승인하면 ACTIVE가 된다")
+    void approveRejectedMember() {
+        Member member = createPartnerMember(ActivationStatus.INACTIVE);
+
+        BackofficeMemberSummaryDTO result = backofficeMemberService.approveMember(member.getId());
+
+        assertThat(result.status()).isEqualTo(ActivationStatus.ACTIVE);
+        Member updated = memberRepository.findById(member.getId()).orElseThrow();
+        assertThat(updated.getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(updated.getPartnerProfile().getIsLicenseVerified()).isTrue();
     }
 
     @Test
@@ -116,6 +137,18 @@ class BackofficeMemberServiceTest {
                 .longitude(127.0)
                 .build());
         member.setPartnerProfile(partner);
+
+        storeRepository.save(Store.builder()
+                .partner(partner)
+                .rate(0)
+                .isActivate(ActivationStatus.SUSPEND)
+                .name("Test Store")
+                .address("Seoul")
+                .detailAddress("Detail")
+                .latitude(37.0)
+                .longitude(127.0)
+                .build());
+
         return memberRepository.save(member);
     }
 }

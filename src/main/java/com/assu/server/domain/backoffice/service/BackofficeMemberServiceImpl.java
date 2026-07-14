@@ -12,10 +12,12 @@ import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -70,7 +73,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     public BackofficeMemberSummaryDTO approveMember(Long memberId) {
         Member member = findMemberWithRoleProfile(memberId);
         assertApprovalTarget(member);
-        assertPendingApproval(member);
+        assertApprovable(member);
 
         member.setIsActivated(ActivationStatus.ACTIVE);
         LocalDateTime now = LocalDateTime.now();
@@ -106,7 +109,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         if (member.getRole() == UserRole.BACKOFFICE) {
             throw new CustomAuthException(ErrorStatus.CANNOT_WITHDRAW_BACKOFFICE_MEMBER);
         }
-        withdrawalService.withdrawMember(memberId);
+        withdrawalService.withdrawMember(member);
     }
 
     @Override
@@ -275,9 +278,20 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         }
     }
 
+    // 승인은 대기(SUSPEND)뿐 아니라 거절(INACTIVE)된 회원의 재승인도 허용한다
+    private void assertApprovable(Member member) {
+        if (member.getIsActivated() == ActivationStatus.ACTIVE) {
+            throw new CustomAuthException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
+        }
+    }
+
     private void activatePartnerStore(Partner partner) {
-        storeRepository.findByPartner(partner).ifPresent(store -> {
-            store.setIsActivate(ActivationStatus.ACTIVE);
-        });
+        Store store = storeRepository.findByPartner(partner)
+                .orElseThrow(() -> {
+                    log.error("파트너 승인 실패: 연결된 스토어가 없습니다. partnerId={}", partner.getId());
+                    return new CustomAuthException(ErrorStatus.PARTNER_STORE_NOT_FOUND);
+                });
+        store.setIsActivate(ActivationStatus.ACTIVE);
+        log.info("파트너 스토어 활성화: partnerId={}, storeId={}", partner.getId(), store.getId());
     }
 }

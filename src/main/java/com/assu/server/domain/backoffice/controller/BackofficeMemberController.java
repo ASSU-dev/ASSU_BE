@@ -113,7 +113,8 @@ public class BackofficeMemberController {
     @Operation(
             summary = "회원 가입 승인 API",
             description = "# [v1.0 (2026-07-03)]\n" +
-                    "- `SUSPEND` 상태의 ADMIN/PARTNER 회원을 `ACTIVE`로 승인합니다.\n" +
+                    "- `SUSPEND`(대기) 또는 `INACTIVE`(거절) 상태의 ADMIN/PARTNER 회원을 `ACTIVE`로 승인합니다.\n" +
+                    "- 거절된 회원도 재승인할 수 있습니다.\n" +
                     "- Partner는 사업자등록증 검증 완료 처리 및 Store 활성화를 함께 수행합니다.\n" +
                     "- Admin은 인감 검증 완료 처리를 함께 수행합니다.\n" +
                     "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
@@ -121,7 +122,7 @@ public class BackofficeMemberController {
                     "- `memberId` (Long, required): 회원 ID\n\n" +
                     "**Response:**\n" +
                     "- 성공 시 200(OK)과 `BackofficeMemberSummaryDTO` 반환\n" +
-                    "- 400(BAD_REQUEST): 승인 대기 상태가 아님\n" +
+                    "- 400(BAD_REQUEST): 이미 승인(ACTIVE)된 회원\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
                     "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
                     "- 404(NOT_FOUND): 존재하지 않는 회원 ID"
