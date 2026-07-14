@@ -75,6 +75,16 @@ public class Member extends BaseEntity {
     @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private CommonAuth commonAuth;
 
+    // 역할별 프로필에서 이름(이름/업체명/단체명)을 반환
+    public String resolveName() {
+        return switch (role) {
+            case STUDENT -> studentProfile != null ? studentProfile.getName() : null;
+            case ADMIN -> adminProfile != null ? adminProfile.getName() : null;
+            case PARTNER -> partnerProfile != null ? partnerProfile.getName() : null;
+            case BACKOFFICE -> backofficeProfile != null ? backofficeProfile.getName() : null;
+        };
+    }
+
     public void setProfile(Object profile) {
         if (profile instanceof Student s) {
             this.studentProfile = s;

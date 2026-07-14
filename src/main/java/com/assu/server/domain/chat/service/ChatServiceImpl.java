@@ -8,7 +8,6 @@ import com.assu.server.domain.chat.entity.Message;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
@@ -150,12 +149,7 @@ public class ChatServiceImpl implements ChatService {
             );
 
             // 4-3. 발신자 이름 찾기 (기존 컨트롤러 로직)
-            String senderName;
-            if (sender.getRole() == UserRole.ADMIN) { // 이미 sender 객체가 있으므로 재활용
-                senderName = sender.getAdminProfile().getName();
-            } else {
-                senderName = sender.getPartnerProfile().getName();
-            }
+            String senderName = sender.resolveName();
 
             // 4-4. 알림 전송
             notificationCommandService.sendChat(request.receiverId(), request.roomId(), senderName, request.message());

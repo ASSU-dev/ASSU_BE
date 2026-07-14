@@ -1,7 +1,6 @@
 package com.assu.server.domain.chat.dto;
 
 import com.assu.server.domain.chat.entity.Block;
-import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 
 import java.time.LocalDateTime;
@@ -30,17 +29,10 @@ public class BlockResponseDTO {
                 Block block
         ) {
             Member blockedMember = block.getBlocked();
-            UserRole blockedRole = blockedMember.getRole();
-            String blockedName;
-            if (blockedRole == UserRole.ADMIN) {
-                blockedName = blockedMember.getAdminProfile().getName();
-            } else {
-                blockedName = blockedMember.getPartnerProfile().getName();
-            }
 
             return new BlockMemberDTO(
                     blockedMember.getId(),
-                    blockedName,
+                    blockedMember.resolveName(),
                     block.getCreatedAt()
             );
         }

@@ -21,7 +21,7 @@ public record BackofficeMemberSummaryDTO(
         @Schema(description = "인감 검증 여부 (Admin)") Boolean isSignVerified
 ) {
     public static BackofficeMemberSummaryDTO from(Member member) {
-        String name = resolveName(member);
+        String name = member.resolveName();
         String email = member.getCommonAuth() != null ? member.getCommonAuth().getEmail() : null;
         String studentNumber = member.getSsuAuth() != null ? member.getSsuAuth().getStudentNumber() : null;
         Boolean isLicenseVerified = member.getPartnerProfile() != null
@@ -41,14 +41,5 @@ public record BackofficeMemberSummaryDTO(
                 isLicenseVerified,
                 isSignVerified
         );
-    }
-
-    private static String resolveName(Member member) {
-        return switch (member.getRole()) {
-            case STUDENT -> member.getStudentProfile() != null ? member.getStudentProfile().getName() : null;
-            case ADMIN -> member.getAdminProfile() != null ? member.getAdminProfile().getName() : null;
-            case PARTNER -> member.getPartnerProfile() != null ? member.getPartnerProfile().getName() : null;
-            case BACKOFFICE -> member.getBackofficeProfile() != null ? member.getBackofficeProfile().getName() : null;
-        };
     }
 }

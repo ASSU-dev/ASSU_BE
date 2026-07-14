@@ -39,15 +39,7 @@ public class BlockServiceImpl implements BlockService {
             return null;
         }
 
-        UserRole blockedRole = blocked.getRole();
-        String blockedName;
-        if (blockedRole == UserRole.ADMIN) {
-            blockedName = blocked.getAdminProfile().getName();
-        } else if (blockedRole == UserRole.PARTNER) {
-            blockedName = blocked.getPartnerProfile().getName();
-        } else {
-            throw new GeneralException(ErrorStatus._BAD_REQUEST);
-        }
+        String blockedName = resolveBlockedName(blocked);
 
         Block block = Block.builder()
                 .blocker(blocker)
@@ -67,15 +59,7 @@ public class BlockServiceImpl implements BlockService {
         Member blocked = memberRepository.findById(blockedId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus._BAD_REQUEST));
 
-        UserRole blockedRole = blocked.getRole();
-        String blockedName;
-        if (blockedRole == UserRole.ADMIN) {
-            blockedName = blocked.getAdminProfile().getName();
-        } else if (blockedRole == UserRole.PARTNER) {
-            blockedName = blocked.getPartnerProfile().getName();
-        } else {
-            throw new GeneralException(ErrorStatus._BAD_REQUEST);
-        }
+        String blockedName = resolveBlockedName(blocked);
 
         if (blockRepository.existsBlockRelationBetween(blocker, blocked)) {
             return BlockResponseDTO.CheckBlockMemberDTO.of(blockedId, blockedName, true);
@@ -93,15 +77,7 @@ public class BlockServiceImpl implements BlockService {
         Member blocked = memberRepository.findById(blockedId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
-        UserRole blockedRole = blocked.getRole();
-        String blockedName;
-        if (blockedRole == UserRole.ADMIN) {
-            blockedName = blocked.getAdminProfile().getName();
-        } else if (blockedRole == UserRole.PARTNER) {
-            blockedName = blocked.getPartnerProfile().getName();
-        } else {
-            throw new GeneralException(ErrorStatus._BAD_REQUEST);
-        }
+        String blockedName = resolveBlockedName(blocked);
 
         // Transactional 환경에서는 Dirty-checking으로 delete 쿼리가 나갑니다.
         blockRepository.deleteByBlockerAndBlocked(blocker, blocked);
@@ -117,5 +93,14 @@ public class BlockServiceImpl implements BlockService {
         List<Block> blockList = blockRepository.findByBlocker(blocker);
 
         return BlockResponseDTO.BlockMemberDTO.fromList(blockList);
+    }
+
+    // 차단 대상은 ADMIN/PARTNER만 허용
+    private String resolveBlockedName(Member blocked) {
+        UserRole blockedRole = blocked.getRole();
+        if (blockedRole != UserRole.ADMIN && blockedRole != UserRole.PARTNER) {
+            throw new GeneralException(ErrorStatus._BAD_REQUEST);
+        }
+        return blocked.resolveName();
     }
 }
