@@ -251,7 +251,7 @@ class BackofficeSecurityIntegrationTest {
                                 {"email":"pending@test.com","password":"password123"}
                                 """))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("MEMBER_4018"))
+                .andExpect(jsonPath("$.code").value("MEMBER_4017"))
                 .andExpect(jsonPath("$.message").value(ErrorStatus.MEMBER_PENDING_APPROVAL.getMessage()));
     }
 

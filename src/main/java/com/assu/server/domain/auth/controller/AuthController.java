@@ -344,7 +344,7 @@ public class AuthController {
                     "    - `university` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
                     "    - `department` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
                     "    - `major` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
-                    "  - 403(FORBIDDEN): `MEMBER_4018` — 가입 승인 대기(`SUSPEND`) 상태\n" +
+                    "  - 403(FORBIDDEN): `MEMBER_4017` — 가입 승인 대기(`SUSPEND`) 상태\n" +
                     "  - 403(FORBIDDEN): `BACKOFFICE4003` — BACKOFFICE 계정은 `/auth/backoffice/login` 사용\n" +
                     "  - 401(UNAUTHORIZED): 이메일/비밀번호 불일치"
     )

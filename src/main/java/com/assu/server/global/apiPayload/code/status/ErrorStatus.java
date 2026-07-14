@@ -54,6 +54,7 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4003","존재하지 않는 partner ID 입니다."),
     NO_SUCH_STUDENT(HttpStatus.NOT_FOUND,"MEMBER_4004","존재하지 않는 student ID 입니다."),
     NO_SUCH_STORE(HttpStatus.NOT_FOUND, "STORE_4006", "존재하지 않는 스토어 ID입니다."),
+    PARTNER_STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "STORE_4007", "파트너에 연결된 스토어가 없습니다."),
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
@@ -63,13 +64,13 @@ public enum ErrorStatus implements BaseErrorCode {
     EXISTED_STUDENT(HttpStatus.CONFLICT,"MEMBER_4009","이미 존재하는 학번입니다."),
 
     MEMBER_ALREADY_WITHDRAWN(HttpStatus.BAD_REQUEST, "MEMBER_4010", "이미 탈퇴된 회원입니다."),
-    MEMBER_NOT_PENDING_APPROVAL(HttpStatus.BAD_REQUEST, "MEMBER_4012", "승인 대기 상태가 아닌 회원입니다."),
-    CANNOT_WITHDRAW_BACKOFFICE_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER_4013", "백오피스 운영자는 강제 탈퇴할 수 없습니다."),
-    MEMBER_NOT_DELETED(HttpStatus.BAD_REQUEST, "MEMBER_4014", "탈퇴 상태가 아닌 회원입니다."),
-    LICENSE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4015", "사업자등록증 파일이 없습니다."),
-    SIGN_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4016", "인감 이미지 파일이 없습니다."),
-    MEMBER_APPROVAL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "MEMBER_4017", "승인/거절 대상이 아닌 회원 역할입니다."),
-    MEMBER_PENDING_APPROVAL(HttpStatus.FORBIDDEN, "MEMBER_4018", "가입 승인 대기 중입니다. 백오피스 승인 후 로그인할 수 있습니다."),
+    MEMBER_NOT_PENDING_APPROVAL(HttpStatus.BAD_REQUEST, "MEMBER_4011", "승인 대기 상태가 아닌 회원입니다."),
+    CANNOT_WITHDRAW_BACKOFFICE_MEMBER(HttpStatus.BAD_REQUEST, "MEMBER_4012", "백오피스 운영자는 강제 탈퇴할 수 없습니다."),
+    MEMBER_NOT_DELETED(HttpStatus.BAD_REQUEST, "MEMBER_4013", "탈퇴 상태가 아닌 회원입니다."),
+    LICENSE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4014", "사업자등록증 파일이 없습니다."),
+    SIGN_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4015", "인감 이미지 파일이 없습니다."),
+    MEMBER_APPROVAL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "MEMBER_4016", "승인/거절 대상이 아닌 회원 역할입니다."),
+    MEMBER_PENDING_APPROVAL(HttpStatus.FORBIDDEN, "MEMBER_4017", "가입 승인 대기 중입니다. 백오피스 승인 후 로그인할 수 있습니다."),
 
     // 제휴 에러
     NO_SUCH_PAPER(HttpStatus.NOT_FOUND, "PAPER_9001", "제휴를 찾을 수 없습니다."),
