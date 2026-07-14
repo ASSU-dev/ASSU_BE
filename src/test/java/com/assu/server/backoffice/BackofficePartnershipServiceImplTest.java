@@ -23,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.backoffice.dto.BackofficePartnershipCreateRequestDTO;
 import com.assu.server.domain.backoffice.service.BackofficePartnershipServiceImpl;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.map.dto.SelectedPlacePayload;
@@ -118,7 +117,7 @@ class BackofficePartnershipServiceImplTest {
                 .build();
 
         Page<Paper> paperPage = new PageImpl<>(List.of(paper), pageable, 1);
-        when(paperRepository.findByStore_IdAndIsActivated(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
+        when(paperRepository.findByStore_IdAndIsActionStatus(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(paperPage);
 
         Page<PaperContent> paperContentPage = new PageImpl<>(List.of());

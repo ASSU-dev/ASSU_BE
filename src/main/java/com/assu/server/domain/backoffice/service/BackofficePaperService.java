@@ -27,6 +27,7 @@ import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.DatabaseException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -56,6 +57,9 @@ BackofficePaperService {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
+        if(paper.getIsActivated() == ActivationStatus.ACTIVE){
+            throw new DatabaseException(ErrorStatus.ALREADY_APPROVED);
+        }
         paper.setIsActivated(ActivationStatus.ACTIVE);
         paperRepository.save(paper);
     }
@@ -78,9 +82,9 @@ BackofficePaperService {
 
     public WritePartnershipResponseDTO createPaper(BackofficePaperCreateRequestDTO req) {
         Admin admin = adminRepository.findById(req.adminId())
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
         Store store = storeRepository.findById(req.storeId())
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER)); // 가게 없을 시 예외
+                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER)); // 가게 없을 시 예외
 
         Paper paper = Paper.builder()
                 .admin(admin)
