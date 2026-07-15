@@ -19,6 +19,13 @@ import org.springframework.stereotype.Repository;
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findMemberById(Long id);
     List<Member> findByDeletedAtBefore(LocalDateTime deletedAt);
+    List<Member> findByRole(UserRole role);
+
+    @Query("SELECT m.id FROM Member m")
+    List<Long> findAllIds();
+
+    @Query("SELECT m.id FROM Member m WHERE m.role = :role")
+    List<Long> findIdsByRole(@Param("role") UserRole role);
 
     @Query(
             value = """

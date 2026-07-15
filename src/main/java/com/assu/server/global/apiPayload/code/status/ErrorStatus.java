@@ -49,6 +49,7 @@ public enum ErrorStatus implements BaseErrorCode {
     BACKOFFICE_BOOTSTRAP_DISABLED(HttpStatus.BAD_REQUEST, "BACKOFFICE4001", "백오피스 bootstrap이 비활성화되어 있습니다."),
     LAST_BACKOFFICE_OPERATOR(HttpStatus.BAD_REQUEST, "BACKOFFICE4002", "마지막 백오피스 운영자는 비활성화할 수 없습니다."),
     BACKOFFICE_USE_DEDICATED_LOGIN(HttpStatus.FORBIDDEN, "BACKOFFICE4003", "백오피스 계정은 /auth/backoffice/login을 사용해야 합니다."),
+    RECEIVER_ID_REQUIRED(HttpStatus.BAD_REQUEST, "PUSH_4001", "INDIVIDUAL 타입일 경우 receiverId는 필수입니다."),
 
     NO_SUCH_ADMIN(HttpStatus.NOT_FOUND,"MEMBER_4002","존재하지 않는 admin ID 입니다."),
     NO_SUCH_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4003","존재하지 않는 partner ID 입니다."),
@@ -97,6 +98,8 @@ public enum ErrorStatus implements BaseErrorCode {
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4003","존재하지 않는 알림입니다."),
     NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN,"NOTIFICATION_4004","해당 알림에 접근할 권한이 없습니다."),
     MISSING_NOTIFICATION_FIELD(HttpStatus.BAD_REQUEST,"NOTIFICATION_4005","알림 생성에 필요한 필드가 누락되었습니다."),
+    OUTBOX_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4006","존재하지 않는 알림 Outbox입니다."),
+    OUTBOX_NOT_FAILED(HttpStatus.BAD_REQUEST,"NOTIFICATION_4007","FAILED 상태인 Outbox만 수동 재전송할 수 있습니다."),
 
     // 문의(Inquiry)
     INVALID_INQUIRY_STATUS_FILTER(HttpStatus.BAD_REQUEST,"INQUIRY_4001","status는 [all, waiting, answered] 중 하나여야 합니다."),
