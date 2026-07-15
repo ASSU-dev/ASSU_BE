@@ -29,40 +29,6 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Override
-    public void createAndQueue(Long receiverId, String title, String body, String deepLink) {
-        Member member = memberRepository.findMemberById(receiverId)
-                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
-
-        Notification notification = Notification.builder()
-                .receiver(member)
-                .type(NotificationType.BACKOFFICE)
-                .refId(null)
-                .title(title)
-                .messagePreview(body)
-                .deeplink(deepLink != null ? deepLink : "/backoffice")
-                .build();
-        notificationRepository.save(notification);
-
-        NotificationOutbox outbox = NotificationOutbox.builder()
-                .notification(notification)
-                .status(NotificationOutbox.Status.PENDING)
-                .retryCount(0)
-                .build();
-        outboxRepository.save(outbox);
-
-        eventPublisher.publishEvent(new OutboxCreatedEvent(
-                outbox.getId(),
-                member.getId(),
-                notification.getTitle(),
-                notification.getMessagePreview(),
-                NotificationType.BACKOFFICE.name(),
-                null,
-                notification.getDeeplink(),
-                notification.getId()
-        ));
-    }
-
-    @Override
     public Notification createAndQueue(Long receiverId, NotificationType type, Long refId, Map<String, Object> ctx) {
         Member member = memberRepository.findMemberById(receiverId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));

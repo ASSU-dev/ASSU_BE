@@ -3,7 +3,7 @@ package com.assu.server.domain.backoffice.controller;
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
 import com.assu.server.domain.inquiry.dto.InquiryAnswerRequestDTO;
 import com.assu.server.domain.inquiry.dto.InquiryResponseDTO;
-import com.assu.server.domain.inquiry.service.InquiryService;
+import com.assu.server.domain.inquiry.service.BackofficeInquiryService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('BACKOFFICE')")
 public class BackofficeInquiryController {
 
-    private final InquiryService inquiryService;
+    private final BackofficeInquiryService backofficeInquiryService;
 
     @Operation(
             summary = "운영자 전체 문의 목록 조회 API",
@@ -58,12 +58,12 @@ public class BackofficeInquiryController {
             @Parameter(description = "페이지 크기 (1~200)", example = "20")
             @RequestParam(defaultValue = "20") int size
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, inquiryService.getAllInquiries(status, keyword, page, size));
+        return BaseResponse.onSuccess(SuccessStatus._OK, backofficeInquiryService.getInquiries(status, keyword, page, size));
     }
 
     @Operation(
             summary = "운영자 문의 상세 조회 API",
-            description = "# [v1.0 (2026-06-25)]()\n" +
+            description = "# [v1.0 (2026-06-25)]\n" +
                     "- 특정 문의의 상세 내용을 조회합니다.\n" +
                     "- 소유권 검증 없이 모든 문의에 접근 가능합니다.\n\n" +
                     "**Path Variable:**\n" +
@@ -78,7 +78,7 @@ public class BackofficeInquiryController {
     public BaseResponse<InquiryResponseDTO> getInquiry(
             @PathVariable("inquiryId") Long inquiryId
     ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, inquiryService.getById(inquiryId));
+        return BaseResponse.onSuccess(SuccessStatus._OK, backofficeInquiryService.getById(inquiryId));
     }
 
     @BackofficeAudited(action = "INQUIRY_ANSWER", targetId = "#inquiryId")
@@ -100,11 +100,11 @@ public class BackofficeInquiryController {
                     "- 409(CONFLICT): 이미 답변된 문의"
     )
     @PatchMapping("/{inquiryId}/answer")
-    public BaseResponse<String> answer(
+    public BaseResponse<Void> answer(
             @PathVariable("inquiryId") Long inquiryId,
             @RequestBody @Valid InquiryAnswerRequestDTO inquiryAnswerRequestDTO
     ) {
-        inquiryService.answer(inquiryId, inquiryAnswerRequestDTO.answer());
-        return BaseResponse.onSuccess(SuccessStatus._OK, "The inquiry answered successfully. id=" + inquiryId);
+        backofficeInquiryService.answer(inquiryId, inquiryAnswerRequestDTO.answer());
+        return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 }

@@ -10,8 +10,6 @@ import java.util.Map;
 public interface NotificationCommandService {
     Notification createAndQueue(Long receiverId, NotificationType type, Long refId, Map<String, Object> ctx);
 
-    /** 자유 메시지 직접 지정하는 푸시 (백오피스 수동 발송용) */
-    void createAndQueue(Long receiverId, String title, String body, String deepLink);
     void markRead(Long notificationId, Long currentMemberId) throws AccessDeniedException;
     void queue(QueueNotificationRequestDTO req);
     Map<String, Boolean> toggle(Long memberId, NotificationType type);

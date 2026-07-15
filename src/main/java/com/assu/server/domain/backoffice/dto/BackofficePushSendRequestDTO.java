@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 public record BackofficePushSendRequestDTO(
 
         @NotNull
-        @Schema(description = "발송 대상 유형 (ALL / STUDENT / UNION / PARTNER / INDIVIDUAL)", example = "ALL")
+        @Schema(description = "발송 대상 유형 (ALL / STUDENT / ADMIN / PARTNER / INDIVIDUAL)", example = "ALL")
         PushTargetType targetType,
 
         @Schema(description = "수신자 멤버 ID (targetType=INDIVIDUAL일 때만 필수)", example = "42")

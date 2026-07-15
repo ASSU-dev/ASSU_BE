@@ -4,6 +4,7 @@ import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
 import com.assu.server.domain.backoffice.dto.BackofficeOutboxResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePushLogResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePushSendRequestDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeRetryOutboxResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeNotificationService;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -30,11 +31,11 @@ public class BackofficeNotificationController {
     @BackofficeAudited(action = "PUSH_SEND", targetId = "#request.receiverId()")
     @Operation(
             summary = "운영자 수동 푸시 알림 전송 API",
-            description = "# [v2.0 (2026-07-04)]\n" +
+            description = "# [v1.1 (2026-07-04)]\n" +
                     "- 그룹 또는 특정 사용자에게 자유 메시지 푸시 알림을 전송합니다.\n" +
                     "- `targetType`에 따라 수신자 범위가 결정됩니다.\n\n" +
                     "**Request Body:**\n" +
-                    "- `targetType` (required): ALL / STUDENT / UNION / PARTNER / INDIVIDUAL\n" +
+                    "- `targetType` (required): ALL / STUDENT / ADMIN / PARTNER / INDIVIDUAL\n" +
                     "- `receiverId` (INDIVIDUAL일 때만 필수): 수신자 멤버 ID\n" +
                     "- `title` (required): 푸시 제목\n" +
                     "- `body` (required): 푸시 본문\n" +
@@ -47,17 +48,17 @@ public class BackofficeNotificationController {
                     "- 404(NOT_FOUND): 존재하지 않는 수신자 멤버 ID"
     )
     @PostMapping("/push")
-    public BaseResponse<String> sendPush(
+    public BaseResponse<Void> sendPush(
             @RequestBody @Valid BackofficePushSendRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails principal
     ) {
         backofficeNotificationService.sendPush(request, principal.getMemberId());
-        return BaseResponse.onSuccess(SuccessStatus._OK, "Push notifications sent successfully. targetType=" + request.targetType());
+        return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 
     @Operation(
             summary = "푸시 발송 이력 조회 API",
-            description = "# [v2.0 (2026-07-04)]\n" +
+            description = "# [v1.1 (2026-07-04)]\n" +
                     "- 백오피스에서 발송한 푸시 알림 이력을 페이징으로 조회합니다.\n" +
                     "- `keyword`가 있으면 제목/본문에서 검색합니다.\n\n" +
                     "**Query Parameters:**\n" +
@@ -121,10 +122,10 @@ public class BackofficeNotificationController {
                     "- 404(NOT_FOUND): 존재하지 않는 Outbox ID"
     )
     @PostMapping("/outbox/{outboxId}/retry")
-    public BaseResponse<String> retryOutbox(
+    public BaseResponse<BackofficeRetryOutboxResponseDTO> retryOutbox(
             @PathVariable("outboxId") Long outboxId
     ) {
         backofficeNotificationService.retryOutbox(outboxId);
-        return BaseResponse.onSuccess(SuccessStatus._OK, "Outbox retry queued successfully. outboxId=" + outboxId);
+        return BaseResponse.onSuccess(SuccessStatus._OK, BackofficeRetryOutboxResponseDTO.of(outboxId));
     }
 }

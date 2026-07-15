@@ -8,15 +8,15 @@ import com.assu.server.domain.backoffice.entity.PushTargetType;
 import com.assu.server.domain.backoffice.repository.BackofficePushLogRepository;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.common.enums.UserRole;
-import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
-import com.assu.server.domain.notification.entity.Notification;
 import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
+import com.assu.server.domain.notification.entity.Notification;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
-import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.notification.service.NotificationBackofficeService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -34,7 +34,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BackofficeNotificationServiceImpl implements BackofficeNotificationService {
 
-    private final NotificationCommandService notificationCommandService;
+    private final NotificationBackofficeService notificationBackofficeService;
     private final NotificationOutboxRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final MemberRepository memberRepository;
@@ -42,11 +42,11 @@ public class BackofficeNotificationServiceImpl implements BackofficeNotification
 
     @Override
     public void sendPush(BackofficePushSendRequestDTO request, Long sentByMemberId) {
-        List<Member> recipients = resolveRecipients(request);
+        List<Long> recipientIds = resolveRecipientIds(request);
 
-        for (Member recipient : recipients) {
-            notificationCommandService.createAndQueue(
-                    recipient.getId(),
+        for (Long id : recipientIds) {
+            notificationBackofficeService.createAndQueue(
+                    id,
                     request.title(),
                     request.body(),
                     request.deepLink()
@@ -60,33 +60,33 @@ public class BackofficeNotificationServiceImpl implements BackofficeNotification
                 .body(request.body())
                 .deepLink(request.deepLink())
                 .sentByMemberId(sentByMemberId)
-                .recipientCount(recipients.size())
+                .recipientCount(recipientIds.size())
                 .sentAt(LocalDateTime.now())
                 .build());
     }
 
-    private List<Member> resolveRecipients(BackofficePushSendRequestDTO request) {
+    private List<Long> resolveRecipientIds(BackofficePushSendRequestDTO request) {
         return switch (request.targetType()) {
             case INDIVIDUAL -> {
                 if (request.receiverId() == null) {
-                    throw new DatabaseException(ErrorStatus.NO_SUCH_MEMBER);
+                    throw new GeneralException(ErrorStatus.RECEIVER_ID_REQUIRED);
                 }
-                Member member = memberRepository.findMemberById(request.receiverId())
+                memberRepository.findMemberById(request.receiverId())
                         .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
-                yield List.of(member);
+                yield List.of(request.receiverId());
             }
-            case ALL -> memberRepository.findAll();
-            case STUDENT -> memberRepository.findByRole(UserRole.STUDENT);
-            case UNION -> memberRepository.findByRole(UserRole.ADMIN);
-            case PARTNER -> memberRepository.findByRole(UserRole.PARTNER);
+            case ALL -> memberRepository.findAllIds();
+            case STUDENT -> memberRepository.findIdsByRole(UserRole.STUDENT);
+            case ADMIN -> memberRepository.findIdsByRole(UserRole.ADMIN);
+            case PARTNER -> memberRepository.findIdsByRole(UserRole.PARTNER);
         };
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<BackofficePushLogResponseDTO> getPushLogs(String keyword, int page, int size) {
-        if (page < 1) throw new DatabaseException(ErrorStatus.PAGE_UNDER_ONE);
-        if (size < 1 || size > 200) throw new DatabaseException(ErrorStatus.PAGE_SIZE_INVALID);
+        if (page < 1) throw new GeneralException(ErrorStatus.PAGE_UNDER_ONE);
+        if (size < 1 || size > 200) throw new GeneralException(ErrorStatus.PAGE_SIZE_INVALID);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<BackofficePushLogResponseDTO> result;
@@ -103,8 +103,8 @@ public class BackofficeNotificationServiceImpl implements BackofficeNotification
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<BackofficeOutboxResponseDTO> getFailedOutboxes(int page, int size) {
-        if (page < 1) throw new DatabaseException(ErrorStatus.PAGE_UNDER_ONE);
-        if (size < 1 || size > 200) throw new DatabaseException(ErrorStatus.PAGE_SIZE_INVALID);
+        if (page < 1) throw new GeneralException(ErrorStatus.PAGE_UNDER_ONE);
+        if (size < 1 || size > 200) throw new GeneralException(ErrorStatus.PAGE_SIZE_INVALID);
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<BackofficeOutboxResponseDTO> result = outboxRepository
