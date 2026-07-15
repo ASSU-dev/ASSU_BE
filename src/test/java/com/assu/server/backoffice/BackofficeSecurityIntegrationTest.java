@@ -20,6 +20,8 @@ import com.assu.server.domain.student.service.StudentServiceImpl;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.repository.StoreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -80,6 +82,9 @@ class BackofficeSecurityIntegrationTest {
 
     @Autowired
     private PartnerRepository partnerRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -300,6 +305,17 @@ class BackofficeSecurityIntegrationTest {
                 .build());
         member.setPartnerProfile(partner);
 
+        storeRepository.save(Store.builder()
+                .partner(partner)
+                .rate(0)
+                .isActivate(ActivationStatus.SUSPEND)
+                .name("Store " + email)
+                .address("Seoul")
+                .detailAddress("Detail")
+                .latitude(37.0)
+                .longitude(127.0)
+                .build());
+
         return memberRepository.save(member);
     }
 
@@ -430,6 +446,11 @@ class BackofficeSecurityIntegrationTest {
         @Bean
         StringRedisTemplate stringRedisTemplate() {
             return Mockito.mock(StringRedisTemplate.class);
+        }
+
+        @Bean
+        ConnectionFactory rabbitConnectionFactory() {
+            return Mockito.mock(ConnectionFactory.class);
         }
 
         @Bean(name = "rabbitListenerContainerFactory")
