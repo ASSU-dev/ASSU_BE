@@ -1,7 +1,7 @@
 ---
 name: Feature
 about: Feature
-title: "[Feat]"
+title: "[FEAT]"
 labels: ":sparkles: feature"
 assignees: ''
 

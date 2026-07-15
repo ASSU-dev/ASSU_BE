@@ -67,6 +67,7 @@ public class Message extends BaseEntity {
                 .receiver(receiver)
                 .message(request.message())
                 .unreadCount(unreadForSender)
+                .isRead(unreadForSender == 0)
                 .type(MessageType.TEXT)
                 .build();
     }
