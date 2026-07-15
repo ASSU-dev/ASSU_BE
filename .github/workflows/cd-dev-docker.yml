@@ -118,7 +118,7 @@ jobs:
 
           HEALTH_STATUS="❌ dev 서버 비정상 작동"
           for i in {1..20}; do
-          if curl -sSf https://dev.assu.shop/actuator/health >/dev/null; then
+          if curl -sSf https://dev.assu.site/actuator/health >/dev/null; then
           HEALTH_STATUS="✅ dev 서버 정상 작동"
           break
           fi
