@@ -53,3 +53,10 @@ src/main/resources/firebase/
 
 ### Claude Code ###
 CLAUDE.md
+
+### macOS ###
+.DS_Store
+**/.DS_Store
+
+### Node ###
+node_modules/

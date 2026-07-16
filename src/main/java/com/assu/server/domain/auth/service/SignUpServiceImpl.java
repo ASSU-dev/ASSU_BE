@@ -132,7 +132,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.PARTNER)
-                        .isActivated(ActivationStatus.ACTIVE) // Todo 초기에 SUSPEND 로직 추가해야함, 허가 후 ACTIVE
+                        .isActivated(ActivationStatus.SUSPEND)
                         .build());
 
         // 2) RealmAuthAdapter 로 Common 자격 저장
@@ -179,7 +179,7 @@ public class SignUpServiceImpl implements SignUpService {
             Store newly = Store.builder()
                     .partner(partner)
                     .rate(0)
-                    .isActivate(ActivationStatus.ACTIVE)
+                    .isActivate(ActivationStatus.SUSPEND)
                     .name(info.name())
                     .address(address)
                     .detailAddress(info.detailAddress())
@@ -190,16 +190,7 @@ public class SignUpServiceImpl implements SignUpService {
             storeRepository.save(newly);
         }
 
-        // 4) 토큰 발급
-        TokensDTO tokens = jwtUtil.issueTokens(
-                member.getId(),
-                req.commonAuth().email(),
-                UserRole.PARTNER,
-                adapter.authRealmValue()
-        );
-
-        // 5) SignUpResponseDTO 생성
-        return SignUpResponseDTO.from(member, tokens);
+        return SignUpResponseDTO.from(member, null);
     }
 
     @Override
@@ -215,7 +206,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.ADMIN)
-                        .isActivated(ActivationStatus.ACTIVE) // Todo 초기에 SUSPEND 로직 추가해야함, 허가 후 ACTIVE
+                        .isActivated(ActivationStatus.SUSPEND)
                         .build());
 
         // 2) RealmAuthAdapter 로 Common 자격 저장
@@ -254,15 +245,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
-        // 4) 토큰 발급
-        TokensDTO tokens = jwtUtil.issueTokens(
-                member.getId(),
-                req.commonAuth().email(),
-                UserRole.ADMIN,
-                adapter.authRealmValue());
-
-        // 5) SignUpResponseDTO 생성
-        return SignUpResponseDTO.from(member, tokens);
+        return SignUpResponseDTO.from(member, null);
     }
 
     private EnrollmentStatus parseEnrollmentStatus(String status) {

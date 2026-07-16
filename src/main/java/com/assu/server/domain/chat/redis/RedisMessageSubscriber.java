@@ -26,6 +26,7 @@ public class RedisMessageSubscriber implements MessageListener {
             // RedisTemplate의 Serializer를 통해 byte[]를 String으로 변환
             String publishMessage = redisTemplate.getStringSerializer().deserialize(message.getBody());
             String channel = redisTemplate.getStringSerializer().deserialize(message.getChannel());
+            log.info("[Redis onMessage] channel={}", channel);
 
             if (channel == null || publishMessage == null) return;
 

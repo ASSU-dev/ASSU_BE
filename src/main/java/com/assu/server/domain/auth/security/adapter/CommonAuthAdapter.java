@@ -4,16 +4,19 @@ import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
+import com.assu.server.domain.auth.security.userdetails.CommonUserDetails;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -33,16 +36,19 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
         CommonAuth ca = commonAuthRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
         var m = ca.getMember();
-        boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE;
+        // SUSPEND는 비밀번호 검증 이후에 차단해야 하므로(이메일 열거 방지) enabled로 둔다
+        boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE
+                || m.getIsActivated() == ActivationStatus.SUSPEND;
         String authority = "ROLE_" + m.getRole().name();
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(ca.getEmail())
-                .password(ca.getHashedPassword()) // BCrypt 해시
-                .authorities(authority)
-                .accountExpired(false).accountLocked(false).credentialsExpired(false)
-                .disabled(!enabled)
-                .build();
+        return new CommonUserDetails(
+                ca.getEmail(),
+                ca.getHashedPassword(), // BCrypt 해시
+                enabled,
+                List.of(new SimpleGrantedAuthority(authority)),
+                m.getIsActivated(),
+                m.getRole()
+        );
     }
 
     @Override

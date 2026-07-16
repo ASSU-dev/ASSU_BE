@@ -9,11 +9,12 @@ import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
-import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
+import com.assu.server.domain.auth.security.userdetails.CommonUserDetails;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import com.assu.server.domain.common.entity.enums.Major;
+import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.student.entity.Student;
@@ -66,13 +67,18 @@ public class LoginServiceImpl implements LoginService {
 
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
-        Member member = adapter.loadMember(authentication.getName());
+        // 인증 시 조회한 principal에 status/role이 담겨 있어 추가 조회 없이 검사한다
+        CommonUserDetails userDetails = (CommonUserDetails) authentication.getPrincipal();
 
-        if (member.getRole() == UserRole.BACKOFFICE) {
+        if (userDetails.getStatus() == ActivationStatus.SUSPEND) {
+            throw new CustomAuthException(ErrorStatus.MEMBER_PENDING_APPROVAL);
+        }
+
+        if (userDetails.getRole() == UserRole.BACKOFFICE) {
             throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
         }
 
-        // 토큰 발급 (Access 미저장, Refresh는 Redis 저장)
+        Member member = adapter.loadMember(authentication.getName());
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authentication.getName(),

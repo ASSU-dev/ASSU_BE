@@ -11,6 +11,5 @@ public interface InquiryService {
     Long create(InquiryCreateRequestDTO inquiryCreateRequestDTO, Long memberId);
     PageResponseDTO<InquiryResponseDTO> getInquiries(Inquiry.StatusFilter status, int page, int size, Long memberId);
     InquiryResponseDTO get(Long inquiryId, Long memberId);
-    void answer(Long inquiryId, String answerText);
     Page<InquiryResponseDTO> list(Inquiry.StatusFilter status, Pageable pageable, Long memberId);
 }

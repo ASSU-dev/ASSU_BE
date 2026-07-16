@@ -2,6 +2,8 @@ package com.assu.server.domain.notification.repository;
 
 import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.NotificationOutbox.Status;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -40,4 +42,15 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     boolean existsByIdAndStatus(Long id, NotificationOutbox.Status status);
 
     List<NotificationOutbox> findByStatusAndRetryCountLessThan(NotificationOutbox.Status status, int maxRetryCount);
+
+    Page<NotificationOutbox> findByStatus(NotificationOutbox.Status status, Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE NotificationOutbox o
+           SET o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).PENDING}
+         WHERE o.id = :id
+           AND o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).FAILED}
+        """)
+    int resetToPendingById(@Param("id") Long id);
 }
