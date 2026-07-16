@@ -8,8 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum ReportStatus {
     PENDING("대기중"),
     PROCESSED("처리완료"),
-    REJECTED("기각"),
-    UNDER_REVIEW("검토중");
+    REJECTED("기각");
 
     private final String description;
 }

@@ -91,6 +91,9 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_MEMBER_IN_THE_ROOM(HttpStatus.NOT_FOUND, "CHATTING_5002", "해당 방에는 해당 사용자가 없습니다."),
     NO_MEMBER(HttpStatus.NOT_FOUND, "CHATTING_5003", "해당 방에는 사용자가 아무도 없습니다."),
     NO_MESSAGE(HttpStatus.NOT_FOUND, "CHATTING_5004", "해당 방에는 메시지가 아무것 없습니다."),
+    MEMBER_CHAT_BLOCKED(HttpStatus.FORBIDDEN, "CHATTING_5005", "채팅이 차단된 회원입니다."),
+    ALREADY_CHAT_BLOCKED(HttpStatus.CONFLICT, "CHATTING_5006", "이미 채팅이 차단된 회원입니다."),
+    NOT_CHAT_BLOCKED(HttpStatus.BAD_REQUEST, "CHATTING_5007", "채팅이 차단되지 않은 회원입니다."),
 
     // 알림(Notification) 에러
     INVALID_NOTIFICATION_STATUS_FILTER(HttpStatus.BAD_REQUEST,"NOTIFICATION_4001","유효하지 않은 알림 status 필터입니다. (all | unread 만 허용)"),

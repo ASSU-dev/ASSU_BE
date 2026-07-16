@@ -5,6 +5,7 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.chat.dto.*;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
+import com.assu.server.domain.chat.repository.BlockRepository;
 import com.assu.server.domain.chat.entity.enums.ChatEventType;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
@@ -18,6 +19,7 @@ import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PresenceTracker;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ public class ChatServiceImpl implements ChatService {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final NotificationCommandService notificationCommandService;
     private final PresenceTracker presenceTracker;
+    private final BlockRepository blockRepository;
 
 
     @Override
@@ -90,6 +93,14 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
         Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
+
+        // 차단 검증 — 운영자가 개인 차단하거나 두 멤버 사이를 차단한 경우 메시지 전송 불가
+        if (Boolean.TRUE.equals(sender.getChatBlocked())) {
+            throw new GeneralException(ErrorStatus.MEMBER_CHAT_BLOCKED);
+        }
+        if (blockRepository.existsBlockRelationBetween(sender, receiver)) {
+            throw new GeneralException(ErrorStatus.MEMBER_CHAT_BLOCKED);
+        }
 
         // 2. 컨트롤러에서 가져온 비즈니스 로직 (접속 확인)
         boolean receiverInRoom = presenceTracker.isInRoom(request.receiverId(), request.roomId());

@@ -51,6 +51,9 @@ src/main/resources/application-prod.yml
 ### Firebase ###
 src/main/resources/firebase/
 
+### Claude Code ###
+CLAUDE.md
+
 ### macOS ###
 .DS_Store
 **/.DS_Store
