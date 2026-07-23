@@ -50,7 +50,8 @@ public class SecurityConfig {
                                 "/auth/students/login",
                                 "/auth/tokens/refresh",
                                 "/auth/backoffice/tokens/refresh",
-                                "/auth/students/ssu-verify"
+                                "/auth/students/ssu-verify",
+                                "/map/place"
                         ).permitAll()
                         .requestMatchers("/backoffice/**").hasRole("BACKOFFICE")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
