@@ -22,7 +22,6 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/map")
-@PreAuthorize("hasAnyRole('STUDENT','ADMIN','PARTNER')")
 public class MapController {
 
     private final MapService mapService;
@@ -83,6 +82,7 @@ public class MapController {
                     "    - `longitude` (Double): 관리자 경도\n" +
                     "    - `profileUrl` (String): 관리자 카카오맵 Url\n" +
                     "    - `phoneNumber` (String): 관리자 전화번호\n")
+    @PreAuthorize("hasAnyRole('STUDENT','ADMIN','PARTNER')")
     @GetMapping("/nearby")
     public BaseResponse<?> getLocations(
             @ModelAttribute MapRequestDTO viewport,
@@ -148,6 +148,7 @@ public class MapController {
                     "    - `longitude` (Double): 관리자 경도\n" +
                     "    - `profileUrl` (String): 관리자 카카오맵 Url\n" +
                     "    - `phoneNumber` (String): 관리자 전화번호\n")
+    @PreAuthorize("hasAnyRole('STUDENT','ADMIN','PARTNER')")
     @GetMapping("/search")
     public BaseResponse<?> getLocationsByKeyword(
             @RequestParam("searchKeyword") @NotNull String keyword,
