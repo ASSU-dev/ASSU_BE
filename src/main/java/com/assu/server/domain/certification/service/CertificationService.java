@@ -10,6 +10,8 @@ public interface CertificationService {
 
 	CertificationResponseDTO getSessionId(CertificationGroupRequestDTO dto, Member member);
 
+	void expireSession(Long sessionId, Member member);
+
 	void handleCertification(GroupSessionRequest dto, Member member);
 
 	void certificatePersonal(CertificationPersonalRequestDTO dto, Member member);

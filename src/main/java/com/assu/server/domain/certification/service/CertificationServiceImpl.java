@@ -25,11 +25,13 @@ import com.assu.server.global.exception.GeneralException;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 // AdminService 참조, 순환 참조 문제 주의
 @Transactional
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CertificationServiceImpl implements CertificationService {
 	private final StoreRepository storeRepository;
 	private final AssociateCertificationRepository associateCertificationRepository;
@@ -47,12 +49,37 @@ public class CertificationServiceImpl implements CertificationService {
 		CertificationGroupRequestDTO dto, Member member){
 		Long userId = member.getId();
 
-		Long sessionId = sessionManager.openSession(dto.storeId(), dto.people());
+		Long sessionId = sessionManager.openSession(dto.storeId(), dto.people(), userId);
 
 		sessionManager.addUserToSession(sessionId, userId);
 
 		return new CertificationResponseDTO(sessionId);
 
+	}
+
+	@Override
+	public void expireSession(Long sessionId, Member member) {
+		if (!sessionManager.exists(sessionId)) {
+			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+		}
+
+		Long ownerId = Long.valueOf(sessionManager.getSessionInfo(sessionId, "ownerId"));
+		if (!ownerId.equals(member.getId())) {
+			throw new GeneralException(ErrorStatus._FORBIDDEN);
+		}
+
+		List<Long> certifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+		sessionManager.removeSession(sessionId);
+
+		messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
+			new CertificationProgressResponseDTO(
+				"expired",
+				certifiedUserIds.size(),
+				"인증 세션이 만료되었습니다.",
+				certifiedUserIds
+			));
+		log.info("인증 세션 만료 이벤트 전송 - sessionId: {}, certifiedCount: {}, destination: /certification/progress/{}",
+			sessionId, certifiedUserIds.size(), sessionId);
 	}
 
 	@Override
