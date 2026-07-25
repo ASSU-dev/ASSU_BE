@@ -2,6 +2,7 @@ package com.assu.server.domain.certification.service;
 
 import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
+import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.member.entity.Member;
@@ -12,7 +13,7 @@ public interface CertificationService {
 
 	void expireSession(Long sessionId, Member member);
 
-	void handleCertification(GroupSessionRequest dto, Member member);
+	CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member);
 
 	void certificatePersonal(CertificationPersonalRequestDTO dto, Member member);
 }

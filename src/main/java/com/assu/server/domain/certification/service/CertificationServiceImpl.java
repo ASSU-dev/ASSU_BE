@@ -83,7 +83,7 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
-	public void handleCertification(GroupSessionRequest dto, Member member) {
+	public CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member) {
 		Long userId = member.getId();
 		Long sessionId = dto.sessionId();
 
@@ -99,12 +99,25 @@ public class CertificationServiceImpl implements CertificationService {
 		boolean matched = admins.stream().anyMatch(admin -> admin.getId().equals(dto.adminId()));
 
 		if (!matched) {
-			throw new IllegalArgumentException("학생과 매치되지 않는 정보입니다.");
+			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
+				"fail",
+				currentCertifiedUserIds.size(),
+				"mismatch",
+				currentCertifiedUserIds
+			);
+			return response;
 		}
 
 		if (sessionManager.hasUser(sessionId, userId)) {
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("progress", null, "doubled member", sessionManager.snapshotUserIds(sessionId)));
+			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
+				"progress",
+				null,
+				"doubled member",
+				currentCertifiedUserIds
+			);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
 
@@ -112,6 +125,7 @@ public class CertificationServiceImpl implements CertificationService {
 		List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 		int currentCount = currentCertifiedUserIds.size();
 
+		CertificationProgressResponseDTO response;
 		if (currentCount >= targetPeople) {
 			Store store = storeRepository.findById(storeId).orElseThrow(
 				() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
@@ -127,15 +141,17 @@ public class CertificationServiceImpl implements CertificationService {
 
 			associateCertificationRepository.save(certification);
 
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds));
+			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 
 			sessionManager.removeSession(sessionId);
 		} else {
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds));
+			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 		}
+		return response;
 	}
+
 	@Override
 	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
