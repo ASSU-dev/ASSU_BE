@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Component
 @RequestMapping("/app")
-@PreAuthorize("hasRole('STUDENT')")
 public class GroupCertificationController {
 
 	private final CertificationService certificationService;
