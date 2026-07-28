@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -125,6 +126,21 @@ public class StudentController {
 			@RequestParam(name = "all", defaultValue = "false") boolean all
 	) {
 		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
+	}
+
+	@Operation(
+			summary = "로그인한 학생 프로필/학적 정보 조회 API",
+			description = "- 현재 로그인한 학생의 학번, 대학교, 단과대, 학과/전공, 과정/학적 상태, 학년/학기 등의 프로필 정보를 조회합니다.\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 학생 학적 정보(`StudentProfileResponseDTO`) 반환\n" +
+					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
+	)
+	@GetMapping("/info")
+	public BaseResponse<StudentProfileResponseDTO> getStudentProfile(
+			@AuthenticationPrincipal PrincipalDetails pd
+	) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentProfile(pd.getId()));
 	}
 
 }

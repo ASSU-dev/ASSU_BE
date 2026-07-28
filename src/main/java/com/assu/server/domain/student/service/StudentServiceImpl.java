@@ -27,6 +27,9 @@ import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.student.converter.StudentConverter;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
+import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.entity.PartnershipUsage;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.entity.UserPaper;
@@ -51,6 +54,7 @@ public class StudentServiceImpl implements StudentService {
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
 	private final NotificationCommandService notificationCommandService;
+	private final MemberRepository memberRepository;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -263,5 +267,14 @@ public class StudentServiceImpl implements StudentService {
 			syncUserPapersForStudent(s.getId());
 		}
 	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public StudentProfileResponseDTO getStudentProfile(Long memberId) {
+		Member member = memberRepository.findStudentWithProfileById(memberId)
+				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+		return StudentProfileResponseDTO.from(member);
+	}
 }
+
 

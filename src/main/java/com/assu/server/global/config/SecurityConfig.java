@@ -31,8 +31,9 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/verify").permitAll()
+                        .requestMatchers("/certification-progress-test.html").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/ws/**","/ws").permitAll()
+                        .requestMatchers("/ws/**", "/ws", "/ws-certify", "/ws-certify/**").permitAll()
                         .requestMatchers(
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                 "/swagger-resources/**", "/webjars/**"
@@ -50,7 +51,8 @@ public class SecurityConfig {
                                 "/auth/students/login",
                                 "/auth/tokens/refresh",
                                 "/auth/backoffice/tokens/refresh",
-                                "/auth/students/ssu-verify"
+                                "/auth/students/ssu-verify",
+                                "/map/place"
                         ).permitAll()
                         .requestMatchers("/backoffice/**").hasRole("BACKOFFICE")
                         .requestMatchers("/admin/**").hasRole("ADMIN")

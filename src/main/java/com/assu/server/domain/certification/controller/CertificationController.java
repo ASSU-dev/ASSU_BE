@@ -4,6 +4,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,6 +54,20 @@ public class CertificationController {
 		CertificationResponseDTO result = certificationService.getSessionId(dto, pd.getMember());
 
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.GROUP_SESSION_CREATE, result));
+	}
+
+	@DeleteMapping("/certification/session/{sessionId}")
+	@Operation(
+		summary = "그룹 인증 세션 만료 API",
+		description = "세션 생성자만 인증 세션을 즉시 만료시킬 수 있습니다. 만료 후 해당 세션으로 들어오는 인증 요청은 거절됩니다."
+	)
+	public ResponseEntity<BaseResponse<Void>> expireSession(
+		@PathVariable Long sessionId,
+		@AuthenticationPrincipal PrincipalDetails pd
+	) {
+		certificationService.expireSession(sessionId, pd.getMember());
+
+		return ResponseEntity.ok(BaseResponse.onSuccessWithoutData(SuccessStatus._OK));
 	}
 
 	@PostMapping("/certification/personal")

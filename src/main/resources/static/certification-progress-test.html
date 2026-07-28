@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>그룹 인증 진행 테스트</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #f5f7fb; color: #1c2434; font: 14px/1.5 system-ui, sans-serif; }
+    main { max-width: 1100px; margin: auto; }
+    h1 { margin: 0 0 8px; } .hint { color: #596579; margin-bottom: 20px; }
+    .settings, .grid { display: grid; gap: 16px; } .settings { grid-template-columns: 1fr auto; margin-bottom: 16px; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { background: #fff; border: 1px solid #dbe2ee; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px #1d2c4a0b; }
+    label { display: block; margin: 12px 0 4px; font-weight: 650; } input { width: 100%; padding: 9px; border: 1px solid #bdc8d9; border-radius: 7px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } button { padding: 10px 13px; border: 0; border-radius: 7px; background: #2769d8; color: #fff; cursor: pointer; font-weight: 650; margin: 14px 5px 0 0; }
+    button.danger { background: #c73838; } button.secondary { background: #65738a; } button:disabled { opacity: .55; cursor: wait; }
+    .state { margin-top: 14px; padding: 10px; border-radius: 7px; background: #edf2f9; } .event { margin-top: 14px; font-weight: 650; }
+    pre { height: 240px; overflow: auto; background: #101828; color: #d5e8d4; padding: 12px; border-radius: 7px; white-space: pre-wrap; }
+    code { background: #e8edf6; padding: 2px 5px; border-radius: 4px; } @media (max-width: 700px) { .grid, .settings { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>그룹 인증 진행 테스트</h1>
+  <div class="hint">대표자와 참여자 화면을 각각 다른 브라우저 탭에서 열고 테스트하세요. JWT는 브라우저에 저장하지 않습니다.</div>
+
+  <div class="settings card">
+    <div><label for="baseUrl">API 서버 주소</label><input id="baseUrl" value="http://localhost:8080" placeholder="https://api.example.com"></div>
+    <div><button class="secondary" onclick="disconnectAll()">모두 연결 해제</button></div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>대표자</h2>
+      <div class="hint">세션을 만들고, progress를 구독하고, 필요 시 만료시킵니다.</div>
+      <label for="ownerToken">대표자 JWT</label><input id="ownerToken" type="password" placeholder="Bearer 없이 토큰만 입력 가능">
+      <div class="row">
+        <div><label for="storeId">storeId</label><input id="storeId" value="1"></div>
+        <div><label for="ownerAdminId">adminId</label><input id="ownerAdminId" value="1"></div>
+      </div>
+      <div class="row">
+        <div><label for="people">목표 인원</label><input id="people" value="2"></div>
+        <div><label for="tableNumber">tableNumber</label><input id="tableNumber" value="1"></div>
+      </div>
+      <button onclick="createSession()">세션 생성 후 구독</button>
+      <button class="danger" onclick="expireSession()">현재 세션 만료</button>
+      <div id="ownerState" class="state">세션을 아직 만들지 않았습니다.</div>
+      <div id="ownerEvent" class="event">수신 이벤트: 없음</div>
+      <pre id="ownerLog"></pre>
+    </section>
+
+    <section class="card">
+      <h2>참여 인증자</h2>
+      <div class="hint">대표자가 만든 sessionId를 넣고 먼저 구독한 뒤 인증 요청을 보냅니다.</div>
+      <label for="participantToken">참여자 JWT</label><input id="participantToken" type="password" placeholder="대표자와 다른 학생 토큰">
+      <div class="row">
+        <div><label for="participantAdminId">adminId</label><input id="participantAdminId" value="1"></div>
+        <div><label for="participantSessionId">sessionId</label><input id="participantSessionId" placeholder="대표자 화면에서 생성된 값"></div>
+      </div>
+      <button onclick="connectParticipant()">progress 구독</button>
+      <button onclick="certify()">/app/certify 전송</button>
+      <div id="participantState" class="state">구독 전</div>
+      <div id="participantEvent" class="event">수신 이벤트: 없음</div>
+      <pre id="participantLog"></pre>
+    </section>
+  </div>
+</main>
+
+<script>
+  const clients = { owner: null, participant: null };
+  const sessionIds = { owner: null, participant: null };
+  const value = id => document.getElementById(id).value.trim();
+  const auth = token => ({ Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}` });
+  const baseUrl = () => value('baseUrl').replace(/\/$/, '');
+  const wsUrl = () => baseUrl().replace(/^http/, 'ws') + '/ws-certify';
+
+  function log(role, text) {
+    const target = document.getElementById(role + 'Log');
+    target.textContent += `[${new Date().toLocaleTimeString()}] ${text}\n`;
+    target.scrollTop = target.scrollHeight;
+  }
+  function state(role, text) { document.getElementById(role + 'State').textContent = text; }
+  function showEvent(role, event) {
+    document.getElementById(role + 'Event').textContent = `수신 이벤트: type=${event.type}, count=${event.count}, message=${event.message ?? '-'}`;
+  }
+  function parseNumber(id, label) {
+    const number = Number(value(id));
+    if (!Number.isInteger(number) || number < 1) throw new Error(`${label}에 양의 정수를 입력하세요.`);
+    return number;
+  }
+  function disconnect(role) {
+    if (clients[role]?.connected) clients[role].disconnect(() => log(role, 'WebSocket 연결 해제'));
+    clients[role] = null;
+  }
+  function disconnectAll() { disconnect('owner'); disconnect('participant'); }
+
+  function connectAndSubscribe(role, token, sessionId) {
+    if (!token) throw new Error('JWT를 입력하세요.');
+    disconnect(role);
+    state(role, 'WebSocket 연결 중...');
+    const client = Stomp.client(wsUrl());
+    client.debug = null;
+    client.connect(auth(token), () => {
+      clients[role] = client;
+      sessionIds[role] = sessionId;
+      client.subscribe(`/certification/progress/${sessionId}`, message => {
+        const event = JSON.parse(message.body);
+        showEvent(role, event);
+        log(role, `progress 수신: ${message.body}`);
+      });
+      state(role, `구독 중: /certification/progress/${sessionId}`);
+      log(role, `연결 및 progress 구독 성공 (${wsUrl()})`);
+    }, error => {
+      state(role, '연결 실패');
+      log(role, `연결 실패: ${error}`);
+    });
+  }
+
+  async function createSession() {
+    try {
+      const payload = { storeId: parseNumber('storeId', 'storeId'), adminId: parseNumber('ownerAdminId', 'adminId'), people: parseNumber('people', '목표 인원'), tableNumber: parseNumber('tableNumber', 'tableNumber') };
+      const token = value('ownerToken');
+      if (!token) throw new Error('대표자 JWT를 입력하세요.');
+      log('owner', `세션 생성 요청: ${JSON.stringify(payload)}`);
+      const response = await fetch(`${baseUrl()}/certification/session`, { method: 'POST', headers: { ...auth(token), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json();
+      if (!response.ok || !body.isSuccess) throw new Error(body.message ?? `HTTP ${response.status}`);
+      const sessionId = body.result.sessionId;
+      document.getElementById('participantSessionId').value = sessionId;
+      log('owner', `세션 생성 성공: sessionId=${sessionId}`);
+      connectAndSubscribe('owner', token, sessionId);
+    } catch (error) { state('owner', `실패: ${error.message}`); log('owner', `오류: ${error.message}`); }
+  }
+
+  function connectParticipant() {
+    try { connectAndSubscribe('participant', value('participantToken'), parseNumber('participantSessionId', 'sessionId')); }
+    catch (error) { state('participant', `실패: ${error.message}`); log('participant', `오류: ${error.message}`); }
+  }
+
+  function certify() {
+    try {
+      const sessionId = parseNumber('participantSessionId', 'sessionId');
+      const adminId = parseNumber('participantAdminId', 'adminId');
+      const client = clients.participant;
+      if (!client?.connected || sessionIds.participant !== sessionId) throw new Error('같은 sessionId로 progress 구독을 먼저 연결하세요.');
+      client.send('/app/certify', {}, JSON.stringify({ adminId, sessionId }));
+      log('participant', `인증 요청 전송: ${JSON.stringify({ adminId, sessionId })}`);
+    } catch (error) { state('participant', `실패: ${error.message}`); log('participant', `오류: ${error.message}`); }
+  }
+
+  async function expireSession() {
+    try {
+      const sessionId = sessionIds.owner;
+      const token = value('ownerToken');
+      if (!sessionId) throw new Error('대표자 세션을 먼저 생성하세요.');
+      const response = await fetch(`${baseUrl()}/certification/session/${sessionId}`, { method: 'DELETE', headers: auth(token) });
+      const body = await response.json();
+      if (!response.ok || !body.isSuccess) throw new Error(body.message ?? `HTTP ${response.status}`);
+      log('owner', `세션 만료 요청 성공: sessionId=${sessionId}`);
+    } catch (error) { state('owner', `실패: ${error.message}`); log('owner', `오류: ${error.message}`); }
+  }
+</script>
+</body>
+</html>

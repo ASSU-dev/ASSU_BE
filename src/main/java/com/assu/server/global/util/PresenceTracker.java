@@ -19,17 +19,18 @@ public class PresenceTracker {
     private final Map<Long, Set<Long>> roomSubscribers = new ConcurrentHashMap<>();
     private final Map<String, Long> sessionToMember = new ConcurrentHashMap<>();
     private final Map<String, Set<Long>> sessionToRooms = new ConcurrentHashMap<>();
+    // "sessionId:subscriptionId" -> roomId: 특정 구독 해제 시 어느 방인지 추적
+    private final Map<String, Long> subToRoom = new ConcurrentHashMap<>();
 
     private Long parseRoomId(String dest) { // "/sub/chat/26" -> 26
         if (dest == null) return null;
         String[] p = dest.split("/");
-        if (p.length >= 4 && "chat".equals(p[2])) return Long.valueOf(p[3]);
+        if (p.length == 4 && "chat".equals(p[2])) return Long.valueOf(p[3]);
         return null;
     }
 
     private Long memberIdFrom(Principal user) {
         if (user == null) return null;
-        // StompAuthChannelInterceptor 에서 Principal.name을 memberId로 넣어두었다고 가정
         return Long.valueOf(user.getName());
     }
 
@@ -37,13 +38,21 @@ public class PresenceTracker {
     public void onSubscribe(SessionSubscribeEvent e) {
         var acc = StompHeaderAccessor.wrap(e.getMessage());
         Long roomId = parseRoomId(acc.getDestination());
-        Long memberId = memberIdFrom(e.getUser());
+        Principal user = e.getUser() != null ? e.getUser() : acc.getUser();
+        Long memberId = memberIdFrom(user);
+        log.info("[PresenceTracker] onSubscribe dest={} eUser={} accUser={} -> memberId={} roomId={}",
+                acc.getDestination(), e.getUser(), acc.getUser(), memberId, roomId);
         if (roomId == null || memberId == null) return;
 
         String sessionId = acc.getSessionId();
+        String subId = acc.getSubscriptionId();
+
         sessionToMember.put(sessionId, memberId);
         sessionToRooms.computeIfAbsent(sessionId, k -> ConcurrentHashMap.newKeySet()).add(roomId);
         roomSubscribers.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet()).add(memberId);
+        if (subId != null) {
+            subToRoom.put(sessionId + ":" + subId, roomId);
+        }
 
         log.debug("SUB: member {} -> room {}", memberId, roomId);
     }
@@ -52,19 +61,22 @@ public class PresenceTracker {
     public void onUnsubscribe(SessionUnsubscribeEvent e) {
         var acc = StompHeaderAccessor.wrap(e.getMessage());
         String sessionId = acc.getSessionId();
-        var rooms = sessionToRooms.getOrDefault(sessionId, Set.of());
+        String subId = acc.getSubscriptionId();
+
+        Long roomId = subToRoom.remove(sessionId + ":" + subId);
+        if (roomId == null) return; // 채팅방 구독이 아닌 경우 무시
+
         Long memberId = sessionToMember.get(sessionId);
         if (memberId != null) {
-            for (Long roomId : rooms) {
-                var set = roomSubscribers.get(roomId);
-                if (set != null) {
-                    set.remove(memberId);
-                    if (set.isEmpty()) roomSubscribers.remove(roomId);
-                }
+            var set = roomSubscribers.get(roomId);
+            if (set != null) {
+                set.remove(memberId);
+                if (set.isEmpty()) roomSubscribers.remove(roomId);
             }
         }
-        sessionToRooms.remove(sessionId);
-        log.debug("UNSUB: session {}", sessionId);
+        sessionToRooms.getOrDefault(sessionId, Set.of()).remove(roomId);
+
+        log.debug("UNSUB: member {} <- room {}", memberId, roomId);
     }
 
     @EventListener
@@ -81,6 +93,7 @@ public class PresenceTracker {
                 }
             }
         }
+        subToRoom.keySet().removeIf(key -> key.startsWith(sessionId + ":"));
         log.debug("DISCONNECT: session {}", sessionId);
     }
 
