@@ -132,7 +132,6 @@ public class CertificationServiceImpl implements CertificationService {
 			);
 
 			AssociateCertification certification = AssociateCertification.builder()
-				.id(sessionId)
 				.store(store)
 				.peopleNumber(targetPeople)
 				.isCertified(true)
