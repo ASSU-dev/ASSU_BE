@@ -1,10 +1,22 @@
 package com.assu.server.domain.backoffice.service;
 
+import java.util.List;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.backoffice.dto.BackofficeReportDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeReportResponseDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeReportStatusUpdateRequestDTO;
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.domain.report.entity.Report;
 import com.assu.server.domain.report.entity.enums.ReportStatus;
 import com.assu.server.domain.report.entity.enums.ReportTargetType;
+import com.assu.server.domain.report.event.ReportProcessedEvent;
 import com.assu.server.domain.report.repository.ReportRepository;
 import com.assu.server.domain.review.entity.Review;
 import com.assu.server.domain.review.repository.ReviewRepository;
@@ -12,16 +24,12 @@ import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
-import com.assu.server.domain.report.event.ReportProcessedEvent;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class BackofficeReportServiceImpl implements BackofficeReportService {
 
     private final ReviewRepository reviewRepository;
@@ -29,7 +37,40 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
     private final ReportRepository reportRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BackofficeReportResponseDTO> getReports(Pageable pageable) {
+        Page<Report> reports = reportRepository.findAll(pageable);
+        return reports.map(BackofficeReportResponseDTO::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BackofficeReportResponseDTO getReportDetail(Long reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_REPORT));
+        return BackofficeReportResponseDTO.from(report);
+    }
+
+    @Override
+    public BackofficeReportResponseDTO updateReportStatus(Long reportId, BackofficeReportStatusUpdateRequestDTO req) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_REPORT));
+
+        ReportStatus nextStatus;
+        try {
+            nextStatus = ReportStatus.valueOf(req.status().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomAuthException(ErrorStatus._BAD_REQUEST);
+        }
+
+        report.updateStatus(nextStatus);
+
+        reportRepository.save(report);
+
+        return BackofficeReportResponseDTO.from(report);
+    }
+
     @Override
     public BackofficeReportDTO.SoftDeleteResponseDTO softDeleteReview(Long reviewId) {
         Review review = reviewRepository.findById(reviewId)
@@ -44,7 +85,6 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(reviewId);
     }
 
-    @Transactional
     @Override
     public BackofficeReportDTO.SoftDeleteResponseDTO softDeleteSuggestion(Long suggestionId) {
         Suggestion suggestion = suggestionRepository.findById(suggestionId)
@@ -59,7 +99,6 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(suggestionId);
     }
 
-    @Transactional
     @Override
     public BackofficeReportDTO.RejectReportResponseDTO rejectReport(Long reportId) {
         Report report = reportRepository.findById(reportId)
@@ -77,6 +116,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<BackofficeReportDTO.ReportListItemDTO> getReports(boolean pending, boolean processed, boolean rejected) {
         List<ReportStatus> statuses = new java.util.ArrayList<>();
 
