@@ -48,7 +48,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "REPORT_STATUS_UPDATE", targetId = "#reportId")
-    @Operation(summary = "신고 상태 변경 및 기본 처리 API (백오피스용)", description = "신고의 처리 상태를 변경하고 관련 메모를 남깁니다.")
+    @Operation(summary = "신고 상태 변경 및 기본 처리 API (백오피스용)", description = "신고의 처리 상태를 변경합니다.")
     @PatchMapping("/{reportId}/status")
     public BaseResponse<BackofficeReportResponseDTO> updateReportStatus(
             @PathVariable @Parameter(description = "신고 ID", required = true) Long reportId,
