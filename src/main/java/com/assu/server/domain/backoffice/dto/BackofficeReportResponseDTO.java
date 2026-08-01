@@ -12,7 +12,7 @@ public record BackofficeReportResponseDTO(
         String targetType,
         Long targetId,
         Long reportedId,
-        String content,
+        String reportType,
         String status,
         LocalDateTime createdAt
 ) {
