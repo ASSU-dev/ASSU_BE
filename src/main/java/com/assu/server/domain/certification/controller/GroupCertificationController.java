@@ -4,12 +4,12 @@ import java.security.Principal;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.global.util.PrincipalDetails;
@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Component
 @RequestMapping("/app")
-@PreAuthorize("hasRole('STUDENT')")
 public class GroupCertificationController {
 
 	private final CertificationService certificationService;
@@ -39,7 +38,7 @@ public class GroupCertificationController {
 			"  - `adminId` (Long, required): 인증하고자 하는 제휴의 관리자 ID\n" +
 			"  - `sessionId` (Long, required): 인증하고자 하는 그룹 세션 ID\n\n"
 	)
-	public void certifyGroup(@Payload GroupSessionRequest dto,
+	public CertificationProgressResponseDTO certifyGroup(@Payload GroupSessionRequest dto,
 		Principal principal) {
 		if (principal instanceof UsernamePasswordAuthenticationToken) {
 			UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken)principal;
@@ -50,11 +49,13 @@ public class GroupCertificationController {
 					principalDetails.getUsername(), dto.adminId(), dto.sessionId());
 
 				if (principalDetails != null) {
-					certificationService.handleCertification(dto, principalDetails.getMember());
+					return certificationService.handleCertification(dto, principalDetails.getMember());
 				}
 			} catch (Exception e) {
+				log.error("### ERROR ### 인증 처리 중 오류 발생: {}", e.getMessage(), e);
 			}
 		}
+		return null;
 	}
 
 }

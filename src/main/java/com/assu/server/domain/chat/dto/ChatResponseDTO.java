@@ -2,6 +2,7 @@ package com.assu.server.domain.chat.dto;
 
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
+import com.assu.server.domain.chat.entity.enums.ChatEventType;
 import com.assu.server.domain.chat.entity.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -37,6 +38,7 @@ public class ChatResponseDTO {
 
     // 메시지 전송
     public record SendMessageResponseDTO(
+        ChatEventType eventType,
         Long messageId,
         Long roomId,
         Long senderId,
@@ -48,10 +50,9 @@ public class ChatResponseDTO {
         Integer unreadCountForSender
     ) {
 
-        public static SendMessageResponseDTO from(
-                Message message
-        ) {
+        public static SendMessageResponseDTO from(Message message) {
             return new SendMessageResponseDTO(
+                    ChatEventType.MESSAGE,
                     message.getId(),
                     message.getChattingRoom().getId(),
                     message.getSender().getId(),
@@ -61,13 +62,12 @@ public class ChatResponseDTO {
                     message.getCreatedAt(),
                     message.getUnreadCount()
             );
-
-
         }
     }
 
     // 메시지 읽음 처리
     public record ReadMessageResponseDTO(
+        ChatEventType eventType,
         Long roomId,
         Long readerId,
         List<Long> readMessagesId,
@@ -94,8 +94,6 @@ public class ChatResponseDTO {
             Long roomId,
             boolean isLeftSuccessfully,
             boolean isRoomDeleted
-    ) {
-
-    }
+    ) {}
 }
 

@@ -185,11 +185,12 @@ public class AuthController {
 
     @Operation(
             summary = "제휴업체 회원가입 API",
-            description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
+            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, PartnerSignUpRequestDTO) + `licenseImage`(파일, 사업자등록증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
-                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `PartnerSignUpRequestDTO` 객체\n" +
                     "    - `phoneNumber` (String, required): 휴대폰 번호\n" +
@@ -216,8 +217,8 @@ public class AuthController {
                     "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (PARTNER)\n" +
-                    "  - `status` (ActivationStatus): 회원 상태 (ACTIVE)\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
+                    "  - `status` (ActivationStatus): 회원 상태 (SUSPEND)\n" +
+                    "  - `tokens` (Object): 승인 전까지 null\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 업체명\n" +
                     "    - `university` (String): null (Partner는 해당 없음)\n" +
@@ -253,11 +254,12 @@ public class AuthController {
 
     @Operation(
             summary = "관리자 회원가입 API",
-            description = "# [v1.2 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
+            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, AdminSignUpRequestDTO) + `signImage`(파일, 신분증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
-                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `AdminSignUpRequestDTO` 객체\n" +
                     "    - `phoneNumber` (String, required): 휴대폰 번호\n" +
@@ -284,8 +286,8 @@ public class AuthController {
                     "  - 성공 시 200(OK)과 `SignUpResponseDTO` 객체 반환\n" +
                     "  - `memberId` (Long): 회원 ID\n" +
                     "  - `role` (UserRole): 회원 역할 (ADMIN)\n" +
-                    "  - `status` (ActivationStatus): 회원 상태 (ACTIVE)\n" +
-                    "  - `tokens` (Object): JWT 토큰 정보 (accessToken, refreshToken)\n" +
+                    "  - `status` (ActivationStatus): 회원 상태 (SUSPEND)\n" +
+                    "  - `tokens` (Object): 승인 전까지 null\n" +
                     "  - `basicInfo` (UserBasicInfo): 사용자 기본 정보 (프론트 캐싱용)\n" +
                     "    - `name` (String): 단체명/관리자 이름\n" +
                     "    - `university` (String): 대학교 (한글명)\n" +
@@ -321,10 +323,11 @@ public class AuthController {
 
     @Operation(
             summary = "공통 로그인 API",
-            description = "# [v1.1 (2025-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed811c961be6a474de0e50)\n" +
+            description = "# [v1.2 (2026-07-03)](https://clumsy-seeder-416.notion.site/2241197c19ed811c961be6a474de0e50)\n" +
                     "- `application/json`로 호출합니다.\n" +
                     "- 바디: `CommonLoginRequestDTO(email, password)`.\n" +
                     "- 처리: 자격 증명 검증 후 Access/Refresh 토큰 발급 및 저장.\n" +
+                    "- `SUSPEND`(승인 대기) 상태 계정은 자격 증명이 맞아도 로그인할 수 없습니다.\n" +
                     "- 성공 시 200(OK)과 토큰(accessToken/refreshToken), 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
                     "  - `CommonLoginRequestDTO` 객체 (JSON, required): 로그인 정보\n" +
@@ -340,7 +343,10 @@ public class AuthController {
                     "    - `name` (String): 업체명/단체명/관리자 이름\n" +
                     "    - `university` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
                     "    - `department` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
-                    "    - `major` (String): Admin인 경우 한글명, Partner인 경우 null"
+                    "    - `major` (String): Admin인 경우 한글명, Partner인 경우 null\n" +
+                    "  - 403(FORBIDDEN): `MEMBER_4017` — 가입 승인 대기(`SUSPEND`) 상태\n" +
+                    "  - 403(FORBIDDEN): `BACKOFFICE4003` — BACKOFFICE 계정은 `/auth/backoffice/login` 사용\n" +
+                    "  - 401(UNAUTHORIZED): 이메일/비밀번호 불일치"
     )
     @PostMapping(value = "/commons/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<LoginResponseDTO> loginCommon(

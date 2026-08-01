@@ -70,17 +70,6 @@ public interface ChatRepository extends JpaRepository<ChattingRoom, Long> {
     List<ChatRoomListResultDTO> findChattingRoomsByMemberId(@Param("memberId") Long memberId);
 
     @Query("""
-        SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
-        FROM ChattingRoom c
-        WHERE c.admin.id = :adminId AND c.partner.id = :partnerId
-    """)
-    Boolean checkChattingRoomByAdminIdAndPartnerId(
-            @Param("adminId") Long adminId,
-            @Param("partnerId") Long partnerId
-    );
-
-
-    @Query("""
         SELECT c
         FROM ChattingRoom c
         WHERE c.admin.id = :adminId AND c.partner.id = :partnerId

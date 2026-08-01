@@ -32,10 +32,15 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         jwtUtil.blacklistAccess(rawAccessToken);
     }
 
-    private void withdrawMember(Long memberId) {
+    @Override
+    public void withdrawMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+        withdrawMember(member);
+    }
 
+    @Override
+    public void withdrawMember(Member member) {
         if (member.getDeletedAt() != null) {
             throw new CustomAuthException(ErrorStatus.MEMBER_ALREADY_WITHDRAWN);
         }
@@ -44,6 +49,6 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         member.setDeletedAt(java.time.LocalDateTime.now());
         memberRepository.save(member);
 
-        jwtUtil.removeAllRefreshTokens(memberId);
+        jwtUtil.removeAllRefreshTokens(member.getId());
     }
 }

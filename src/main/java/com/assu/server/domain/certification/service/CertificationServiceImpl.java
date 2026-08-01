@@ -25,11 +25,13 @@ import com.assu.server.global.exception.GeneralException;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 // AdminService 참조, 순환 참조 문제 주의
 @Transactional
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CertificationServiceImpl implements CertificationService {
 	private final StoreRepository storeRepository;
 	private final AssociateCertificationRepository associateCertificationRepository;
@@ -47,7 +49,7 @@ public class CertificationServiceImpl implements CertificationService {
 		CertificationGroupRequestDTO dto, Member member){
 		Long userId = member.getId();
 
-		Long sessionId = sessionManager.openSession(dto.storeId(), dto.people());
+		Long sessionId = sessionManager.openSession(dto.storeId(), dto.people(), userId);
 
 		sessionManager.addUserToSession(sessionId, userId);
 
@@ -56,7 +58,32 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
-	public void handleCertification(GroupSessionRequest dto, Member member) {
+	public void expireSession(Long sessionId, Member member) {
+		if (!sessionManager.exists(sessionId)) {
+			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+		}
+
+		Long ownerId = Long.valueOf(sessionManager.getSessionInfo(sessionId, "ownerId"));
+		if (!ownerId.equals(member.getId())) {
+			throw new GeneralException(ErrorStatus._FORBIDDEN);
+		}
+
+		List<Long> certifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+		sessionManager.removeSession(sessionId);
+
+		messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
+			new CertificationProgressResponseDTO(
+				"expired",
+				certifiedUserIds.size(),
+				"인증 세션이 만료되었습니다.",
+				certifiedUserIds
+			));
+		log.info("인증 세션 만료 이벤트 전송 - sessionId: {}, certifiedCount: {}, destination: /certification/progress/{}",
+			sessionId, certifiedUserIds.size(), sessionId);
+	}
+
+	@Override
+	public CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member) {
 		Long userId = member.getId();
 		Long sessionId = dto.sessionId();
 
@@ -72,12 +99,25 @@ public class CertificationServiceImpl implements CertificationService {
 		boolean matched = admins.stream().anyMatch(admin -> admin.getId().equals(dto.adminId()));
 
 		if (!matched) {
-			throw new IllegalArgumentException("학생과 매치되지 않는 정보입니다.");
+			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
+				"fail",
+				currentCertifiedUserIds.size(),
+				"mismatch",
+				currentCertifiedUserIds
+			);
+			return response;
 		}
 
 		if (sessionManager.hasUser(sessionId, userId)) {
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("progress", null, "doubled member", sessionManager.snapshotUserIds(sessionId)));
+			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
+				"progress",
+				null,
+				"doubled member",
+				currentCertifiedUserIds
+			);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
 
@@ -85,13 +125,13 @@ public class CertificationServiceImpl implements CertificationService {
 		List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 		int currentCount = currentCertifiedUserIds.size();
 
+		CertificationProgressResponseDTO response;
 		if (currentCount >= targetPeople) {
 			Store store = storeRepository.findById(storeId).orElseThrow(
 				() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
 			);
 
 			AssociateCertification certification = AssociateCertification.builder()
-				.id(sessionId)
 				.store(store)
 				.peopleNumber(targetPeople)
 				.isCertified(true)
@@ -100,15 +140,17 @@ public class CertificationServiceImpl implements CertificationService {
 
 			associateCertificationRepository.save(certification);
 
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds));
+			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 
 			sessionManager.removeSession(sessionId);
 		} else {
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
-				new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds));
+			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 		}
+		return response;
 	}
+
 	@Override
 	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
