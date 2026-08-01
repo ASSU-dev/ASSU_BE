@@ -8,7 +8,7 @@ public record BackofficeReportResponseDTO(
         String reporterName,
         String targetType,
         Long targetId,
-        Long reason,
+        Long reportedId,
         String content,
         String status,
         LocalDateTime createdAt
