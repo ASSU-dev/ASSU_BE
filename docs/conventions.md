@@ -118,7 +118,22 @@ feature 브랜치 → develop → main
 [TYPE/#이슈번호] 한글 설명
 ```
 
-커밋 메시지 형식과 동일합니다.
+커밋 메시지 형식과 동일합니다. 배포 PR은 `[DEPLOY]` 타입을 사용합니다.
+
+| 상황 | 예시 |
+|------|------|
+| 일반 작업 PR | `[FEAT/#395] AI Native 개발 환경 세팅` |
+| 버그 수정 PR | `[FIX/#385] 알림 ALL 토글 버그 수정` |
+| 배포 PR | `[DEPLOY] v.71 백오피스 기능 추가` |
+
+### PR 대상 브랜치
+
+| PR 종류 | head → base |
+|---------|------------|
+| 일반 작업 | `feat/fix/refactor/... 브랜치` → `develop` |
+| 배포 | `develop` → `main` |
+
+> 대부분의 PR은 `develop`으로 머지합니다. `main`으로 직접 올리는 경우는 배포 시점에만 진행합니다.
 
 ### PR 본문 템플릿
 
@@ -138,11 +153,6 @@ feature 브랜치 → develop → main
 ## 비고 (Optional)
 > 참고 링크, 레퍼런스 등
 ```
-
-### PR 대상 브랜치
-
-- 작업 브랜치 → `develop` (기본)
-- `develop` → `main` (배포용)
 
 ---
 
