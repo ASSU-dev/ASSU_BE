@@ -91,9 +91,9 @@ public class ReportStatusSyncService {
 
     private ReportedStatus mapReportStatusToReportedStatus(ReportStatus reportStatus) {
         return switch (reportStatus) {
-            case PROCESSED -> ReportedStatus.REPORTED;
+            case PROCESSED -> ReportedStatus.DELETED;
             case REJECTED -> ReportedStatus.NORMAL;
-            case PENDING, UNDER_REVIEW -> null; // PENDING 상태는 상태 변경하지 않음
+            case PENDING -> null;
         };
     }
 }

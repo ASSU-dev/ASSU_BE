@@ -34,6 +34,7 @@ dependencies {
 	// spring security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	implementation 'org.springframework.security:spring-security-messaging'
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	// redis

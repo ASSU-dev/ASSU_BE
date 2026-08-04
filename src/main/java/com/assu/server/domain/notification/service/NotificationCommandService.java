@@ -9,6 +9,7 @@ import java.util.Map;
 
 public interface NotificationCommandService {
     Notification createAndQueue(Long receiverId, NotificationType type, Long refId, Map<String, Object> ctx);
+
     void markRead(Long notificationId, Long currentMemberId) throws AccessDeniedException;
     void queue(QueueNotificationRequestDTO req);
     Map<String, Boolean> toggle(Long memberId, NotificationType type);

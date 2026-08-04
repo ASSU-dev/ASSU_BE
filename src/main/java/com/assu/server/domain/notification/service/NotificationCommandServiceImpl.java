@@ -77,12 +77,15 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         if (type == NotificationType.PARTNER_ALL) {
-            toggleSingle(member, NotificationType.CHAT);
-            toggleSingle(member, NotificationType.ORDER);
+            // toggleSingle이 반전 후 새 값을 반환하므로, 그 값으로 하위 타입도 동일하게 설정
+            boolean newValue = toggleSingle(member, NotificationType.PARTNER_ALL);
+            setSingle(member, NotificationType.CHAT, newValue);
+            setSingle(member, NotificationType.ORDER, newValue);
         } else if (type == NotificationType.ADMIN_ALL) {
-            toggleSingle(member, NotificationType.CHAT);
-            toggleSingle(member, NotificationType.PARTNER_SUGGESTION);
-            toggleSingle(member, NotificationType.PARTNER_PROPOSAL);
+            boolean newValue = toggleSingle(member, NotificationType.ADMIN_ALL);
+            setSingle(member, NotificationType.CHAT, newValue);
+            setSingle(member, NotificationType.PARTNER_SUGGESTION, newValue);
+            setSingle(member, NotificationType.PARTNER_PROPOSAL, newValue);
         } else {
             toggleSingle(member, type);
         }
@@ -232,6 +235,22 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
     @Override
     public boolean isEnabled(Long memberId, NotificationType type) {
+        // ALL 스위치가 off이면 하위 타입도 전송 차단
+        // CHAT은 PARTNER_ALL(파트너) 또는 ADMIN_ALL(어드민) 둘 다 커버 가능 → 둘 다 체크
+        List<NotificationType> allTypes = switch (type) {
+            case CHAT -> List.of(NotificationType.PARTNER_ALL, NotificationType.ADMIN_ALL);
+            case ORDER -> List.of(NotificationType.PARTNER_ALL);
+            case PARTNER_SUGGESTION, PARTNER_PROPOSAL -> List.of(NotificationType.ADMIN_ALL);
+            default -> List.of();
+        };
+
+        for (NotificationType allType : allTypes) {
+            boolean allEnabled = notificationSettingRepository.findByMemberIdAndType(memberId, allType)
+                    .map(ns -> Boolean.TRUE.equals(ns.getEnabled()))
+                    .orElse(true);
+            if (!allEnabled) return false;
+        }
+
         return notificationSettingRepository.findByMemberIdAndType(memberId, type)
                 .map(ns -> Boolean.TRUE.equals(ns.getEnabled()))
                 .orElse(true);
@@ -251,10 +270,23 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         return setting.getEnabled();
     }
 
+    private void setSingle(Member member, NotificationType type, boolean enabled) {
+        NotificationSetting setting = notificationSettingRepository
+                .findByMemberIdAndType(member.getId(), type)
+                .orElse(NotificationSetting.builder()
+                        .member(member)
+                        .type(type)
+                        .enabled(true)
+                        .build());
+
+        setting.setEnabled(enabled);
+        notificationSettingRepository.save(setting);
+    }
+
     private Map<String, Boolean> buildToggleResult(Long memberId, UserRole role) {
         EnumSet<NotificationType> visibleTypes = switch(role) {
-            case ADMIN -> EnumSet.of(NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL);
-            case PARTNER -> EnumSet.of(NotificationType.CHAT, NotificationType.ORDER);
+            case ADMIN -> EnumSet.of(NotificationType.ADMIN_ALL, NotificationType.CHAT, NotificationType.PARTNER_SUGGESTION, NotificationType.PARTNER_PROPOSAL);
+            case PARTNER -> EnumSet.of(NotificationType.PARTNER_ALL, NotificationType.CHAT, NotificationType.ORDER);
             case STUDENT -> EnumSet.of(NotificationType.STAMP);
             case BACKOFFICE -> EnumSet.noneOf(NotificationType.class);
         };

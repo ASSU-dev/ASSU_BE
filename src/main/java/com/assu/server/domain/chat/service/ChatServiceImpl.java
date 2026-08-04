@@ -5,11 +5,11 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.chat.dto.*;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
+import com.assu.server.domain.chat.repository.BlockRepository;
 import com.assu.server.domain.chat.entity.enums.ChatEventType;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
@@ -19,6 +19,7 @@ import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PresenceTracker;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class ChatServiceImpl implements ChatService {
     private final SimpMessagingTemplate simpMessagingTemplate;
     private final NotificationCommandService notificationCommandService;
     private final PresenceTracker presenceTracker;
+    private final BlockRepository blockRepository;
 
 
     @Override
@@ -92,6 +94,14 @@ public class ChatServiceImpl implements ChatService {
         Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
+        // 차단 검증 — 운영자가 개인 차단하거나 두 멤버 사이를 차단한 경우 메시지 전송 불가
+        if (Boolean.TRUE.equals(sender.getChatBlocked())) {
+            throw new GeneralException(ErrorStatus.MEMBER_CHAT_BLOCKED);
+        }
+        if (blockRepository.existsBlockRelationBetween(sender, receiver)) {
+            throw new GeneralException(ErrorStatus.MEMBER_CHAT_BLOCKED);
+        }
+
         // 2. 컨트롤러에서 가져온 비즈니스 로직 (접속 확인)
         boolean receiverInRoom = presenceTracker.isInRoom(request.receiverId(), request.roomId());
         int unreadForSender = receiverInRoom ? 0 : 1;
@@ -121,12 +131,7 @@ public class ChatServiceImpl implements ChatService {
             );
 
             // 4-3. 발신자 이름 찾기 (기존 컨트롤러 로직)
-            String senderName;
-            if (sender.getRole() == UserRole.ADMIN) { // 이미 sender 객체가 있으므로 재활용
-                senderName = sender.getAdminProfile().getName();
-            } else {
-                senderName = sender.getPartnerProfile().getName();
-            }
+            String senderName = sender.resolveName();
 
             // 4-4. 알림 전송
             notificationCommandService.sendChat(request.receiverId(), request.roomId(), senderName, request.message());

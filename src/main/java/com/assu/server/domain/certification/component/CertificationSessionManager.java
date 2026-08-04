@@ -20,7 +20,7 @@ public class CertificationSessionManager {
 
 
 
-	public Long openSession(Long storeId, Integer peopleNumber) {
+	public Long openSession(Long storeId, Integer peopleNumber, Long ownerId) {
 		Long newSessionId = redisTemplate.opsForValue().increment(ID_COUNTER_KEY);
 		if (newSessionId == null) throw new RuntimeException("ID 생성 실패");
 
@@ -32,6 +32,7 @@ public class CertificationSessionManager {
 
 		redisTemplate.opsForHash().put(infoKey, "storeId", String.valueOf(storeId));
 		redisTemplate.opsForHash().put(infoKey, "peopleNumber", String.valueOf(peopleNumber));
+		redisTemplate.opsForHash().put(infoKey, "ownerId", String.valueOf(ownerId));
 		redisTemplate.expire(infoKey, 10, TimeUnit.MINUTES);
 
 		return newSessionId;

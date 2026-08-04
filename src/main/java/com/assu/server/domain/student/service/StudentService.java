@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
 
 public interface StudentService {
@@ -14,4 +15,5 @@ public interface StudentService {
 	List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all);
 	void syncUserPapersForAllStudents();
 	StudentResponseDTO.CheckStampResponseDTO addStamp(Long id);
+	StudentProfileResponseDTO getStudentProfile(Long memberId);
 }
