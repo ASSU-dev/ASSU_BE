@@ -1,4 +1,4 @@
-package com.assu.server.infra.firebase;
+package com.assu.server.infra.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.*;
@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@ConditionalOnRabbitEnabled
 public class AmqpConfig {
     public static final String EXCHANGE = "notif.ex";
     public static final String ROUTING_KEY = "notif.send";

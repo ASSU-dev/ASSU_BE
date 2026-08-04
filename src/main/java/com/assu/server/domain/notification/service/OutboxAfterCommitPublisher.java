@@ -4,7 +4,8 @@ package com.assu.server.domain.notification.service;
 import com.assu.server.domain.notification.dto.NotificationMessageDTO;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
 import com.assu.server.domain.notification.event.NotificationFailedEvent;
-import com.assu.server.infra.firebase.AmqpConfig;
+import com.assu.server.infra.messaging.AmqpConfig;
+import com.assu.server.infra.messaging.ConditionalOnRabbitEnabled;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -18,6 +19,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnRabbitEnabled
 public class OutboxAfterCommitPublisher {
     private final RabbitTemplate rabbit;
     private final OutboxStatusService outboxStatus;
