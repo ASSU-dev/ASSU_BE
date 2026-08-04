@@ -27,10 +27,10 @@ import com.assu.server.domain.chat.dto.MessageHandlingResult;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
 import com.assu.server.domain.chat.entity.enums.MessageType;
+import com.assu.server.domain.chat.repository.BlockRepository;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
@@ -270,9 +270,7 @@ class ChatServiceImplTest {
 		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
 
 		Member sender = givenMember(PARTNER_ID);
-		when(sender.getRole()).thenReturn(UserRole.PARTNER);
-		when(sender.getPartnerProfile()).thenReturn(
-			Partner.builder().name("역전할머니 맥주").isPhoneVerified(false).build());
+		when(sender.resolveName()).thenReturn("역전할머니 맥주");
 
 		Member receiver = givenMember(ADMIN_ID);
 		when(presenceTracker.isInRoom(ADMIN_ID, ROOM_ID)).thenReturn(false);

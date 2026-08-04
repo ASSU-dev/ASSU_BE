@@ -57,6 +57,7 @@ class StoreServiceImplTest {
 
 		// 3. Then
 		assertNotNull(response);
+		assertEquals(List.of("역전할머니 맥주", "숭실분식"), response.bestStores());
 		verify(storeRepository, times(1)).findTodayBestStoreNames();
 	}
 

@@ -15,14 +15,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.chat.dto.BlockResponseDTO;
 import com.assu.server.domain.chat.entity.Block;
 import com.assu.server.domain.chat.repository.BlockRepository;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
-import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
@@ -50,8 +48,7 @@ class BlockServiceImplTest {
 	private Member givenBlockedAdmin(String name) {
 		Member blocked = mock(Member.class);
 		when(blocked.getRole()).thenReturn(UserRole.ADMIN);
-		when(blocked.getAdminProfile()).thenReturn(
-			Admin.builder().name(name).isPhoneVerified(false).build());
+		when(blocked.resolveName()).thenReturn(name);
 		when(memberRepository.findById(BLOCKED_ID)).thenReturn(Optional.of(blocked));
 		return blocked;
 	}
@@ -148,8 +145,7 @@ class BlockServiceImplTest {
 		Member blocker = givenBlocker();
 		Member blocked = mock(Member.class);
 		when(blocked.getRole()).thenReturn(UserRole.PARTNER);
-		when(blocked.getPartnerProfile()).thenReturn(
-			Partner.builder().name("역전할머니 맥주").isPhoneVerified(false).build());
+		when(blocked.resolveName()).thenReturn("역전할머니 맥주");
 		when(memberRepository.findById(BLOCKED_ID)).thenReturn(Optional.of(blocked));
 		when(blockRepository.existsBlockRelationBetween(blocker, blocked)).thenReturn(false);
 
@@ -185,9 +181,7 @@ class BlockServiceImplTest {
 
 		Member blockedMember = mock(Member.class);
 		when(blockedMember.getId()).thenReturn(BLOCKED_ID);
-		when(blockedMember.getRole()).thenReturn(UserRole.PARTNER);
-		when(blockedMember.getPartnerProfile()).thenReturn(
-			Partner.builder().name("역전할머니 맥주").isPhoneVerified(false).build());
+		when(blockedMember.resolveName()).thenReturn("역전할머니 맥주");
 
 		Block block = Block.builder().blocker(blocker).blocked(blockedMember).build();
 		when(blockRepository.findByBlocker(blocker)).thenReturn(List.of(block));

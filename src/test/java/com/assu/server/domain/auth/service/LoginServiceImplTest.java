@@ -22,6 +22,7 @@ import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.auth.security.userdetails.CommonUserDetails;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
@@ -63,15 +64,14 @@ class LoginServiceImplTest {
 		// 1. Given
 		CommonLoginRequestDTO request = new CommonLoginRequestDTO("back@assu.com", "password1!");
 
+		CommonUserDetails userDetails = new CommonUserDetails(
+			"back@assu.com", "encoded", true, List.of(), ActivationStatus.ACTIVE, UserRole.BACKOFFICE);
+
 		Authentication authentication = mock(Authentication.class);
-		when(authentication.getName()).thenReturn("back@assu.com");
+		when(authentication.getPrincipal()).thenReturn(userDetails);
 		when(authenticationManager.authenticate(any())).thenReturn(authentication);
 
 		when(commonAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
-
-		Member backofficeMember = mock(Member.class);
-		when(backofficeMember.getRole()).thenReturn(UserRole.BACKOFFICE);
-		when(commonAdapter.loadMember("back@assu.com")).thenReturn(backofficeMember);
 
 		// 2. When
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -88,8 +88,12 @@ class LoginServiceImplTest {
 		// 1. Given
 		CommonLoginRequestDTO request = new CommonLoginRequestDTO("partner@assu.com", "password1!");
 
+		CommonUserDetails userDetails = new CommonUserDetails(
+			"partner@assu.com", "encoded", true, List.of(), ActivationStatus.ACTIVE, UserRole.PARTNER);
+
 		Authentication authentication = mock(Authentication.class);
 		when(authentication.getName()).thenReturn("partner@assu.com");
+		when(authentication.getPrincipal()).thenReturn(userDetails);
 		when(authenticationManager.authenticate(any())).thenReturn(authentication);
 
 		when(commonAdapter.supports(AuthRealm.COMMON)).thenReturn(true);

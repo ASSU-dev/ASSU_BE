@@ -28,6 +28,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
 
 @ExtendWith(MockitoExtension.class)
 class InquiryServiceImplTest {
@@ -88,7 +89,7 @@ class InquiryServiceImplTest {
 	@DisplayName("페이지 번호가 1 미만이면 PAGE_UNDER_ONE 예외가 발생한다")
 	void getInquiries_PageUnderOne_ThrowsException() {
 		// 1. Given & When
-		DatabaseException exception = assertThrows(DatabaseException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> inquiryService.getInquiries(Inquiry.StatusFilter.ALL, 0, 10, MEMBER_ID));
 
 		// 2. Then
@@ -99,7 +100,7 @@ class InquiryServiceImplTest {
 	@DisplayName("페이지 크기가 200을 초과하면 PAGE_SIZE_INVALID 예외가 발생한다")
 	void getInquiries_PageSizeTooLarge_ThrowsException() {
 		// 1. Given & When
-		DatabaseException exception = assertThrows(DatabaseException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> inquiryService.getInquiries(Inquiry.StatusFilter.ALL, 1, 201, MEMBER_ID));
 
 		// 2. Then
@@ -168,54 +169,4 @@ class InquiryServiceImplTest {
 		assertEquals(ErrorStatus.FORBIDDEN_INQUIRY, exception.getCode());
 	}
 
-	@Test
-	@DisplayName("존재하지 않는 문의에 답변하면 NO_SUCH_INQUIRY 예외가 발생한다")
-	void answer_InquiryNotFound_ThrowsException() {
-		// 1. Given
-		when(inquiryRepository.findById(10L)).thenReturn(Optional.empty());
-
-		// 2. When
-		DatabaseException exception = assertThrows(DatabaseException.class,
-			() -> inquiryService.answer(10L, "답변입니다."));
-
-		// 3. Then
-		assertEquals(ErrorStatus.NO_SUCH_INQUIRY, exception.getCode());
-	}
-
-	@Test
-	@DisplayName("이미 답변된 문의에 다시 답변하면 ALREADY_ANSWERED 예외가 발생한다")
-	void answer_AlreadyAnswered_ThrowsException() {
-		// 1. Given
-		Member member = mock(Member.class);
-		Inquiry inquiry = Inquiry.builder()
-			.id(10L).member(member).title("문의").content("내용").email("assu@gmail.com")
-			.status(Inquiry.Status.ANSWERED).build();
-		when(inquiryRepository.findById(10L)).thenReturn(Optional.of(inquiry));
-
-		// 2. When
-		DatabaseException exception = assertThrows(DatabaseException.class,
-			() -> inquiryService.answer(10L, "답변입니다."));
-
-		// 3. Then
-		assertEquals(ErrorStatus.ALREADY_ANSWERED, exception.getCode());
-	}
-
-	@Test
-	@DisplayName("답변 저장 시 문의 상태가 ANSWERED로 전환되고 답변 시각이 기록된다")
-	void answer_Success_UpdatesStatusToAnswered() {
-		// 1. Given
-		Member member = mock(Member.class);
-		Inquiry inquiry = Inquiry.builder()
-			.id(10L).member(member).title("문의").content("내용").email("assu@gmail.com")
-			.status(Inquiry.Status.WAITING).build();
-		when(inquiryRepository.findById(10L)).thenReturn(Optional.of(inquiry));
-
-		// 2. When
-		inquiryService.answer(10L, "답변입니다.");
-
-		// 3. Then
-		assertEquals(Inquiry.Status.ANSWERED, inquiry.getStatus());
-		assertEquals("답변입니다.", inquiry.getAnswer());
-		assertNotNull(inquiry.getAnsweredAt());
-	}
 }

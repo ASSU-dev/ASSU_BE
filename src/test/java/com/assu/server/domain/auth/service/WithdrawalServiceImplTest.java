@@ -87,6 +87,7 @@ class WithdrawalServiceImplTest {
 	void withdrawCurrentUser_Success_SoftDeletesAndRevokesTokens() {
 		// 1. Given
 		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
 		when(member.getDeletedAt()).thenReturn(null);
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
 

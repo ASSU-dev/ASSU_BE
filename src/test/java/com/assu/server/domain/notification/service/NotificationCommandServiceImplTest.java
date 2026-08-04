@@ -188,6 +188,10 @@ class NotificationCommandServiceImplTest {
 		Member member = givenMember();
 		NotificationSetting disabled = NotificationSetting.builder()
 			.member(member).type(NotificationType.CHAT).enabled(false).build();
+		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.PARTNER_ALL))
+			.thenReturn(Optional.empty());
+		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.ADMIN_ALL))
+			.thenReturn(Optional.empty());
 		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.CHAT))
 			.thenReturn(Optional.of(disabled));
 
@@ -205,6 +209,10 @@ class NotificationCommandServiceImplTest {
 	void sendChat_NoSetting_DefaultsToEnabled() {
 		// 1. Given
 		givenMember();
+		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.PARTNER_ALL))
+			.thenReturn(Optional.empty());
+		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.ADMIN_ALL))
+			.thenReturn(Optional.empty());
 		when(notificationSettingRepository.findByMemberIdAndType(RECEIVER_ID, NotificationType.CHAT))
 			.thenReturn(Optional.empty());
 
@@ -251,9 +259,9 @@ class NotificationCommandServiceImplTest {
 		// 2. When
 		notificationCommandService.toggle(RECEIVER_ID, NotificationType.PARTNER_ALL);
 
-		// 3. Then (설정이 없던 상태에서 토글 → 두 타입 모두 false로 새로 저장)
+		// 3. Then (PARTNER_ALL 자체와 하위 CHAT·ORDER 타입까지 총 3건이 false로 새로 저장)
 		ArgumentCaptor<NotificationSetting> captor = ArgumentCaptor.forClass(NotificationSetting.class);
-		verify(notificationSettingRepository, times(2)).save(captor.capture());
+		verify(notificationSettingRepository, times(3)).save(captor.capture());
 
 		var savedTypes = captor.getAllValues().stream().map(NotificationSetting::getType).toList();
 		assertTrue(savedTypes.contains(NotificationType.CHAT));
