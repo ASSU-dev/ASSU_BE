@@ -75,6 +75,9 @@ class ChatServiceImplTest {
 	@Mock
 	private PresenceTracker presenceTracker;
 
+	@Mock
+	private BlockRepository blockRepository;
+
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
 	private static final Long ROOM_ID = 1L;

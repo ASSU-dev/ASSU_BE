@@ -17,32 +17,20 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.service.StudentServiceImpl;
-import com.google.firebase.messaging.FirebaseMessaging;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.support.CommonMockConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(CommonMockConfig.class)
 @Transactional
 class BackofficeSecurityIntegrationTest {
 
@@ -94,12 +83,6 @@ class BackofficeSecurityIntegrationTest {
 
     @MockitoBean
     private StudentServiceImpl studentService;
-
-    @MockitoBean
-    private ConnectionFactory connectionFactory;
-
-    @MockitoBean
-    private RabbitTemplate rabbitTemplate;
 
     @BeforeEach
     void setUp() {
@@ -419,62 +402,5 @@ class BackofficeSecurityIntegrationTest {
                 .build());
 
         return memberRepository.save(member);
-    }
-
-    @TestConfiguration
-    static class TestJwtConfig {
-
-        @Bean
-        FirebaseMessaging firebaseMessaging() {
-            return Mockito.mock(FirebaseMessaging.class);
-        }
-
-        @Bean
-        RedisConnectionFactory redisConnectionFactory() {
-            RedisConnectionFactory connectionFactory = Mockito.mock(RedisConnectionFactory.class);
-            RedisConnection connection = Mockito.mock(RedisConnection.class);
-            Mockito.when(connectionFactory.getConnection()).thenReturn(connection);
-            return connectionFactory;
-        }
-
-        @Bean
-        @SuppressWarnings("unchecked")
-        RedisTemplate<String, Object> redisTemplate() {
-            return Mockito.mock(RedisTemplate.class);
-        }
-
-        @Bean
-        StringRedisTemplate stringRedisTemplate() {
-            return Mockito.mock(StringRedisTemplate.class);
-        }
-
-        @Bean
-        ConnectionFactory rabbitConnectionFactory() {
-            return Mockito.mock(ConnectionFactory.class);
-        }
-
-        @Bean(name = "rabbitListenerContainerFactory")
-        RabbitListenerContainerFactory<?> rabbitListenerContainerFactory() {
-            var factory = Mockito.mock(RabbitListenerContainerFactory.class);
-            var container = Mockito.mock(org.springframework.amqp.rabbit.listener.MessageListenerContainer.class);
-            Mockito.when(factory.createListenerContainer(Mockito.any())).thenReturn(container);
-            return factory;
-        }
-
-        @Bean
-        @Primary
-        JwtUtil jwtUtil(MemberRepository memberRepository, StringRedisTemplate stringRedisTemplate, RedisConnectionFactory redisConnectionFactory) {
-            ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
-            Mockito.when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
-            Mockito.when(stringRedisTemplate.hasKey(Mockito.anyString())).thenReturn(false);
-            Mockito.when(stringRedisTemplate.getConnectionFactory()).thenReturn(redisConnectionFactory);
-
-            JwtUtil jwtUtil = new JwtUtil(memberRepository, stringRedisTemplate);
-            ReflectionTestUtils.setField(jwtUtil, "secretKey", "S3csfifR3TrgwiKeyM2023WClokeyAppWIFNEGIBKWMGJ");
-            ReflectionTestUtils.setField(jwtUtil, "accessValidSeconds", 3600);
-            ReflectionTestUtils.setField(jwtUtil, "backofficeAccessValidSeconds", 1800);
-            ReflectionTestUtils.setField(jwtUtil, "refreshValidSeconds", 1209600);
-            return jwtUtil;
-        }
     }
 }

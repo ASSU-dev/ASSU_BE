@@ -21,6 +21,7 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnFirebaseEnabled
 public class FcmClient {
 
     private final FirebaseMessaging messaging;

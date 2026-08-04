@@ -1,8 +1,10 @@
 package com.assu.server.domain.notification.service;
 
 import com.assu.server.domain.notification.event.NotificationFailedEvent;
-import com.assu.server.infra.firebase.AmqpConfig;
+import com.assu.server.infra.firebase.ConditionalOnFirebaseEnabled;
 import com.assu.server.infra.firebase.FcmClient;
+import com.assu.server.infra.messaging.AmqpConfig;
+import com.assu.server.infra.messaging.ConditionalOnRabbitEnabled;
 import com.assu.server.domain.notification.dto.NotificationMessageDTO;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.rabbitmq.client.Channel;
@@ -15,9 +17,12 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+// 큐 소비(Rabbit)와 실제 발송(FCM/Firebase) 양쪽에 의존하므로 두 플래그가 모두 켜져 있어야 등록된다.
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnRabbitEnabled
+@ConditionalOnFirebaseEnabled
 public class NotificationListener {
 
     private final FcmClient fcmClient;
