@@ -38,3 +38,4 @@ Rules:
 - If the issue is in production, mention the affected environment (prod/dev).
 - Do not claim a root cause unless it is directly supported by the given context.
 - If there is no reference/attachment, write `- 없음`.
+- Before including any logs, error messages, or screenshots in the output, mask or remove sensitive information: passwords, API keys, tokens, cookies, Authorization headers, and personal data (email, phone, name). Replace with `[MASKED]`.

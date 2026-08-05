@@ -1,7 +1,7 @@
 ---
 description: Review a pull request or code diff using Assu backend review standards.
 argument-hint: "<PR number or leave empty to review current diff>"
-allowed-tools: Bash(git diff), Bash(git diff --stat), Bash(git log --oneline -10)
+allowed-tools: Bash(git diff), Bash(git diff --stat), Bash(git log --oneline -10), Bash(gh pr diff), Bash(gh pr view)
 ---
 
 You are reviewing backend code for the Assu project.
@@ -25,7 +25,7 @@ $ARGUMENTS
 
 Process:
 
-1. If a PR number is given, review that PR's diff. Otherwise run `git diff` for current changes.
+1. If a PR number is given, run `gh pr diff <number>` and `gh pr view <number>` for context. Otherwise run `git diff` for current changes.
 2. Check `git log --oneline -10` for context.
 3. Apply review checklist below.
 4. Output findings grouped by file, sorted by priority.

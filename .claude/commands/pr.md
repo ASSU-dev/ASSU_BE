@@ -28,7 +28,7 @@ Follow this exact structure:
 
 ```markdown
 ## #️⃣연관된 이슈
-> resolved #이슈번호
+> close #이슈번호
 
 ## 📝작업 내용
 > 무엇을 왜 변경했는지 작성해주세요.
@@ -45,7 +45,7 @@ Follow this exact structure:
 
 Rules:
 
-- Fill `resolved #이슈번호` with the issue number if provided. If not, keep `resolved #`.
+- Fill `close #이슈번호` with the issue number if provided. If not, keep `close #`.
 - Explain what changed and why, not just how.
 - Mention key files or behavior changes when helpful.
 - In `고민사항 및 리뷰 요구사항`, call out risks, test gaps, migration concerns, deployment concerns, or areas needing focused review.

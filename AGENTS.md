@@ -33,12 +33,21 @@ Use Java 17 with 4-space indentation. Do not use wildcard imports.
 ## Commit Convention
 
 ```
-[TYPE/#issue-number] 한글 설명
+[TYPE/#issue-number] 한글로 간결하게
+
+- 작업 내용 상세 1
+- 작업 내용 상세 2
 ```
 
 Types: `FEAT`, `FIX`, `REFACTOR`, `STYLE`, `DOCS`, `TEST`, `CHORE`, `HOTFIX`, `MERGE`
 
-Example: `[FEAT/#123] 리뷰 생성 API 추가`
+Example:
+```
+[FEAT/#123] 리뷰 생성 API 추가
+
+- ReviewController에 POST /reviews 엔드포인트 추가
+- ReviewServiceImpl에 createReview 메서드 구현
+```
 
 ## Branch Convention
 
@@ -50,7 +59,7 @@ Example: `feat/#123-add-review-api`
 
 ## Pull Request Guidelines
 
-Follow `.github/PULL_REQUEST_TEMPLATE.md`. Link the issue with `resolved #`, summarize what changed and why, and include reviewer notes for risks, test gaps, or deployment concerns.
+Follow `.github/PULL_REQUEST_TEMPLATE.md`. Link the issue with `close #`, summarize what changed and why, and include reviewer notes for risks, test gaps, or deployment concerns.
 
 ## Agent-Specific Workflow
 

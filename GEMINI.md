@@ -18,12 +18,21 @@
 ## 커밋 컨벤션
 
 ```
-[TYPE/#issue-number] 한글로 간단하게
+[TYPE/#issue-number] 한글로 간결하게
+
+- 작업 내용 상세 1
+- 작업 내용 상세 2
 ```
 
 허용 타입: `FEAT`, `FIX`, `REFACTOR`, `STYLE`, `DOCS`, `TEST`, `CHORE`, `HOTFIX`, `MERGE`
 
-예시: `[FEAT/#123] 리뷰 생성 API 추가`
+예시:
+```
+[FEAT/#123] 리뷰 생성 API 추가
+
+- ReviewController에 POST /reviews 엔드포인트 추가
+- ReviewServiceImpl에 createReview 메서드 구현
+```
 
 ## 주석 컨벤션
 

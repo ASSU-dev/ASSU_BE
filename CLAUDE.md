@@ -424,14 +424,23 @@ hotfix/#390-fix-prod-token-expiry
 
 ```
 [TYPE/#issue-number] 한글로 간결하게
+
+- 작업 내용 상세 1
+- 작업 내용 상세 2
 ```
 
 ```
 [FEAT/#123] 리뷰 생성 API 추가
-[FIX/#346] 로그인 NPE 수정
-[REFACTOR/#354] Partnership 기간 타입 정리
-[HOTFIX/#390] 운영 토큰 만료 오류 수정
-[MERGE/#374] develop 브랜치 머지
+
+- ReviewController에 POST /reviews 엔드포인트 추가
+- ReviewServiceImpl에 createReview 메서드 구현
+- 리뷰 이미지 S3 업로드 로직 연동
+```
+
+```
+[FIX/#346] 로그인 시 NPE 수정
+
+- JwtAuthFilter에서 null 토큰에 대한 방어 처리 추가
 ```
 
 허용 타입: `FEAT`, `FIX`, `REFACTOR`, `STYLE`, `DOCS`, `TEST`, `CHORE`, `HOTFIX`, `MERGE`
@@ -444,7 +453,7 @@ hotfix/#390-fix-prod-token-expiry
 
 ```markdown
 ## #️⃣연관된 이슈
-> resolved #이슈번호
+> close #이슈번호
 
 ## 📝작업 내용
 > 무엇을 왜 변경했는지

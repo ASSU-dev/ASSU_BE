@@ -41,3 +41,4 @@ Rules:
 - Clearly describe the impact scope and urgency.
 - Include any relevant logs or error messages if available.
 - If there is no reference/attachment, write `- 없음`.
+- Before including any logs, error messages, or screenshots in the output, mask or remove sensitive information: passwords, API keys, tokens, cookies, Authorization headers, and personal data (email, phone, name). Replace with `[MASKED]`.
