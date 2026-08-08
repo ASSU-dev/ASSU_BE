@@ -57,7 +57,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### DDD 계층 구조
 
-```
+```text
 Presentation  (Controller)   ← 클라이언트 요청 수신, DTO 반환
       ↓
 Application   (Service)      ← 비즈니스 로직, 트랜잭션
@@ -74,7 +74,7 @@ Infrastructure (Repository impl, External API client)
 
 ### 패키지 구조
 
-```
+```text
 src/main/java/com/assu/server/
 ├── ServerApplication.java
 ├── domain/
@@ -112,7 +112,7 @@ src/main/java/com/assu/server/
 
 각 도메인 내부 구조:
 
-```
+```text
 <domain>/
 ├── controller/
 ├── service/
@@ -405,11 +405,11 @@ public void approveMember(Long memberId) { ... }
 
 ### Branch
 
-```
+```text
 <type>/#<issue-number>-<brief-english-description>
 ```
 
-```
+```text
 feat/#123-add-review-api
 fix/#346-fix-null-pointer-login
 refactor/#354-cleanup-partnership-period
@@ -422,14 +422,14 @@ hotfix/#390-fix-prod-token-expiry
 
 ### Commit
 
-```
+```text
 [TYPE/#issue-number] 한글로 간결하게
 
 - 작업 내용 상세 1
 - 작업 내용 상세 2
 ```
 
-```
+```text
 [FEAT/#123] 리뷰 생성 API 추가
 
 - ReviewController에 POST /reviews 엔드포인트 추가
@@ -437,7 +437,7 @@ hotfix/#390-fix-prod-token-expiry
 - 리뷰 이미지 S3 업로드 로직 연동
 ```
 
-```
+```text
 [FIX/#346] 로그인 시 NPE 수정
 
 - JwtAuthFilter에서 null 토큰에 대한 방어 처리 추가

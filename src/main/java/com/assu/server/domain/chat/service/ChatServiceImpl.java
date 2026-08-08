@@ -22,6 +22,7 @@ import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PresenceTracker;
 import jakarta.transaction.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -79,8 +80,13 @@ public class ChatServiceImpl implements ChatService {
         room.updateStatus(ActivationStatus.ACTIVE);
         room.updateMemberCount(2);
         room.updateName(partner.getName(), admin.getName());
-        ChattingRoom savedRoom = chatRepository.save(room);
-        return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
+        try {
+            ChattingRoom savedRoom = chatRepository.save(room);
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
+        } catch (DataIntegrityViolationException e) {
+            ChattingRoom existing = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
+            return ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existing);
+        }
     }
 
     @Override

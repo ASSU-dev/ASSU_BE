@@ -1,4 +1,4 @@
-# Copilot Instructions — Assu Backend
+# Gemini Instructions — Assu Backend
 
 - 모든 답변은 **한국어**로 작성한다.
 - 코드 블록 내 주석은 작성하지 않는다.
@@ -17,7 +17,7 @@
 
 ## 커밋 컨벤션
 
-```
+```text
 [TYPE/#issue-number] 한글로 간결하게
 
 - 작업 내용 상세 1
@@ -27,7 +27,7 @@
 허용 타입: `FEAT`, `FIX`, `REFACTOR`, `STYLE`, `DOCS`, `TEST`, `CHORE`, `HOTFIX`, `MERGE`
 
 예시:
-```
+```text
 [FEAT/#123] 리뷰 생성 API 추가
 
 - ReviewController에 POST /reviews 엔드포인트 추가

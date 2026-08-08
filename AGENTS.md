@@ -32,7 +32,7 @@ Use Java 17 with 4-space indentation. Do not use wildcard imports.
 
 ## Commit Convention
 
-```
+```text
 [TYPE/#issue-number] 한글로 간결하게
 
 - 작업 내용 상세 1
@@ -42,7 +42,7 @@ Use Java 17 with 4-space indentation. Do not use wildcard imports.
 Types: `FEAT`, `FIX`, `REFACTOR`, `STYLE`, `DOCS`, `TEST`, `CHORE`, `HOTFIX`, `MERGE`
 
 Example:
-```
+```text
 [FEAT/#123] 리뷰 생성 API 추가
 
 - ReviewController에 POST /reviews 엔드포인트 추가
@@ -51,7 +51,7 @@ Example:
 
 ## Branch Convention
 
-```
+```text
 <type>/#<issue-number>-<brief-english-description>
 ```
 
