@@ -6,8 +6,8 @@ name: CD dev - ArgoCD GitOps (K3S)
 #       ArgoCD 가 변경을 감지해 dev 클러스터에 자동 동기화.
 
 on:
-  # push:
-  #   branches: [ develop ]
+  push:
+    branches: [ develop ]
   workflow_dispatch:
 
 jobs:
@@ -76,9 +76,9 @@ jobs:
       - name: Update dev image tag in manifest
         run: |
           IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }}"
-          echo "Updating dev/deployment.yml to ${IMAGE}"
+          echo "Updating overlays/dev/deployment-patch.yaml to ${IMAGE}"
           sed -i -E "s|image:[[:space:]]*${{ secrets.DOCKERHUB_USERNAME }}/assu-app:.*|image: ${IMAGE}|g" \
-            manifest-repo/dev/deployment.yml
+            manifest-repo/overlays/dev/deployment-patch.yaml
 
       - name: Commit and push manifest
         working-directory: manifest-repo
@@ -89,7 +89,7 @@ jobs:
             echo "No manifest changes to commit."
             exit 0
           fi
-          git add dev/deployment.yml
+          git add overlays/dev/deployment-patch.yaml
           git commit \
             -m "[DEPLOY] bump image to ${{ github.sha }} (dev)" \
             -m "Triggered-by: ${{ github.actor }}"

@@ -32,6 +32,7 @@ assu:
       base64-key: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=" #"dummy-base64-key"를 Base64로 인코딩한 값
 
   messaging:
+    # ConditionalOnRabbitEnabled가 이 값을 읽어 Amqp/Outbox발행/큐리스너 빈 등록 여부를 결정한다.
     rabbit:
       enabled: false
     push:
@@ -49,6 +50,7 @@ cloud:
       accessKey: dummy-access
       secretKey: dummy-secret
 
+# ConditionalOnFirebaseEnabled가 이 값을 읽어 FirebaseConfig/FcmClient/FirebaseInitLogger 등록 여부를 결정한다.
 firebase:
   enabled: false
 

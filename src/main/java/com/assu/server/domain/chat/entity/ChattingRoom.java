@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(name = "uk_chatting_room_admin_partner", columnNames = {"admin_id", "partner_id"}))
 @Getter
 @NoArgsConstructor
 @Builder

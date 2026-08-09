@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@ConditionalOnFirebaseEnabled
 public class FirebaseInitLogger {
 
     private static boolean logged = false;

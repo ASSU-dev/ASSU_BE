@@ -12,6 +12,7 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.support.CommonMockConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-@Import(BackofficeSecurityIntegrationTest.TestJwtConfig.class)
+@Import(CommonMockConfig.class)
 class LoginServiceSuspendTest {
 
     @Autowired
