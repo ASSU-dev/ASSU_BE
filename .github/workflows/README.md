@@ -8,10 +8,10 @@ ASSU 서버 repo 의 GitHub Actions 워크플로우는 **환경(dev / prod)** �
 .github/workflows/
 ├── ci.yml                          # PR / develop 대상 빌드 검증
 ├── cd-prod-argocd.yml              # prod → ArgoCD GitOps (활성)
-├── cd-dev-docker.yml               # dev  → 기존 TEST EC2  (활성)
+├── cd-dev-argocd.yml               # dev  → ArgoCD GitOps (활성, K3S 노드 분리 완료 후 전환)
 └── unused/                         # 비활성화 보관
     ├── cd-prod-docker.yml          # prod 의 legacy 경로 (ArgoCD 안정화 전까지 rollback 용)
-    └── cd-dev-argocd.yml           # dev K3S 준비 후 활성화 예정
+    └── cd-dev-docker.yml           # dev 의 legacy 경로 (기존 TEST EC2, ArgoCD 안정화 전까지 rollback 용)
 ```
 
 | 파일 | 환경 | 방식 | 트리거 브랜치 | 대상 인프라 |
