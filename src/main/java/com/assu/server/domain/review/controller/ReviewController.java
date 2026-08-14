@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
@@ -53,7 +54,7 @@ public class ReviewController {
     @GetMapping("/student")
     @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<Page<ReviewResponseDTO.CheckReviewResponseDTO>> checkStudent(
-            @AuthenticationPrincipal PrincipalDetails pd, Pageable pageable
+            @AuthenticationPrincipal PrincipalDetails pd, @ParameterObject Pageable pageable
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkStudentReview(pd.getId(), pageable));
     }
@@ -66,7 +67,7 @@ public class ReviewController {
     @GetMapping("/partner")
     @PreAuthorize("hasRole('PARTNER')")
     public BaseResponse<Page<ReviewResponseDTO.CheckReviewResponseDTO>> checkPartnerReview(
-            @AuthenticationPrincipal PrincipalDetails pd, Pageable pageable
+            @AuthenticationPrincipal PrincipalDetails pd, @ParameterObject Pageable pageable
     ){
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkPartnerReview(pd.getId(), pageable));
     }
@@ -78,7 +79,7 @@ public class ReviewController {
     )
     @GetMapping("/store/{storeId}")
     public BaseResponse<Page<ReviewResponseDTO.CheckReviewResponseDTO>> checkStoreReview(
-            Pageable pageable, @PathVariable Long storeId
+            @ParameterObject Pageable pageable, @PathVariable Long storeId
     ){
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkStoreReview(storeId, pageable));
     }
