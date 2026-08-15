@@ -183,6 +183,7 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	@Transactional
+	@Override
 	public void syncUserPapersForStudent(Long studentId) {
 		Student student = studentRepository.findById(studentId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
