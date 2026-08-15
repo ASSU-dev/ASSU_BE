@@ -11,24 +11,30 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.auth.dto.common.TokensDTO;
 import com.assu.server.domain.auth.dto.signup.AdminSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.common.entity.enums.University;
+import com.assu.server.domain.common.enums.UserRole;
+import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
@@ -103,6 +109,42 @@ class SignUpServiceImplTest {
 		assertEquals(ErrorStatus.EXISTED_STUDENT, exception.getCode());
 		verify(memberRepository, never()).save(any());
 		verify(studentRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("정상적인 학생 회원가입 시 저장된 학생 ID로 제휴 동기화를 호출한 뒤 JWT를 발급한다")
+	void signupSsuStudent_Success_SyncsUserPapersBeforeIssuingTokens() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+
+		USaintAuthResponseDTO authResponse =
+			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
+		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
+		when(ssuAuthRepository.existsByStudentNumber("20211438")).thenReturn(false);
+		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
+
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+		when(memberRepository.save(any())).thenReturn(member);
+
+		Student student = mock(Student.class);
+		when(student.getId()).thenReturn(99L);
+		when(studentRepository.save(any())).thenReturn(student);
+
+		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
+			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+
+		// 2. When
+		signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		verify(studentService).syncUserPapersForStudent(99L);
+
+		InOrder inOrder = inOrder(studentService, jwtUtil);
+		inOrder.verify(studentService).syncUserPapersForStudent(99L);
+		inOrder.verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
 	}
 
 	@Test

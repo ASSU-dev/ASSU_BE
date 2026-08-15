@@ -34,7 +34,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [FEAT] ...`.
-- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[FEAT/#<number>] ..."` so the number is never missing.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. `gh issue create` prints the created issue's URL (e.g. `https://github.com/OWNER/REPO/issues/416`); extract the trailing number from that URL (e.g. `issue_number=$(basename "$issue_url")`) and immediately run `gh issue edit "$issue_number" --title "[FEAT/#$issue_number] ..."` so the number is never missing. Do not treat `<number>` as literal text — it must be the real number captured from the command output.
 - If the user did not provide enough detail, infer a reasonable feature scope from the repository context.
 - Do not invent implementation details that are not implied by the request.
 - Prefer concrete Todo items over vague descriptions.
