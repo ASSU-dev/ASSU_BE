@@ -25,6 +25,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,7 @@ public class SignUpServiceImpl implements SignUpService {
     private final StoreRepository storeRepository;
     private final SSUAuthService ssuAuthService;
     private final SSUAuthRepository ssuAuthRepository;
+    private final StudentService studentService;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -108,7 +110,10 @@ public class SignUpServiceImpl implements SignUpService {
                 .build());
         member.setProfile(student);
 
-        // 5) JWT 토큰 발급
+        // 5) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
+        studentService.syncUserPapersForStudent(student.getId());
+
+        // 6) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authResponse.studentNumber(),

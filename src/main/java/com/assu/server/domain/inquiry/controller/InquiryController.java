@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RequestMapping("/inquiries")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('STUDENT')")
+@PreAuthorize("hasAnyRole('STUDENT','ADMIN','PARTNER')")
 public class InquiryController {
 
     private final InquiryService inquiryService;
