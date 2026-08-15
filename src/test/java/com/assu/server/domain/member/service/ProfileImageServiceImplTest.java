@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +14,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.member.entity.Member;
@@ -36,12 +34,6 @@ class ProfileImageServiceImplTest {
 	private AmazonS3Manager amazonS3Manager;
 
 	private static final Long MEMBER_ID = 1L;
-
-	@BeforeEach
-	void setUpProperties() {
-		ReflectionTestUtils.setField(profileImageService, "bucket", "assu-bucket");
-		ReflectionTestUtils.setField(profileImageService, "region", "ap-northeast-2");
-	}
 
 	private MockMultipartFile validImage() {
 		return new MockMultipartFile("image", "profile.png", "image/png", new byte[]{1, 2, 3});
@@ -178,18 +170,20 @@ class ProfileImageServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("프로필 이미지 URL 조회 성공 시 S3 주소 형식으로 반환한다")
-	void getProfileImageUrl_Success_ReturnsS3Url() {
+	@DisplayName("프로필 이미지 URL 조회 성공 시 presigned URL을 반환한다")
+	void getProfileImageUrl_Success_ReturnsPresignedUrl() {
 		// 1. Given
 		Member member = mock(Member.class);
 		when(member.getProfileUrl()).thenReturn("members/1/profile/key.png");
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+		when(amazonS3Manager.generatePresignedUrl("members/1/profile/key.png"))
+			.thenReturn("https://assu-bucket.s3.ap-northeast-2.amazonaws.com/members/1/profile/key.png?presigned=1");
 
 		// 2. When
 		String url = profileImageService.getProfileImageUrl(MEMBER_ID);
 
 		// 3. Then
-		assertEquals("https://assu-bucket.s3.ap-northeast-2.amazonaws.com/members/1/profile/key.png", url);
+		assertEquals("https://assu-bucket.s3.ap-northeast-2.amazonaws.com/members/1/profile/key.png?presigned=1", url);
 	}
 
 	// ===== deleteProfileImage =====

@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Set;
 
@@ -24,12 +23,6 @@ public class ProfileImageServiceImpl implements ProfileImageService{
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
-
-    @Value("${cloud.aws.s3.bucket}")
-    private String bucket;
-
-    @Value("${cloud.aws.s3.region:ap-northeast-2}")
-    private String region;
 
     @Override
     @Transactional
@@ -65,8 +58,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
             throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
         }
 
-        // S3 주소 리턴
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, region, key);
+        return amazonS3Manager.generatePresignedUrl(key);
     }
 
     @Override
