@@ -425,6 +425,44 @@ public class PartnershipServiceImpl implements PartnershipService {
         }
     }
 
+    @Override
+    @Transactional
+    public void deleteSuspendedPaper(Long paperId, Long adminId) {
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
+
+        if (!paper.getAdmin().getId().equals(adminId)) {
+            throw new GeneralException(ErrorStatus._FORBIDDEN);
+        }
+
+        if (paper.getIsActivated() != ActivationStatus.SUSPEND) {
+            throw new GeneralException(ErrorStatus._BAD_REQUEST);
+        }
+
+        List<PaperContent> contentsToDelete = paperContentRepository.findByPaperId(paperId);
+        if (contentsToDelete != null && !contentsToDelete.isEmpty()) {
+            List<Long> contentIds = contentsToDelete.stream()
+                    .map(PaperContent::getId)
+                    .toList();
+
+            goodsRepository.deleteAllByContentIds(contentIds);
+            paperContentRepository.deleteAll(contentsToDelete);
+        }
+
+        Store store = paper.getStore();
+        boolean isTempStore = (store != null && paper.getPartner() == null);
+
+        paperRepository.delete(paper);
+
+        if (isTempStore) {
+            Long storeId = store.getId();
+            long remainingPaperRefs = paperRepository.countByStore_Id(storeId);
+            if (remainingPaperRefs == 0) {
+                storeRepository.delete(store);
+            }
+        }
+    }
+
     // Todo: 추후 checkPartnershipWithPartner와 checkPartnershipWithAdmin를 Role 기반 로직으로 변경하여 메소드 합칠 것
     @Override
     @Transactional(readOnly = true)

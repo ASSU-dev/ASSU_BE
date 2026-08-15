@@ -300,6 +300,22 @@ public class PartnershipController {
     }
 
     @Operation(
+            summary = "대기 중인 제휴 계약서 삭제 API",
+            description = "- 관리자 관점에서 대기 중(SUSPEND) 상태인 제휴 계약서를 삭제합니다.\n" +
+                    "- 로그인한 관리자의 ID와 계약서의 관리자 ID가 일치해야 합니다.\n" +
+                    "- 계약서의 상태가 SUSPEND(대기 중)여야 삭제가 가능합니다.\n"
+    )
+    @DeleteMapping("/suspended/{paperId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public BaseResponse<Void> deleteSuspendedPaper(
+            @PathVariable @Parameter(required = true) Long paperId,
+            @AuthenticationPrincipal PrincipalDetails pd
+    ) {
+        partnershipService.deleteSuspendedPaper(paperId, pd.getId());
+        return BaseResponse.onSuccess(SuccessStatus._OK, null);
+    }
+
+    @Operation(
             summary = "제휴 중인 가게 조회 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-2241197c19ed81b1b9adf724adc4600c)\n" +
                     "- 현재 로그인한 관리자와 제휴 중인 가게를 조회합니다.\n" +
