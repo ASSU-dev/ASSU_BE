@@ -1,9 +1,9 @@
 package com.assu.server.infra.aligo.client;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import com.assu.server.infra.aligo.exception.AligoException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
 public class AligoSmsClient {
 
     private final WebClient webClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Value("${aligo.key}")
     private String apiKey;
@@ -38,7 +38,7 @@ public class AligoSmsClient {
     public AligoSendResponse sendSms(String phoneNumber, String message, String name) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("key", apiKey);
-        params.add("userid", userId);
+        params.add("user_id", userId);
         params.add("sender", sender);
         params.add("receiver", phoneNumber);
         params.add("msg", message);
@@ -52,16 +52,20 @@ public class AligoSmsClient {
                 .retrieve()
                 .onStatus(
                         status -> status.is4xxClientError() || status.is5xxServerError(),
-                        clientResponse -> clientResponse.bodyToMono(String.class).flatMap(errorBody -> {
-                            log.error("Aligo API 호출 실패. status={}, body={}", clientResponse.statusCode(), errorBody);
-                            return Mono.error(new AligoException(ErrorStatus.FAILED_TO_SEND_SMS));
-                        })
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(errorBody -> {
+                                    log.error("Aligo API 호출 실패. status={}, body={}", clientResponse.statusCode(), errorBody);
+                                    return Mono.error(new AligoException(ErrorStatus.FAILED_TO_SEND_SMS));
+                                })
                 )
                 .bodyToMono(String.class)
                 .block();
 
         try {
-            return objectMapper.readValue(body, AligoSendResponse.class);
+            return objectMapper.readerFor(AligoSendResponse.class)
+                    .without(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .readValue(body);
         } catch (Exception e) {
             log.error("Aligo 응답 파싱 실패. 원본 body: {}", body, e);
             throw new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO);
