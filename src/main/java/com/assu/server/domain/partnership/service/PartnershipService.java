@@ -35,6 +35,8 @@ public interface PartnershipService {
 
     void deletePartnership(Long paperId, Long memberId, UserRole role);
 
+    void deleteSuspendedPaper(Long paperId, Long adminId);
+
     AdminPartnershipCheckResponseDTO checkPartnershipWithPartner(Long adminId, Long partnerId);
     PartnerPartnershipCheckResponseDTO checkPartnershipWithAdmin(Long partnerId, Long adminId);
 }
