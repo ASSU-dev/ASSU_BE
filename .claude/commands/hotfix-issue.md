@@ -37,6 +37,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [HOTFIX] ...`.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[HOTFIX/#<number>] ..."` so the number is never missing.
 - Hotfix is reserved for critical production issues requiring immediate resolution.
 - Clearly describe the impact scope and urgency.
 - Include any relevant logs or error messages if available.

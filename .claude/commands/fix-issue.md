@@ -34,6 +34,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [FIX] ...`.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[FIX/#<number>] ..."` so the number is never missing.
 - Describe the current problem, expected behavior, and affected area when possible.
 - If the issue is in production, mention the affected environment (prod/dev).
 - Do not claim a root cause unless it is directly supported by the given context.

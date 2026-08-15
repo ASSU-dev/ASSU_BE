@@ -34,6 +34,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [REFACTOR] ...`.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[REFACTOR/#<number>] ..."` so the number is never missing.
 - Clearly describe what the current problem is and why refactoring is needed.
 - Do not include unrelated feature additions in the refactor scope.
 - If there is no reference/attachment, write `- 없음`.

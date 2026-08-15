@@ -34,6 +34,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [FEAT] ...`.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[FEAT/#<number>] ..."` so the number is never missing.
 - If the user did not provide enough detail, infer a reasonable feature scope from the repository context.
 - Do not invent implementation details that are not implied by the request.
 - Prefer concrete Todo items over vague descriptions.

@@ -34,6 +34,7 @@ Follow this exact structure:
 Rules:
 
 - Keep the title suggestion separate at the top as `title: [CHORE] ...`.
+- GitHub issue titles in this repo follow `[TYPE/#issue-number] description`, matching the commit convention — but the issue number is unknown until after creation. After running `gh issue create`, immediately rename the title with `gh issue edit <number> --title "[CHORE/#<number>] ..."` so the number is never missing.
 - Chore covers: dependency updates, build/CI configuration, tooling, environment setup.
 - Do not include feature or bug fix work in chore scope.
 - If there is no reference/attachment, write `- 없음`.
