@@ -44,7 +44,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         AligoSendResponse response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
 
         // 실패 처리
-        if (!response.getResult_code().equals("1")) {
+        if (!"1".equals(response.getResult_code())) {
             redisTemplate.delete(phoneNumber);
             throw new CustomAuthException(ErrorStatus.FAILED_TO_SEND_SMS);
         }
