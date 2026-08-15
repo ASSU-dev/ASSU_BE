@@ -30,6 +30,7 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 
@@ -68,6 +69,9 @@ class SignUpServiceImplTest {
 	@Mock
 	private SSUAuthRepository ssuAuthRepository;
 
+	@Mock
+	private StudentService studentService;
+
 	private static final String PHONE = "01012345678";
 
 	@BeforeEach
@@ -75,7 +79,8 @@ class SignUpServiceImplTest {
 		signUpService = new SignUpServiceImpl(
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
-			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository);
+			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
+			studentService);
 	}
 
 	@Test
