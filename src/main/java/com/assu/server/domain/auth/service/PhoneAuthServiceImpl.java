@@ -7,6 +7,7 @@ import com.assu.server.global.util.RandomNumberUtil;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
+import com.assu.server.infra.aligo.exception.AligoException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -41,7 +42,13 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         String message = "[ASSU] 인증번호: " + authNumber;
 
-        AligoSendResponse response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
+        AligoSendResponse response;
+        try {
+            response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
+        } catch (AligoException e) {
+            redisTemplate.delete(phoneNumber);
+            throw e;
+        }
 
         // 실패 처리
         if (!"1".equals(response.getResult_code())) {
