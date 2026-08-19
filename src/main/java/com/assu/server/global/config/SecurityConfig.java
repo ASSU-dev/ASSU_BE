@@ -45,7 +45,6 @@ public class SecurityConfig {
                                 "/auth/email-verification/check",
                                 "/auth/students/signup",
                                 "/auth/partners/signup",
-                                "/auth/partners/batch-signup",
                                 "/auth/admins/signup",
                                 "/auth/commons/login",
                                 "/auth/backoffice/login",
@@ -55,6 +54,7 @@ public class SecurityConfig {
                                 "/auth/students/ssu-verify",
                                 "/map/place"
                         ).permitAll()
+                        .requestMatchers("/auth/partners/batch-signup").hasRole("BACKOFFICE")
                         .requestMatchers("/backoffice/**").hasRole("BACKOFFICE")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/partner/**").hasRole("PARTNER")
