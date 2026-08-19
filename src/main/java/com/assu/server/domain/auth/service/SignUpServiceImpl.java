@@ -199,6 +199,66 @@ public class SignUpServiceImpl implements SignUpService {
     }
 
     @Override
+    public List<SignUpResponseDTO> signupBatchPartner(List<PartnerBatchSignUpItemDTO> requests) {
+        return requests.stream().map(req -> {
+            Member member = memberRepository.save(
+                    Member.builder()
+                            .isLocationTermAgreed(true)
+                            .isMarketingTermAgreed(true)
+                            .role(UserRole.PARTNER)
+                            .isActivated(ActivationStatus.SUSPEND)
+                            .build());
+
+            RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
+            adapter.registerCredentials(member, req.email(), req.password());
+
+            String roadAddress = req.roadAddress() != null ? req.roadAddress() : "";
+            Double lat = req.latitude() != null ? req.latitude() : 0.0;
+            Double lng = req.longitude() != null ? req.longitude() : 0.0;
+            Point point = toPoint(lat, lng);
+
+            Partner partner = partnerRepository.save(
+                    Partner.builder()
+                            .member(member)
+                            .name(req.name())
+                            .phoneNum(null)
+                            .isPhoneVerified(false)
+                            .address(roadAddress)
+                            .detailAddress(null)
+                            .licenseUrl(null)
+                            .point(point)
+                            .latitude(lat)
+                            .longitude(lng)
+                            .build());
+            member.setProfile(partner);
+
+            Optional<Store> storeOpt = storeRepository.findBySameAddress(roadAddress, null);
+            if (storeOpt.isPresent()) {
+                Store store = storeOpt.get();
+                store.linkPartner(partner);
+                store.setName(req.name());
+                store.setGeo(lat, lng, point);
+                storeRepository.save(store);
+            } else {
+                Store newly = Store.builder()
+                        .partner(partner)
+                        .rate(0)
+                        .isActivate(ActivationStatus.SUSPEND)
+                        .name(req.name())
+                        .address(roadAddress)
+                        .detailAddress(null)
+                        .latitude(lat)
+                        .longitude(lng)
+                        .point(point)
+                        .build();
+                storeRepository.save(newly);
+            }
+
+            return SignUpResponseDTO.from(member, null);
+        }).toList();
+    }
+
+    @Override
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
         if (partnerRepository.existsByPhoneNum(req.phoneNumber())
                 || adminRepository.existsByPhoneNum(req.phoneNumber())) {

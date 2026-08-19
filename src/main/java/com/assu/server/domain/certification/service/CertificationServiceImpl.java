@@ -101,11 +101,12 @@ public class CertificationServiceImpl implements CertificationService {
 		if (!matched) {
 			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
-				"fail",
-				currentCertifiedUserIds.size(),
 				"mismatch",
+				currentCertifiedUserIds.size(),
+				"학생과 매치되지 않는 정보입니다.",
 				currentCertifiedUserIds
 			);
+			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 			return response;
 		}
 
