@@ -8,7 +8,6 @@ import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
 import com.assu.server.domain.auth.dto.phone.PhoneAuthSendRequestDTO;
 import com.assu.server.domain.auth.dto.phone.PhoneAuthVerifyRequestDTO;
 import com.assu.server.domain.auth.dto.signup.AdminSignUpRequestDTO;
-import com.assu.server.domain.auth.dto.signup.PartnerBatchSignUpItemDTO;
 import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.SignUpResponseDTO;
 import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
@@ -16,7 +15,13 @@ import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.dto.email.EmailVerificationCheckRequestDTO;
-import com.assu.server.domain.auth.service.*;
+import com.assu.server.domain.auth.service.EmailAuthService;
+import com.assu.server.domain.auth.service.LoginService;
+import com.assu.server.domain.auth.service.LogoutService;
+import com.assu.server.domain.auth.service.PhoneAuthService;
+import com.assu.server.domain.auth.service.SSUAuthService;
+import com.assu.server.domain.auth.service.SignUpService;
+import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -254,19 +259,6 @@ public class AuthController {
             MultipartFile licenseImage
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupPartner(request, licenseImage));
-    }
-
-    @Operation(
-            summary = "제휴업체 단체 회원가입 API",
-            description = "이메일, 비밀번호, 업체명, 도로명 주소, 위도, 경도 목록을 받아 제휴업체 계정들을 일괄 생성합니다."
-    )
-    @PostMapping(value = "/partners/batch-signup", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public BaseResponse<List<SignUpResponseDTO>> signupBatchPartner(
-            @RequestBody
-            @Valid
-            List<PartnerBatchSignUpItemDTO> requests
-    ) {
-        return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupBatchPartner(requests));
     }
 
     @Operation(
