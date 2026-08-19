@@ -1,11 +1,14 @@
 package com.assu.server.domain.auth.controller;
 
+import java.util.List;
+
 import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
 import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
 import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
 import com.assu.server.domain.auth.dto.phone.PhoneAuthSendRequestDTO;
 import com.assu.server.domain.auth.dto.phone.PhoneAuthVerifyRequestDTO;
 import com.assu.server.domain.auth.dto.signup.AdminSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.signup.PartnerBatchSignUpItemDTO;
 import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.SignUpResponseDTO;
 import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
@@ -22,6 +25,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RequestBody;
 import jakarta.validation.Valid;
@@ -250,6 +254,19 @@ public class AuthController {
             MultipartFile licenseImage
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupPartner(request, licenseImage));
+    }
+
+    @Operation(
+            summary = "제휴업체 단체 회원가입 API",
+            description = "이메일, 비밀번호, 업체명, 도로명 주소, 위도, 경도 목록을 받아 제휴업체 계정들을 일괄 생성합니다."
+    )
+    @PostMapping(value = "/partners/batch-signup", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public BaseResponse<List<SignUpResponseDTO>> signupBatchPartner(
+            @RequestBody
+            @Valid
+            List<PartnerBatchSignUpItemDTO> requests
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, signUpService.signupBatchPartner(requests));
     }
 
     @Operation(
