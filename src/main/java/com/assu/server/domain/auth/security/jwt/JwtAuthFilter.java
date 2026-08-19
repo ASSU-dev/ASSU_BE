@@ -38,7 +38,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             "/auth/email-verification/check",
             "/auth/students/signup",
             "/auth/partners/signup",
-            "/auth/partners/batch-signup",
             "/auth/admins/signup",
             "/auth/commons/login",
             "/auth/backoffice/login",
