@@ -142,11 +142,11 @@ class StudentServiceImplTest {
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
 			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(userPapers);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, false, null);
+			studentService.getUsablePartnership(STUDENT_ID, false, null, null);
 
 		// 3. Then
 		assertEquals(2, result.size());
@@ -160,11 +160,11 @@ class StudentServiceImplTest {
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
 			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(userPapers);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, true, null);
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// 3. Then
 		assertEquals(3, result.size());
@@ -177,7 +177,7 @@ class StudentServiceImplTest {
 	void getUsablePartnership_NoCategory_FallsBackToGoodsBelonging() {
 		// 1. Given (category가 null인 SERVICE 제휴)
 		UserPaper userPaper = usablePartnership(100L, 1000L, null, OptionType.SERVICE);
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(List.of(userPaper));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(userPaper));
 
 		Goods goods = Goods.builder()
 			.content(userPaper.getPaperContent()).belonging("생맥주 500cc").build();
@@ -185,7 +185,7 @@ class StudentServiceImplTest {
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, true, null);
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// 3. Then
 		assertEquals("생맥주 500cc", result.get(0).getCategory());
@@ -198,7 +198,7 @@ class StudentServiceImplTest {
 		List<UserPaper> barUserPapers = List.of(
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR, null))
 			.thenReturn(barUserPapers);
 
 		// null이면 전체(BAR 2개 + RESTAURANT 1개) 반환
@@ -206,20 +206,45 @@ class StudentServiceImplTest {
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE),
 			usablePartnership(102L, 1002L, "파스타", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(allUserPapers);
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> barResult =
-			studentService.getUsablePartnership(STUDENT_ID, true, StoreCategory.BAR);
+			studentService.getUsablePartnership(STUDENT_ID, true, StoreCategory.BAR, null);
 		List<StudentResponseDTO.UsablePartnershipDTO> allResult =
-			studentService.getUsablePartnership(STUDENT_ID, true, null);
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// 3. Then
 		assertEquals(2, barResult.size());
 		assertEquals(3, allResult.size());
-		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR);
-		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null);
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR, null);
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, null);
+	}
+
+	@Test
+	@DisplayName("adminId를 지정하면 레포지토리에 adminId가 전달되고 반환된 결과만 노출된다")
+	void getUsablePartnership_WithAdminId_PassesAdminIdToRepository() {
+		// 1. Given - DB가 adminId=10으로 필터링해서 1건 반환한다고 가정
+		List<UserPaper> filtered = List.of(usablePartnership(100L, 1000L, "안주", OptionType.SERVICE));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, 10L)).thenReturn(filtered);
+
+		List<UserPaper> all = List.of(
+			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
+			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(all);
+
+		// 2. When
+		List<StudentResponseDTO.UsablePartnershipDTO> filteredResult =
+			studentService.getUsablePartnership(STUDENT_ID, true, null, 10L);
+		List<StudentResponseDTO.UsablePartnershipDTO> allResult =
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
+
+		// 3. Then
+		assertEquals(1, filteredResult.size());
+		assertEquals(2, allResult.size());
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, 10L);
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, null);
 	}
 
 	// ===== syncUserPapersForStudent =====

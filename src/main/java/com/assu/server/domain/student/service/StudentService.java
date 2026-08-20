@@ -13,7 +13,7 @@ public interface StudentService {
 	StudentResponseDTO.MyPartnership getMyPartnership(Long studentId, int year, int month);
     StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId);//조회
 	Page<StudentResponseDTO.UsageDetail> getUnreviewedUsage(Long memberId, Pageable pageable);
-	List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory);
+	List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId);
 	void syncUserPapersForAllStudents();
 	StudentResponseDTO.CheckStampResponseDTO addStamp(Long id);
 	StudentProfileResponseDTO getStudentProfile(Long memberId);

@@ -101,7 +101,7 @@ public class MapServiceImpl implements MapService {
         }
 
         // 2) 해당 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
-        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory);
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
         if (userPapers.isEmpty()) {
             return List.of(); // active 제휴가 없으면 빈 리스트 반환
         }
@@ -124,15 +124,7 @@ public class MapServiceImpl implements MapService {
             papersByStore.computeIfAbsent(storeId, k -> new ArrayList<>()).add(up.getPaper());
         }
 
-        // 5) adminId 필터링 (null이면 전체)
-        if (adminId != null) {
-            papersByStore.entrySet().removeIf(e -> {
-                e.getValue().removeIf(p -> !p.getAdmin().getId().equals(adminId));
-                return e.getValue().isEmpty();
-            });
-        }
-
-        // 6) active 제휴가 있는 매장만 필터링
+        // 5) active 제휴가 있는 매장만 필터링
         final List<Store> storesWithActivePaper = stores.stream()
                 .filter(s -> papersByStore.containsKey(s.getId()))
                 .toList();
@@ -141,7 +133,7 @@ public class MapServiceImpl implements MapService {
             return List.of();
         }
 
-        // 7) 선택된 paper ID 목록으로 각 paper의 최신 PaperContent 1건씩 일괄 조회
+        // 6) 선택된 paper ID 목록으로 각 paper의 최신 PaperContent 1건씩 일괄 조회
         final List<Long> selectedPaperIds = papersByStore.values().stream()
                 .flatMap(List::stream)
                 .map(Paper::getId)
@@ -157,7 +149,7 @@ public class MapServiceImpl implements MapService {
                     ));
         }
 
-        // 8) 매장별 DTO 생성
+        // 7) 매장별 DTO 생성
         return storesWithActivePaper.stream().map(s -> {
             final List<Paper> sPapers = papersByStore.get(s.getId());
 
@@ -240,7 +232,7 @@ public class MapServiceImpl implements MapService {
     public List<StoreMapResponseDTO> searchStores(String keyword, Long memberId) {
         String normalizedKeyword = (keyword == null) ? "" : keyword.replace(" ", "").toLowerCase();
 
-        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null);
+        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null, null);
 
         if (userPapers.isEmpty()) {
             return List.of();

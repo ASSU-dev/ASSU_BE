@@ -92,7 +92,7 @@ class MapServiceImplTest {
 
 		// 3. Then
 		assertTrue(result.isEmpty());
-		verify(userPaperRepository, never()).findActivePartnershipsByStudentId(any(), any());
+		verify(userPaperRepository, never()).findActivePartnershipsByStudentId(any(), any(), any());
 	}
 
 	@Test
@@ -100,7 +100,7 @@ class MapServiceImplTest {
 	void getStores_NoActivePartnership_ReturnsEmptyList() {
 		// 1. Given
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store(500L, "숭실카페")));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(List.of());
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
@@ -121,8 +121,9 @@ class MapServiceImplTest {
 		Paper paperB = Paper.builder().id(200L).store(store2).admin(adminB).build();
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1, store2));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
-			.thenReturn(List.of(userPaper(paperA), userPaper(paperB)));
+		// DB가 adminId=10으로 필터링해서 paperA만 반환
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, 10L))
+			.thenReturn(List.of(userPaper(paperA)));
 
 		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A학생회 혜택").build();
 		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(contentA));
@@ -134,6 +135,7 @@ class MapServiceImplTest {
 		assertEquals(1, result.size());
 		assertEquals(1L, result.get(0).storeId());
 		assertEquals("A학생회", result.get(0).partnerships().get(0).adminName());
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, 10L);
 	}
 
 	@Test
@@ -147,7 +149,7 @@ class MapServiceImplTest {
 		Paper paperB = Paper.builder().id(200L).store(store1).admin(adminB).build();
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paperA), userPaper(paperB)));
 
 		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A혜택").build();
@@ -182,7 +184,7 @@ class MapServiceImplTest {
 	@DisplayName("활성 제휴가 없는 학생이 매장을 검색하면 빈 리스트를 반환한다")
 	void searchStores_NoActivePartnership_ReturnsEmptyList() {
 		// 1. Given
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(List.of());
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.searchStores("맥주", STUDENT_ID);
@@ -197,7 +199,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실마트");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		// 2. When
@@ -213,7 +215,7 @@ class MapServiceImplTest {
 		// 1. Given ("역전 할머니 맥주" 매장을 "할머니맥주"로 검색)
 		Store store = store(500L, "역전 할머니 맥주");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -240,7 +242,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -265,7 +267,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -290,7 +292,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of());
 

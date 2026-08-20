@@ -17,11 +17,13 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
         WHERE up.student.id = :studentId
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
           AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
+          AND (:adminId IS NULL OR a.id = :adminId)
         ORDER BY p.id DESC
     """)
     List<UserPaper> findActivePartnershipsByStudentId(
             @Param("studentId") Long studentId,
-            @Param("storeCategory") StoreCategory storeCategory
+            @Param("storeCategory") StoreCategory storeCategory,
+            @Param("adminId") Long adminId
     );
 
     @Query("""

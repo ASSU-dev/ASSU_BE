@@ -126,9 +126,10 @@ public class StudentController {
 	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getUsablePartnership(
 			@AuthenticationPrincipal PrincipalDetails pd,
 			@RequestParam(name = "all", defaultValue = "false") boolean all,
-			@RequestParam(required = false) StoreCategory storeCategory
-	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all, storeCategory));
+			@RequestParam(required = false) StoreCategory storeCategory,
+			@RequestParam(required = false) Long adminId
+			) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all, storeCategory, adminId));
 	}
 
 	@Operation(
