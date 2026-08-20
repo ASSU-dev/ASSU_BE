@@ -28,6 +28,7 @@ import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.entity.UserPaper;
@@ -141,11 +142,11 @@ class StudentServiceImplTest {
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
 			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID)).thenReturn(userPapers);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(userPapers);
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, false);
+			studentService.getUsablePartnership(STUDENT_ID, false, null);
 
 		// 3. Then
 		assertEquals(2, result.size());
@@ -159,11 +160,11 @@ class StudentServiceImplTest {
 			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
 			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
 			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID)).thenReturn(userPapers);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(userPapers);
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, true);
+			studentService.getUsablePartnership(STUDENT_ID, true, null);
 
 		// 3. Then
 		assertEquals(3, result.size());
@@ -176,7 +177,7 @@ class StudentServiceImplTest {
 	void getUsablePartnership_NoCategory_FallsBackToGoodsBelonging() {
 		// 1. Given (category가 null인 SERVICE 제휴)
 		UserPaper userPaper = usablePartnership(100L, 1000L, null, OptionType.SERVICE);
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID)).thenReturn(List.of(userPaper));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null)).thenReturn(List.of(userPaper));
 
 		Goods goods = Goods.builder()
 			.content(userPaper.getPaperContent()).belonging("생맥주 500cc").build();
@@ -184,10 +185,41 @@ class StudentServiceImplTest {
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, true);
+			studentService.getUsablePartnership(STUDENT_ID, true, null);
 
 		// 3. Then
 		assertEquals("생맥주 500cc", result.get(0).getCategory());
+	}
+
+	@Test
+	@DisplayName("storeCategory=BAR이면 레포지토리에 BAR가 전달되고 반환된 BAR 결과만 노출된다")
+	void getUsablePartnership_WithStoreCategory_PassesCategoryToRepository() {
+		// 1. Given - DB가 BAR만 필터링해서 2건 반환한다고 가정
+		List<UserPaper> barUserPapers = List.of(
+			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
+			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR))
+			.thenReturn(barUserPapers);
+
+		// null이면 전체(BAR 2개 + RESTAURANT 1개) 반환
+		List<UserPaper> allUserPapers = List.of(
+			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
+			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE),
+			usablePartnership(102L, 1002L, "파스타", OptionType.SERVICE));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null))
+			.thenReturn(allUserPapers);
+
+		// 2. When
+		List<StudentResponseDTO.UsablePartnershipDTO> barResult =
+			studentService.getUsablePartnership(STUDENT_ID, true, StoreCategory.BAR);
+		List<StudentResponseDTO.UsablePartnershipDTO> allResult =
+			studentService.getUsablePartnership(STUDENT_ID, true, null);
+
+		// 3. Then
+		assertEquals(2, barResult.size());
+		assertEquals(3, allResult.size());
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR);
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null);
 	}
 
 	// ===== syncUserPapersForStudent =====

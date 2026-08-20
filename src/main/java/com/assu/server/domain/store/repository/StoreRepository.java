@@ -114,11 +114,9 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
         LEFT JOIN FETCH p.member
         WHERE s.point IS NOT NULL
           AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), s.point) = true
-          AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
         """)
     List<Store> findAllWithinViewportWithPartner(
-            @Param("wkt") String wkt,
-            @Param("storeCategory") StoreCategory storeCategory
+            @Param("wkt") String wkt
     );
 
     @Query("""

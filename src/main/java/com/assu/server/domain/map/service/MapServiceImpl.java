@@ -95,13 +95,13 @@ public class MapServiceImpl implements MapService {
         final String wkt = toWKT(viewport);
 
         // 1) 뷰포트 내 매장 조회 (Partner, Member fetch join)
-        final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt, storeCategory);
+        final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt);
         if (stores.isEmpty()) {
             return List.of();
         }
 
         // 2) 해당 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
-        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory);
         if (userPapers.isEmpty()) {
             return List.of(); // active 제휴가 없으면 빈 리스트 반환
         }
@@ -240,7 +240,7 @@ public class MapServiceImpl implements MapService {
     public List<StoreMapResponseDTO> searchStores(String keyword, Long memberId) {
         String normalizedKeyword = (keyword == null) ? "" : keyword.replace(" ", "").toLowerCase();
 
-        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
+        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null);
 
         if (userPapers.isEmpty()) {
             return List.of();
