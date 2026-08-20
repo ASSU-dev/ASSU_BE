@@ -16,6 +16,7 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.domain.student.repository.UserPaperRepository;
@@ -90,11 +91,11 @@ public class MapServiceImpl implements MapService {
      * papercontent의 note가 있으면 benefit 대신 note를 사용.
      */
     @Override
-    public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId) {
+    public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId, StoreCategory storeCategory, Long adminId) {
         final String wkt = toWKT(viewport);
 
         // 1) 뷰포트 내 매장 조회 (Partner, Member fetch join)
-        final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt);
+        final List<Store> stores = storeRepository.findAllWithinViewportWithPartner(wkt, storeCategory);
         if (stores.isEmpty()) {
             return List.of();
         }
@@ -123,7 +124,15 @@ public class MapServiceImpl implements MapService {
             papersByStore.computeIfAbsent(storeId, k -> new ArrayList<>()).add(up.getPaper());
         }
 
-        // 5) active 제휴가 있는 매장만 필터링
+        // 5) adminId 필터링 (null이면 전체)
+        if (adminId != null) {
+            papersByStore.entrySet().removeIf(e -> {
+                e.getValue().removeIf(p -> !p.getAdmin().getId().equals(adminId));
+                return e.getValue().isEmpty();
+            });
+        }
+
+        // 6) active 제휴가 있는 매장만 필터링
         final List<Store> storesWithActivePaper = stores.stream()
                 .filter(s -> papersByStore.containsKey(s.getId()))
                 .toList();
@@ -132,7 +141,7 @@ public class MapServiceImpl implements MapService {
             return List.of();
         }
 
-        // 6) 선택된 paper ID 목록으로 각 paper의 최신 PaperContent 1건씩 일괄 조회
+        // 7) 선택된 paper ID 목록으로 각 paper의 최신 PaperContent 1건씩 일괄 조회
         final List<Long> selectedPaperIds = papersByStore.values().stream()
                 .flatMap(List::stream)
                 .map(Paper::getId)
@@ -148,7 +157,7 @@ public class MapServiceImpl implements MapService {
                     ));
         }
 
-        // 7) 매장별 DTO 생성
+        // 8) 매장별 DTO 생성
         return storesWithActivePaper.stream().map(s -> {
             final List<Paper> sPapers = papersByStore.get(s.getId());
 
@@ -170,14 +179,14 @@ public class MapServiceImpl implements MapService {
 
             List<StoreMapResponseDTO.PartnershipInfo> partnerships = benefitsByAdmin.entrySet().stream()
                     .map(entry -> {
-                        Long adminId = entry.getKey();
+                        Long paperAdminId = entry.getKey();
                         List<String> benefits = entry.getValue();
                         String adminName = sPapers.stream()
-                                .filter(p -> p.getAdmin().getId().equals(adminId))
+                                .filter(p -> p.getAdmin().getId().equals(paperAdminId))
                                 .findFirst()
                                 .map(p -> p.getAdmin().getName())
                                 .orElse(null);
-                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefits);
+                        return new StoreMapResponseDTO.PartnershipInfo(paperAdminId, adminName, benefits);
                     })
                     .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
                     .toList();
