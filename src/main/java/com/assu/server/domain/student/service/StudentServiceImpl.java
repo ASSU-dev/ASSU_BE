@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.student.entity.StampEventApplicant;
 import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import org.springframework.data.domain.Page;
@@ -141,8 +142,8 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	@Override
-	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all) {
-		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
+	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId) {
+		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
 
 		// Goods 일괄 조회 (N+1 방지)
 		List<Long> contentIds = userPapers.stream()

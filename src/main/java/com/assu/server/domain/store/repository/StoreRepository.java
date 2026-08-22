@@ -1,5 +1,7 @@
 package com.assu.server.domain.store.repository;
 import java.util.Optional;
+
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.partner.entity.Partner;
@@ -113,7 +115,9 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
         WHERE s.point IS NOT NULL
           AND function('ST_Contains', function('ST_GeomFromText', :wkt, 4326), s.point) = true
         """)
-    List<Store> findAllWithinViewportWithPartner(@Param("wkt") String wkt);
+    List<Store> findAllWithinViewportWithPartner(
+            @Param("wkt") String wkt
+    );
 
     @Query("""
         SELECT DISTINCT s

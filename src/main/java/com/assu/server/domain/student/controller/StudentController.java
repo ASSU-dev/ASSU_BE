@@ -2,6 +2,7 @@ package com.assu.server.domain.student.controller;
 
 import java.util.List;
 
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -114,7 +115,8 @@ public class StudentController {
 					"**Request Parameters:**\n" +
 					"- `all` (Boolean, optional): 전체 조회 여부 - 기본값: false\n" +
 					"  - true: 모든 이용 가능한 제휴 조회\n" +
-					"  - false: 최대 2개만 조회\n\n" +
+					"  - false: 최대 2개만 조회\n" +
+					"- `storeCategory` (StoreCategory, optional): 카테고리 필터 - 미입력 시 전체 조회\n\n" +
 					"**Response:**\n" +
 					"- 성공 시 200(OK)와 이용 가능한 제휴 목록 반환\n" +
 					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
@@ -123,9 +125,11 @@ public class StudentController {
 	@GetMapping("/usable")
 	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getUsablePartnership(
 			@AuthenticationPrincipal PrincipalDetails pd,
-			@RequestParam(name = "all", defaultValue = "false") boolean all
-	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
+			@RequestParam(name = "all", defaultValue = "false") boolean all,
+			@RequestParam(required = false) StoreCategory storeCategory,
+			@RequestParam(required = false) Long adminId
+			) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all, storeCategory, adminId));
 	}
 
 	@Operation(
