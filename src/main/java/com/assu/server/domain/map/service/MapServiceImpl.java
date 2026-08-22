@@ -152,6 +152,13 @@ public class MapServiceImpl implements MapService {
         // 7) 매장별 DTO 생성
         return storesWithActivePaper.stream().map(s -> {
             final List<Paper> sPapers = papersByStore.get(s.getId());
+            final Map<Long, String> adminInfoMap = new HashMap<>();
+
+            for (Paper sp : sPapers) {
+                if (sp.getAdmin() != null) {
+                    adminInfoMap.putIfAbsent(sp.getAdmin().getId(), sp.getAdmin().getName());
+                }
+            }
 
             // admin별로 그룹화해서 benefits 리스트 생성
             Map<Long, List<String>> benefitsByAdmin = sPapers.stream()
@@ -173,11 +180,7 @@ public class MapServiceImpl implements MapService {
                     .map(entry -> {
                         Long paperAdminId = entry.getKey();
                         List<String> benefits = entry.getValue();
-                        String adminName = sPapers.stream()
-                                .filter(p -> p.getAdmin().getId().equals(paperAdminId))
-                                .findFirst()
-                                .map(p -> p.getAdmin().getName())
-                                .orElse(null);
+                        String adminName = adminInfoMap.get(paperAdminId);
                         return new StoreMapResponseDTO.PartnershipInfo(paperAdminId, adminName, benefits);
                     })
                     .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
