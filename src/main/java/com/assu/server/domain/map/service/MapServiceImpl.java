@@ -162,6 +162,7 @@ public class MapServiceImpl implements MapService {
 
             // admin별로 그룹화해서 benefits 리스트 생성
             Map<Long, List<String>> benefitsByAdmin = sPapers.stream()
+                    .filter(p -> p.getAdmin() != null)
                     .collect(Collectors.groupingBy(
                             paper -> paper.getAdmin().getId(),
                             Collectors.flatMapping(

@@ -1,6 +1,7 @@
 package com.assu.server.domain.map.dto;
 
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -35,51 +36,16 @@ public record StoreMapResponseDTO(
         String phoneNumber,
 
         @Schema(description = "모든 제휴 혜택 목록")
-        List<PartnershipInfo> partnerships
+        List<PartnershipInfo> partnerships,
+
+        @Schema(description = "가게 카테고리", example = "CAFE")
+        StoreCategory storeCategory
 ) {
     public record PartnershipInfo(
             Long adminId,
             String adminName,
             List<String> benefits
     ) {}
-
-    public static StoreMapResponseDTO of(
-            Store store,
-            Long adminId1, Long adminId2,
-            String adminName1, String adminName2,
-            List<String> benefits1, List<String> benefits2,
-            AmazonS3Manager s3Manager
-    ) {
-        final boolean hasPartner = store.getPartner() != null;
-        final String key = (store.getPartner() != null && store.getPartner().getMember() != null)
-                ? store.getPartner().getMember().getProfileUrl() : null;
-        final String profileUrl = (key != null && !key.isBlank())
-                ? s3Manager.generatePresignedUrl(key) : null;
-        final String phoneNumber = (store.getPartner() != null
-                && store.getPartner().getPhoneNum() != null)
-                ? store.getPartner().getPhoneNum() : "";
-
-        List<PartnershipInfo> partnerships = new java.util.ArrayList<>();
-        if (adminId1 != null) {
-            partnerships.add(new PartnershipInfo(adminId1, adminName1, benefits1));
-        }
-        if (adminId2 != null) {
-            partnerships.add(new PartnershipInfo(adminId2, adminName2, benefits2));
-        }
-
-        return new StoreMapResponseDTO(
-                store.getId(),
-                store.getName(),
-                store.getAddress() != null ? store.getAddress() : store.getDetailAddress(),
-                store.getRate(),
-                hasPartner,
-                store.getLatitude(),
-                store.getLongitude(),
-                profileUrl,
-                phoneNumber,
-                partnerships
-        );
-    }
 
     public static StoreMapResponseDTO ofWithPartnerships(
             Store store,
@@ -105,7 +71,8 @@ public record StoreMapResponseDTO(
                 store.getLongitude(),
                 profileUrl,
                 phoneNumber,
-                partnerships
+                partnerships,
+                store.getStoreCategory()
         );
     }
 }
