@@ -25,6 +25,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,7 @@ public class SignUpServiceImpl implements SignUpService {
     private final StoreRepository storeRepository;
     private final SSUAuthService ssuAuthService;
     private final SSUAuthRepository ssuAuthRepository;
+    private final StudentService studentService;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -108,7 +110,10 @@ public class SignUpServiceImpl implements SignUpService {
                 .build());
         member.setProfile(student);
 
-        // 5) JWT 토큰 발급
+        // 5) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
+        studentService.syncUserPapersForStudent(student.getId());
+
+        // 6) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authResponse.studentNumber(),
@@ -191,6 +196,66 @@ public class SignUpServiceImpl implements SignUpService {
         }
 
         return SignUpResponseDTO.from(member, null);
+    }
+
+    @Override
+    public List<SignUpResponseDTO> signupBatchPartner(List<PartnerBatchSignUpItemDTO> requests) {
+        return requests.stream().map(req -> {
+            Member member = memberRepository.save(
+                    Member.builder()
+                            .isLocationTermAgreed(true)
+                            .isMarketingTermAgreed(true)
+                            .role(UserRole.PARTNER)
+                            .isActivated(ActivationStatus.SUSPEND)
+                            .build());
+
+            RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
+            adapter.registerCredentials(member, req.email(), req.password());
+
+            String roadAddress = req.roadAddress() != null ? req.roadAddress() : "";
+            Double lat = req.latitude() != null ? req.latitude() : 0.0;
+            Double lng = req.longitude() != null ? req.longitude() : 0.0;
+            Point point = toPoint(lat, lng);
+
+            Partner partner = partnerRepository.save(
+                    Partner.builder()
+                            .member(member)
+                            .name(req.name())
+                            .phoneNum(null)
+                            .isPhoneVerified(false)
+                            .address(roadAddress)
+                            .detailAddress(null)
+                            .licenseUrl(null)
+                            .point(point)
+                            .latitude(lat)
+                            .longitude(lng)
+                            .build());
+            member.setProfile(partner);
+
+            Optional<Store> storeOpt = storeRepository.findBySameAddress(roadAddress, null);
+            if (storeOpt.isPresent()) {
+                Store store = storeOpt.get();
+                store.linkPartner(partner);
+                store.setName(req.name());
+                store.setGeo(lat, lng, point);
+                storeRepository.save(store);
+            } else {
+                Store newly = Store.builder()
+                        .partner(partner)
+                        .rate(0)
+                        .isActivate(ActivationStatus.SUSPEND)
+                        .name(req.name())
+                        .address(roadAddress)
+                        .detailAddress(null)
+                        .latitude(lat)
+                        .longitude(lng)
+                        .point(point)
+                        .build();
+                storeRepository.save(newly);
+            }
+
+            return SignUpResponseDTO.from(member, null);
+        }).toList();
     }
 
     @Override

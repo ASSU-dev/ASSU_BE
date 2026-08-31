@@ -2,6 +2,7 @@ package com.assu.server.domain.store.entity;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -43,6 +44,9 @@ public class Store extends BaseEntity {
 
 	private double latitude;
 	private double longitude;
+
+	@Enumerated(EnumType.STRING)
+	private StoreCategory storeCategory;
 
 	public void linkPartner(Partner partner) {
 		this.partner = partner;

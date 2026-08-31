@@ -24,6 +24,7 @@ import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
+import com.assu.server.infra.aligo.exception.AligoException;
 
 @ExtendWith(MockitoExtension.class)
 class PhoneAuthServiceImplTest {
@@ -108,6 +109,25 @@ class PhoneAuthServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
+		verify(redisTemplate, times(1)).delete(PHONE);
+	}
+
+	@Test
+	@DisplayName("SMS 발송 중 알리고 예외가 발생하면 저장했던 인증번호를 삭제하고 예외를 전파한다")
+	void checkAndSendAuthNumber_SmsThrowsAligoException_DeletesCodeAndRethrows() {
+		// 1. Given
+		when(partnerRepository.existsByPhoneNum(PHONE)).thenReturn(false);
+		when(adminRepository.existsByPhoneNum(PHONE)).thenReturn(false);
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
+			.thenThrow(new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO));
+
+		// 2. When
+		AligoException exception = assertThrows(AligoException.class,
+			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// 3. Then
+		assertEquals(ErrorStatus.FAILED_TO_PARSE_ALIGO, exception.getCode());
 		verify(redisTemplate, times(1)).delete(PHONE);
 	}
 

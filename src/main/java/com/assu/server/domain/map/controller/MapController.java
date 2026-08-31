@@ -4,6 +4,7 @@ import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.map.dto.*;
 import com.assu.server.domain.map.service.MapService;
 import com.assu.server.domain.map.service.PlaceSearchService;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -29,10 +30,13 @@ public class MapController {
 
     @Operation(
             summary = "현재 위치 기반 주변 장소 조회 API",
-            description = "# [v1.3 (2025-01-04)](https://clumsy-seeder-416.notion.site/2441197c19ed80bcb55fcad675dd9837?source=copy_link)\n" +
+            description = "# [v1.4 (2025-01-04)](https://clumsy-seeder-416.notion.site/2441197c19ed80bcb55fcad675dd9837?source=copy_link)\n" +
                     "- 로그인한 유저의 역할에 따라 Map 객체를 반환합니다.\n" +
                     "- 경도, 위도 순서로 입력한 Viewport 객체 입력.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+
+                    "\n**Request Params (STUDENT 전용):**\n" +
+                    "  - `storeCategory` (StoreCategory, optional): 카테고리 필터\n" +
+                    "  - `adminId` (Long, optional): 특정 학생회 필터\n" +
                     "\n**Request Body:**\n" +
                     "  - `viewport` 객체 (JSON, required): 공간인덱싱을 위한 경도, 위도 객체\n" +
                     "  - `lng1` (double): 좌 상단 경도\n" +
@@ -86,13 +90,15 @@ public class MapController {
     @GetMapping("/nearby")
     public BaseResponse<?> getLocations(
             @ModelAttribute MapRequestDTO viewport,
+            @RequestParam(required = false) StoreCategory storeCategory,
+            @RequestParam(required = false) Long adminId,
             @AuthenticationPrincipal PrincipalDetails pd
     ) {
         Long memberId = pd.getMember().getId();
         UserRole role = pd.getMember().getRole();
 
         return switch (role) {
-            case STUDENT -> BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStores(viewport, memberId));
+            case STUDENT -> BaseResponse.onSuccess(SuccessStatus._OK, mapService.getStores(viewport, memberId, storeCategory, adminId));
             case ADMIN -> BaseResponse.onSuccess(SuccessStatus._OK, mapService.getPartners(viewport, memberId));
             case PARTNER -> BaseResponse.onSuccess(SuccessStatus._OK, mapService.getAdmins(viewport, memberId));
             default -> BaseResponse.onFailure(ErrorStatus._BAD_REQUEST, null);

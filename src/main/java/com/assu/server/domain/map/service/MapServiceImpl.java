@@ -16,6 +16,7 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.domain.student.repository.UserPaperRepository;
@@ -90,7 +91,7 @@ public class MapServiceImpl implements MapService {
      * papercontent의 note가 있으면 benefit 대신 note를 사용.
      */
     @Override
-    public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId) {
+    public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId, StoreCategory storeCategory, Long adminId) {
         final String wkt = toWKT(viewport);
 
         // 1) 뷰포트 내 매장 조회 (Partner, Member fetch join)
@@ -100,7 +101,7 @@ public class MapServiceImpl implements MapService {
         }
 
         // 2) 해당 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
-        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
         if (userPapers.isEmpty()) {
             return List.of(); // active 제휴가 없으면 빈 리스트 반환
         }
@@ -151,9 +152,17 @@ public class MapServiceImpl implements MapService {
         // 7) 매장별 DTO 생성
         return storesWithActivePaper.stream().map(s -> {
             final List<Paper> sPapers = papersByStore.get(s.getId());
+            final Map<Long, String> adminInfoMap = new HashMap<>();
+
+            for (Paper sp : sPapers) {
+                if (sp.getAdmin() != null) {
+                    adminInfoMap.putIfAbsent(sp.getAdmin().getId(), sp.getAdmin().getName());
+                }
+            }
 
             // admin별로 그룹화해서 benefits 리스트 생성
             Map<Long, List<String>> benefitsByAdmin = sPapers.stream()
+                    .filter(p -> p.getAdmin() != null)
                     .collect(Collectors.groupingBy(
                             paper -> paper.getAdmin().getId(),
                             Collectors.flatMapping(
@@ -170,14 +179,10 @@ public class MapServiceImpl implements MapService {
 
             List<StoreMapResponseDTO.PartnershipInfo> partnerships = benefitsByAdmin.entrySet().stream()
                     .map(entry -> {
-                        Long adminId = entry.getKey();
+                        Long paperAdminId = entry.getKey();
                         List<String> benefits = entry.getValue();
-                        String adminName = sPapers.stream()
-                                .filter(p -> p.getAdmin().getId().equals(adminId))
-                                .findFirst()
-                                .map(p -> p.getAdmin().getName())
-                                .orElse(null);
-                        return new StoreMapResponseDTO.PartnershipInfo(adminId, adminName, benefits);
+                        String adminName = adminInfoMap.get(paperAdminId);
+                        return new StoreMapResponseDTO.PartnershipInfo(paperAdminId, adminName, benefits);
                     })
                     .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
                     .toList();
@@ -231,7 +236,7 @@ public class MapServiceImpl implements MapService {
     public List<StoreMapResponseDTO> searchStores(String keyword, Long memberId) {
         String normalizedKeyword = (keyword == null) ? "" : keyword.replace(" ", "").toLowerCase();
 
-        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId);
+        List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null, null);
 
         if (userPapers.isEmpty()) {
             return List.of();

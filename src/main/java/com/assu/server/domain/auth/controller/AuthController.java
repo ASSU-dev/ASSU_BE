@@ -1,5 +1,7 @@
 package com.assu.server.domain.auth.controller;
 
+import java.util.List;
+
 import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
 import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
 import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
@@ -13,7 +15,13 @@ import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.dto.email.EmailVerificationCheckRequestDTO;
-import com.assu.server.domain.auth.service.*;
+import com.assu.server.domain.auth.service.EmailAuthService;
+import com.assu.server.domain.auth.service.LoginService;
+import com.assu.server.domain.auth.service.LogoutService;
+import com.assu.server.domain.auth.service.PhoneAuthService;
+import com.assu.server.domain.auth.service.SSUAuthService;
+import com.assu.server.domain.auth.service.SignUpService;
+import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -22,6 +30,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RequestBody;
 import jakarta.validation.Valid;

@@ -3,6 +3,7 @@ package com.assu.server.domain.student.controller;
 import java.util.List;
 
 import org.springdoc.core.annotations.ParameterObject;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -115,7 +116,8 @@ public class StudentController {
 					"**Request Parameters:**\n" +
 					"- `all` (Boolean, optional): 전체 조회 여부 - 기본값: false\n" +
 					"  - true: 모든 이용 가능한 제휴 조회\n" +
-					"  - false: 최대 2개만 조회\n\n" +
+					"  - false: 최대 2개만 조회\n" +
+					"- `storeCategory` (StoreCategory, optional): 카테고리 필터 - 미입력 시 전체 조회\n\n" +
 					"**Response:**\n" +
 					"- 성공 시 200(OK)와 이용 가능한 제휴 목록 반환\n" +
 					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
@@ -124,9 +126,28 @@ public class StudentController {
 	@GetMapping("/usable")
 	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getUsablePartnership(
 			@AuthenticationPrincipal PrincipalDetails pd,
-			@RequestParam(name = "all", defaultValue = "false") boolean all
+			@RequestParam(name = "all", defaultValue = "false") boolean all,
+			@RequestParam(required = false) StoreCategory storeCategory,
+			@RequestParam(required = false) Long adminId
+			) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all, storeCategory, adminId));
+	}
+
+	@Operation(
+			summary = "사용자의 추천 제휴 조회 API",
+			description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed800b86f5ed255f91caf1?source=copy_link)\n" +
+					"- 현재 로그인한 사용자가 이용 가능한 제휴 중 최대 14개를 랜덤으로 반환합니다.\n" +
+					"- 활성 상태인 제휴만 포함됩니다.\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 추천 제휴 목록(최대 14개) 반환\n" +
+					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
+	)
+	@GetMapping("/recommend")
+	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getRecommendPartnership(
+			@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getRecommendPartnership(pd.getId()));
 	}
 
 	@Operation(

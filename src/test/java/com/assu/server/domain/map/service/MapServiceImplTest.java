@@ -28,6 +28,7 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.domain.student.repository.UserPaperRepository;
@@ -79,6 +80,144 @@ class MapServiceImplTest {
 		return UserPaper.builder().paper(paper).build();
 	}
 
+	// ===== getStores =====
+
+	@Test
+	@DisplayName("뷰포트 내 가게가 없으면 빈 리스트를 반환하고 UserPaper 조회를 하지 않는다")
+	void getStores_EmptyViewport_ReturnsEmptyList() {
+		// 1. Given
+		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of());
+
+		// 2. When
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
+
+		// 3. Then
+		assertTrue(result.isEmpty());
+		verify(userPaperRepository, never()).findActivePartnershipsByStudentId(any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("활성 제휴가 없는 학생이 주변 가게를 조회하면 빈 리스트를 반환한다")
+	void getStores_NoActivePartnership_ReturnsEmptyList() {
+		// 1. Given
+		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store(500L, "숭실카페")));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
+
+		// 2. When
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
+
+		// 3. Then
+		assertTrue(result.isEmpty());
+	}
+
+	@Test
+	@DisplayName("adminId 필터링 시 해당 학생회 제휴가 있는 가게만 반환한다")
+	void getStores_WithAdminIdFilter_ReturnsOnlyMatchingAdminStores() {
+		// 1. Given - A학생회(가게1), B학생회(가게2) 각각 제휴
+		Store store1 = store(1L, "가게1");
+		Store store2 = store(2L, "가게2");
+		Admin adminA = admin(10L, "A학생회");
+		Admin adminB = admin(20L, "B학생회");
+		Paper paperA = Paper.builder().id(100L).store(store1).admin(adminA).build();
+		Paper paperB = Paper.builder().id(200L).store(store2).admin(adminB).build();
+
+		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1, store2));
+		// DB가 adminId=10으로 필터링해서 paperA만 반환
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, 10L))
+			.thenReturn(List.of(userPaper(paperA)));
+
+		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A학생회 혜택").build();
+		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(contentA));
+
+		// 2. When - adminId=10(A학생회)으로 필터링
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, 10L);
+
+		// 3. Then - 가게1만 반환
+		assertEquals(1, result.size());
+		assertEquals(1L, result.get(0).storeId());
+		assertEquals("A학생회", result.get(0).partnerships().get(0).adminName());
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, 10L);
+	}
+
+	@Test
+	@DisplayName("여러 학생회가 같은 가게와 제휴하면 학생회별로 혜택이 그룹화된다")
+	void getStores_MultipleAdmins_GroupsBenefitsByAdmin() {
+		// 1. Given - A학생회, B학생회 모두 가게1과 제휴
+		Store store1 = store(1L, "가게1");
+		Admin adminA = admin(10L, "A학생회");
+		Admin adminB = admin(20L, "B학생회");
+		Paper paperA = Paper.builder().id(100L).store(store1).admin(adminA).build();
+		Paper paperB = Paper.builder().id(200L).store(store1).admin(adminB).build();
+
+		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
+			.thenReturn(List.of(userPaper(paperA), userPaper(paperB)));
+
+		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A혜택").build();
+		PaperContent contentB = PaperContent.builder().id(2000L).paper(paperB).note("B혜택").build();
+		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(contentA, contentB));
+
+		// 2. When
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
+
+		// 3. Then - 가게1에 2개의 학생회 혜택
+		assertEquals(1, result.size());
+		assertEquals(2, result.get(0).partnerships().size());
+	}
+
+	@Test
+	@DisplayName("storeCategory 필터링 시 해당 카테고리 가게만 반환하며 카테고리가 DTO에 포함된다")
+	void getStores_WithStoreCategoryFilter_ReturnsOnlyMatchingCategoryStores() {
+		// 1. Given - CAFE 가게1, RESTAURANT 가게2 둘 다 뷰포트 내
+		Store cafeStore = Store.builder().id(1L).name("숭실카페").address("서울특별시 동작구")
+				.rate(4).latitude(37.50).longitude(126.96).storeCategory(StoreCategory.CAFE).build();
+		Store restaurantStore = Store.builder().id(2L).name("숭실분식").address("서울특별시 동작구")
+				.rate(3).latitude(37.50).longitude(126.96).storeCategory(StoreCategory.RESTAURANT).build();
+		Admin adminA = admin(10L, "A학생회");
+		Paper cafeP = Paper.builder().id(100L).store(cafeStore).admin(adminA).build();
+
+		when(storeRepository.findAllWithinViewportWithPartner(anyString()))
+				.thenReturn(List.of(cafeStore, restaurantStore));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.CAFE, null))
+				.thenReturn(List.of(userPaper(cafeP)));
+		PaperContent content = PaperContent.builder().id(1000L).paper(cafeP).note("아메리카노 할인").build();
+		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(content));
+
+		// 2. When
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, StoreCategory.CAFE, null);
+
+		// 3. Then - CAFE 가게만 반환, storeCategory 포함 확인
+		assertEquals(1, result.size());
+		assertEquals(1L, result.get(0).storeId());
+		assertEquals(StoreCategory.CAFE, result.get(0).storeCategory());
+		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.CAFE, null);
+		result.forEach(r -> System.out.println("[storeCategory 필터] " + r));
+	}
+
+	@Test
+	@DisplayName("필터 없이 조회해도 응답 DTO에 가게 카테고리가 포함된다")
+	void getStores_NoFilter_StoreCategoryIncludedInResponse() {
+		// 1. Given
+		Store store = Store.builder().id(1L).name("숭실카페").address("서울특별시 동작구")
+				.rate(4).latitude(37.50).longitude(126.96).storeCategory(StoreCategory.CAFE).build();
+		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
+
+		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
+				.thenReturn(List.of(userPaper(paper)));
+		when(paperContentRepository.findByPaperIdIn(anyList()))
+				.thenReturn(List.of(PaperContent.builder().id(1000L).paper(paper).note("혜택").build()));
+
+		// 2. When
+		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
+
+		// 3. Then
+		assertEquals(StoreCategory.CAFE, result.get(0).storeCategory());
+		result.forEach(r -> System.out.println("[필터 없음] " + r));
+	}
+
+	// ===== getPartners =====
+
 	@Test
 	@DisplayName("뷰포트 내 제휴업체가 없으면 빈 리스트를 반환한다")
 	void getPartners_EmptyViewport_ReturnsEmptyList() {
@@ -97,7 +236,7 @@ class MapServiceImplTest {
 	@DisplayName("활성 제휴가 없는 학생이 매장을 검색하면 빈 리스트를 반환한다")
 	void searchStores_NoActivePartnership_ReturnsEmptyList() {
 		// 1. Given
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID)).thenReturn(List.of());
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.searchStores("맥주", STUDENT_ID);
@@ -112,7 +251,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실마트");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		// 2. When
@@ -128,7 +267,7 @@ class MapServiceImplTest {
 		// 1. Given ("역전 할머니 맥주" 매장을 "할머니맥주"로 검색)
 		Store store = store(500L, "역전 할머니 맥주");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -155,7 +294,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -180,7 +319,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
@@ -205,7 +344,7 @@ class MapServiceImplTest {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID))
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
 		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of());
 
