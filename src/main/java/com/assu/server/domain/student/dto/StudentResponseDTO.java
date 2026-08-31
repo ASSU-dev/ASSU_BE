@@ -41,6 +41,7 @@ public class StudentResponseDTO {
 
 	public record RecommendCarouselDTO(
 		String category,
+		String belonging,
 		String partnerProfileUrl,
 		String partnerName,
 		Long storeId

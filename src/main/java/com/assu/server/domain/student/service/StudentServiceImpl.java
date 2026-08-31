@@ -219,16 +219,12 @@ public class StudentServiceImpl implements StudentService {
 			Store store = up.getPaper().getStore();
 			Partner partner = up.getPaper().getPartner();
 
-			String finalCategory = content.getCategory();
-			if (finalCategory == null && content.getOptionType() == OptionType.SERVICE) {
-				List<Goods> goods = goodsMap.get(content.getId());
-				if (goods != null && !goods.isEmpty()) {
-					finalCategory = goods.get(0).getBelonging();
-				}
-			}
+			List<Goods> goods = goodsMap.get(content.getId());
+			String firstBelonging = (goods != null && !goods.isEmpty()) ? goods.get(0).getBelonging() : null;
 
 			return new StudentResponseDTO.RecommendCarouselDTO(
-					finalCategory,
+					content.getCategory(),
+					firstBelonging,
 					partner != null && partner.getMember() != null ? partner.getMember().getProfileUrl() : null,
 					store != null ? store.getName() : null,
 					store != null ? store.getId() : null
