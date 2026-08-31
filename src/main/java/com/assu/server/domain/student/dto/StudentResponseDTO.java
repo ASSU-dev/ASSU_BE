@@ -39,6 +39,13 @@ public class StudentResponseDTO {
         private String message;
     }
 
+	public record RecommendCarouselDTO(
+		String category,
+		String partnerProfileUrl,
+		String partnerName,
+		Long storeId
+	) {}
+
 	@Getter
 	@NoArgsConstructor
 	@AllArgsConstructor
@@ -55,6 +62,9 @@ public class StudentResponseDTO {
 		private Long paperId;
 		private String category;
 		private Long discountRate;
+		private Long storeId;
+		private Integer extraCount;
+		private String partnerProfileUrl;
 	}
 
 }

@@ -2,6 +2,7 @@ package com.assu.server.domain.store.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
@@ -15,15 +16,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.certification.repository.QRCertificationRepository;
+import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.store.exception.CustomStoreException;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.s3.AmazonS3Manager;
 
 @ExtendWith(MockitoExtension.class)
 class StoreServiceImplTest {
@@ -43,7 +47,104 @@ class StoreServiceImplTest {
 	@Mock
 	private QRCertificationRepository qrCertificationRepository;
 
+	@Mock
+	private AmazonS3Manager amazonS3Manager;
+
 	private static final Long PARTNER_ID = 20L;
+	private static final Long STORE_ID = 500L;
+
+	// ===== getStoreDetails =====
+
+	@Test
+	@DisplayName("존재하지 않는 storeId로 조회하면 NO_SUCH_STORE 예외가 발생한다")
+	void getStoreDetails_StoreNotFound_ThrowsException() {
+		// given
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.empty());
+
+		// when
+		CustomStoreException exception = assertThrows(CustomStoreException.class,
+			() -> storeService.getStoreDetails(STORE_ID));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_STORE, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("파트너와 프로필 이미지가 있으면 presigned URL을 반환한다")
+	void getStoreDetails_WithPartnerAndProfileUrl_ReturnsPresignedUrl() {
+		// given
+		Member member = mock(Member.class);
+		when(member.getProfileUrl()).thenReturn("partners/42/profile.jpg");
+
+		Partner partner = mock(Partner.class);
+		when(partner.getMember()).thenReturn(member);
+		when(partner.getPhoneNum()).thenReturn("02-820-0114");
+
+		Store store = Store.builder()
+			.id(STORE_ID).name("역할맥").address("서울시 동작구 상도로 123").detailAddress("1층")
+			.latitude(37.50).longitude(126.96).storeCategory(StoreCategory.BAR).rate(4)
+			.partner(partner).build();
+
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+
+		// when
+		StoreResponseDTO.GetStoreDetailsDTO result = storeService.getStoreDetails(STORE_ID);
+
+		// then
+		assertEquals(STORE_ID, result.storeId());
+		assertEquals("역할맥", result.storeName());
+		assertEquals("서울시 동작구 상도로 123", result.address());
+		assertEquals("1층", result.detailAddress());
+		assertEquals(37.50, result.latitude());
+		assertEquals(126.96, result.longitude());
+		assertEquals("BAR", result.storeCategory());
+		assertEquals(4, result.rate());
+		assertEquals("02-820-0114", result.phoneNumber());
+		assertTrue(result.hasPartner());
+		assertEquals("https://presigned.url", result.profileUrl());
+	}
+
+	@Test
+	@DisplayName("파트너가 있지만 프로필 이미지가 없으면 profileUrl은 null이다")
+	void getStoreDetails_WithPartnerButNoProfileUrl_ReturnsNullProfileUrl() {
+		// given
+		Member member = mock(Member.class);
+		when(member.getProfileUrl()).thenReturn(null);
+
+		Partner partner = mock(Partner.class);
+		when(partner.getMember()).thenReturn(member);
+		when(partner.getPhoneNum()).thenReturn("02-820-0114");
+
+		Store store = Store.builder().id(STORE_ID).name("역할맥").partner(partner).build();
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+
+		// when
+		StoreResponseDTO.GetStoreDetailsDTO result = storeService.getStoreDetails(STORE_ID);
+
+		// then
+		assertTrue(result.hasPartner());
+		assertNull(result.profileUrl());
+		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
+	}
+
+	@Test
+	@DisplayName("파트너가 없으면 hasPartner false, phoneNumber·profileUrl은 null이다")
+	void getStoreDetails_WithoutPartner_ReturnsHasPartnerFalse() {
+		// given
+		Store store = Store.builder().id(STORE_ID).name("미제휴매장").partner(null).build();
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+
+		// when
+		StoreResponseDTO.GetStoreDetailsDTO result = storeService.getStoreDetails(STORE_ID);
+
+		// then
+		assertFalse(result.hasPartner());
+		assertNull(result.phoneNumber());
+		assertNull(result.profileUrl());
+	}
+
+	// ===== getTodayBestStore =====
 
 	@Test
 	@DisplayName("오늘의 베스트 매장 이름 목록을 그대로 반환한다")

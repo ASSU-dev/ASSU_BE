@@ -14,6 +14,8 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
         JOIN FETCH up.paper p
         LEFT JOIN FETCH p.store s
         LEFT JOIN FETCH p.admin a
+        LEFT JOIN FETCH p.partner pt
+        LEFT JOIN FETCH pt.member pm
         WHERE up.student.id = :studentId
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
           AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)

@@ -25,6 +25,7 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
+import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.student.converter.StudentConverter;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
@@ -145,14 +146,25 @@ public class StudentServiceImpl implements StudentService {
 	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId) {
 		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
 
-		// Goods 일괄 조회 (N+1 방지)
-		List<Long> contentIds = userPapers.stream()
+		Map<Long, Long> countByPaperId = userPapers.stream()
+				.collect(Collectors.groupingBy(up -> up.getPaper().getId(), Collectors.counting()));
+
+		List<UserPaper> representatives = userPapers.stream()
+				.collect(Collectors.toMap(
+						up -> up.getPaper().getId(),
+						up -> up,
+						(a, b) -> a,
+						LinkedHashMap::new
+				))
+				.values().stream().toList();
+
+		List<Long> contentIds = representatives.stream()
 				.map(up -> up.getPaperContent().getId())
 				.toList();
 		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
 				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
 
-		List<StudentResponseDTO.UsablePartnershipDTO> result = userPapers.stream().map(up -> {
+		List<StudentResponseDTO.UsablePartnershipDTO> result = representatives.stream().map(up -> {
 			Paper paper = up.getPaper();
 			PaperContent content = up.getPaperContent();
 			Store store = paper.getStore();
@@ -165,6 +177,8 @@ public class StudentServiceImpl implements StudentService {
 				}
 			}
 
+			Partner partner = paper.getPartner();
+			int extraCount = countByPaperId.get(paper.getId()).intValue() - 1;
 			return StudentResponseDTO.UsablePartnershipDTO.builder()
 					.partnershipId(paper.getId())
 					.adminName(paper.getAdmin() != null ? paper.getAdmin().getName() : null)
@@ -177,6 +191,9 @@ public class StudentServiceImpl implements StudentService {
 					.cost(content.getCost())
 					.category(finalCategory)
 					.discountRate(content.getDiscount())
+.storeId(store != null ? store.getId() : null)
+					.extraCount(extraCount)
+					.partnerProfileUrl(partner != null && partner.getMember() != null ? partner.getMember().getProfileUrl() : null)
 					.build();
 		}).toList();
 
@@ -185,13 +202,11 @@ public class StudentServiceImpl implements StudentService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<StudentResponseDTO.UsablePartnershipDTO> getRecommendPartnership(Long memberId) {
+	public List<StudentResponseDTO.RecommendCarouselDTO> getRecommendCarouselPartnership(Long memberId) {
 		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null, null);
 		List<UserPaper> shuffled = new ArrayList<>(userPapers);
 		Collections.shuffle(shuffled);
-		List<UserPaper> randomUserPapers = new ArrayList<>(
-				shuffled.subList(0, Math.min(14, shuffled.size()))
-		);
+		List<UserPaper> randomUserPapers = shuffled.subList(0, Math.min(10, shuffled.size()));
 
 		List<Long> contentIds = randomUserPapers.stream()
 				.map(up -> up.getPaperContent().getId())
@@ -200,9 +215,9 @@ public class StudentServiceImpl implements StudentService {
 				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
 
 		return randomUserPapers.stream().map(up -> {
-			Paper paper = up.getPaper();
 			PaperContent content = up.getPaperContent();
-			Store store = paper.getStore();
+			Store store = up.getPaper().getStore();
+			Partner partner = up.getPaper().getPartner();
 
 			String finalCategory = content.getCategory();
 			if (finalCategory == null && content.getOptionType() == OptionType.SERVICE) {
@@ -212,19 +227,12 @@ public class StudentServiceImpl implements StudentService {
 				}
 			}
 
-			return StudentResponseDTO.UsablePartnershipDTO.builder()
-					.partnershipId(paper.getId())
-					.adminName(paper.getAdmin() != null ? paper.getAdmin().getName() : null)
-					.partnerName(store != null ? store.getName() : null)
-					.note(content.getNote())
-					.paperId(paper.getId())
-					.criterionType(content.getCriterionType())
-					.optionType(content.getOptionType())
-					.people(content.getPeople())
-					.cost(content.getCost())
-					.category(finalCategory)
-					.discountRate(content.getDiscount())
-					.build();
+			return new StudentResponseDTO.RecommendCarouselDTO(
+					finalCategory,
+					partner != null && partner.getMember() != null ? partner.getMember().getProfileUrl() : null,
+					store != null ? store.getName() : null,
+					store != null ? store.getId() : null
+			);
 		}).toList();
 	}
 
