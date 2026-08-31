@@ -109,7 +109,7 @@ public class StudentController {
 
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",
-			description = "# [v1.0 (2025-10-30)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
+			description = "# [v1.1 (2026-08-31)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
 					"- 현재 로그인한 사용자가 이용 가능한 제휴 목록을 조회합니다.\n" +
 					"- 활성 상태인 제휴만 반환합니다.\n\n" +
 					"**Request Parameters:**\n" +
@@ -142,11 +142,11 @@ public class StudentController {
 					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
 					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
 	)
-	@GetMapping("/recommend")
-	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getRecommendPartnership(
+	@GetMapping("/recommend/carousel")
+	public BaseResponse<List<StudentResponseDTO.RecommendCarouselDTO>> getRecommendCarouselPartnership(
 			@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getRecommendPartnership(pd.getId()));
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getRecommendCarouselPartnership(pd.getId()));
 	}
 
 	@Operation(
