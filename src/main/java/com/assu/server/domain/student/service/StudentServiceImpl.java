@@ -183,6 +183,51 @@ public class StudentServiceImpl implements StudentService {
 		return Boolean.FALSE.equals(all) ? result.stream().limit(2).toList() : result;
 	}
 
+	@Override
+	@Transactional(readOnly = true)
+	public List<StudentResponseDTO.UsablePartnershipDTO> getRecommendPartnership(Long memberId) {
+		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null, null);
+		List<UserPaper> shuffled = new ArrayList<>(userPapers);
+		Collections.shuffle(shuffled);
+		List<UserPaper> randomUserPapers = new ArrayList<>(
+				shuffled.subList(0, Math.min(14, shuffled.size()))
+		);
+
+		List<Long> contentIds = randomUserPapers.stream()
+				.map(up -> up.getPaperContent().getId())
+				.toList();
+		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
+				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
+
+		return randomUserPapers.stream().map(up -> {
+			Paper paper = up.getPaper();
+			PaperContent content = up.getPaperContent();
+			Store store = paper.getStore();
+
+			String finalCategory = content.getCategory();
+			if (finalCategory == null && content.getOptionType() == OptionType.SERVICE) {
+				List<Goods> goods = goodsMap.get(content.getId());
+				if (goods != null && !goods.isEmpty()) {
+					finalCategory = goods.get(0).getBelonging();
+				}
+			}
+
+			return StudentResponseDTO.UsablePartnershipDTO.builder()
+					.partnershipId(paper.getId())
+					.adminName(paper.getAdmin() != null ? paper.getAdmin().getName() : null)
+					.partnerName(store != null ? store.getName() : null)
+					.note(content.getNote())
+					.paperId(paper.getId())
+					.criterionType(content.getCriterionType())
+					.optionType(content.getOptionType())
+					.people(content.getPeople())
+					.cost(content.getCost())
+					.category(finalCategory)
+					.discountRate(content.getDiscount())
+					.build();
+		}).toList();
+	}
+
 	@Transactional
 	@Override
 	public void syncUserPapersForStudent(Long studentId) {
