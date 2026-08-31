@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.store.exception.CustomStoreException;
+import com.assu.server.infra.s3.AmazonS3Manager;
 import org.springframework.stereotype.Service;
 import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
@@ -27,8 +28,39 @@ public class StoreServiceImpl implements StoreService {
     private final PartnerRepository partnerRepository;
 	private final PartnershipUsageRepository partnershipUsageRepository;
     private final QRCertificationRepository qrCertificationRepository;
+    private final AmazonS3Manager amazonS3Manager;
 
-	@Override
+    @Override
+    @Transactional
+    public StoreResponseDTO.GetStoreDetailsDTO getStoreDetails(Long storeId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
+
+        Partner partner = store.getPartner();
+        String profileUrl = null;
+        if (partner != null && partner.getMember() != null) {
+            String key = partner.getMember().getProfileUrl();
+            if (key != null && !key.isBlank()) {
+                profileUrl = amazonS3Manager.generatePresignedUrl(key);
+            }
+        }
+
+        return new StoreResponseDTO.GetStoreDetailsDTO(
+                store.getId(),
+                store.getName(),
+                store.getAddress(),
+                store.getDetailAddress(),
+                store.getLatitude(),
+                store.getLongitude(),
+                store.getStoreCategory() != null ? store.getStoreCategory().name() : null,
+                store.getRate(),
+                partner != null ? partner.getPhoneNum() : null,
+                partner != null,
+                profileUrl
+        );
+    }
+
+    @Override
 	@Transactional
 	public TodayBestResponseDTO getTodayBestStore() {
 		List<String> bestStores = storeRepository.findTodayBestStoreNames();
