@@ -2,6 +2,7 @@ package com.assu.server.domain.student.controller;
 
 import java.util.List;
 
+import org.springdoc.core.annotations.ParameterObject;
 import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,7 +73,7 @@ public class StudentController {
 	)
 	public ResponseEntity<BaseResponse<Page<StudentResponseDTO.UsageDetail>>> getUnreviewedUsage(
 		@AuthenticationPrincipal PrincipalDetails pd,
-		Pageable pageable
+		@ParameterObject Pageable pageable
 	){
 		return ResponseEntity.ok(BaseResponse
 			.onSuccess(SuccessStatus.UNREVIEWED_HISTORY_SUCCESS,
