@@ -133,6 +133,23 @@ public class StudentController {
 	}
 
 	@Operation(
+			summary = "사용자의 추천 제휴 조회 API",
+			description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed800b86f5ed255f91caf1?source=copy_link)\n" +
+					"- 현재 로그인한 사용자가 이용 가능한 제휴 중 최대 14개를 랜덤으로 반환합니다.\n" +
+					"- 활성 상태인 제휴만 포함됩니다.\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 추천 제휴 목록(최대 14개) 반환\n" +
+					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
+	)
+	@GetMapping("/recommend")
+	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getRecommendPartnership(
+			@AuthenticationPrincipal PrincipalDetails pd
+	) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getRecommendPartnership(pd.getId()));
+	}
+
+	@Operation(
 			summary = "로그인한 학생 프로필/학적 정보 조회 API",
 			description = "- 현재 로그인한 학생의 학번, 대학교, 단과대, 학과/전공, 과정/학적 상태, 학년/학기 등의 프로필 정보를 조회합니다.\n\n" +
 					"**Response:**\n" +

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -245,6 +246,79 @@ class StudentServiceImplTest {
 		assertEquals(2, allResult.size());
 		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, 10L);
 		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, null);
+	}
+
+	// ===== getRecommendPartnership =====
+
+	@Test
+	@DisplayName("이용 가능한 제휴가 14개 이하면 전체를 반환한다")
+	void getRecommendPartnership_LessThan14_ReturnsAll() {
+		// given
+		List<UserPaper> userPapers = List.of(
+			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
+			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
+			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		List<StudentResponseDTO.UsablePartnershipDTO> result = studentService.getRecommendPartnership(STUDENT_ID);
+
+		// then
+		assertEquals(3, result.size());
+	}
+
+	@Test
+	@DisplayName("이용 가능한 제휴가 14개를 초과하면 14개만 반환한다")
+	void getRecommendPartnership_MoreThan14_Returns14() {
+		// given (20개 생성)
+		List<UserPaper> userPapers = new ArrayList<>();
+		for (int i = 0; i < 20; i++) {
+			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주", OptionType.SERVICE));
+		}
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		List<StudentResponseDTO.UsablePartnershipDTO> result = studentService.getRecommendPartnership(STUDENT_ID);
+
+		// then
+		assertEquals(14, result.size());
+	}
+
+	@Test
+	@DisplayName("이용 가능한 제휴가 없으면 빈 리스트를 반환한다")
+	void getRecommendPartnership_Empty_ReturnsEmptyList() {
+		// given
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		List<StudentResponseDTO.UsablePartnershipDTO> result = studentService.getRecommendPartnership(STUDENT_ID);
+
+		// then
+		assertTrue(result.isEmpty());
+	}
+
+	@Test
+	@DisplayName("14개 초과 시 goodsRepository는 선택된 14개의 contentId로만 조회한다")
+	void getRecommendPartnership_MoreThan14_QueriesOnlySelectedContentIds() {
+		// given (20개 생성)
+		List<UserPaper> userPapers = new ArrayList<>();
+		for (int i = 0; i < 20; i++) {
+			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주", OptionType.SERVICE));
+		}
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		studentService.getRecommendPartnership(STUDENT_ID);
+
+		// then
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
+		verify(goodsRepository).findByContentIdIn(captor.capture());
+		assertEquals(14, captor.getValue().size());
 	}
 
 	// ===== syncUserPapersForStudent =====

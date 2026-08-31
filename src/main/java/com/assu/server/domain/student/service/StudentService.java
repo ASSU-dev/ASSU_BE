@@ -14,6 +14,7 @@ public interface StudentService {
     StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId);//조회
 	Page<StudentResponseDTO.UsageDetail> getUnreviewedUsage(Long memberId, Pageable pageable);
 	List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId);
+	List<StudentResponseDTO.UsablePartnershipDTO> getRecommendPartnership(Long memberId);
 	void syncUserPapersForAllStudents();
 	void syncUserPapersForStudent(Long studentId);
 	StudentResponseDTO.CheckStampResponseDTO addStamp(Long id);
