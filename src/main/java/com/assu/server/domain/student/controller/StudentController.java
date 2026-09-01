@@ -166,20 +166,20 @@ public class StudentController {
 		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentProfile(pd.getId()));
 	}
 
-	@Operation(
-			summary = "학생 맞춤 큐레이션 추천 제휴 조회 API",
-			description = "- 학생 홈 화면에 노출될 상단 추천 제휴(추천 업체/할인 내용) 및 맞춤형 큐레이션 리스트(2개 그룹 x 2개 업체)를 조회합니다.\n" +
-					"- 큐레이션 섹션 제목의 {name}은 로그인한 학생의 이름으로 자동 치환되어 반환됩니다.\n\n" +
-					"**Response:**\n" +
-					"- 성공 시 200(OK)와 큐레이션 추천 정보(`StudentHomeResponseDTO`) 반환\n" +
-					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
-					"- 404(NOT_FOUND): 학생 정보를 찾을 수 없음"
-	)
-	@GetMapping("/recommend/curation")
-	public BaseResponse<StudentHomeResponseDTO> getRecommendCuration(
-			@AuthenticationPrincipal PrincipalDetails pd
-	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentHome(pd.getId()));
-	}
+    @Operation(
+            summary = "학생 맞춤 큐레이션 추천 제휴 조회 API",
+            description = "- 학생 홈 화면에 노출될 상단 추천 제휴(추천 업체/할인 내용) 및 맞춤형 큐레이션 리스트(2개 그룹 x 2개 업체)를 조회합니다.\n" +
+                    "- 큐레이션 섹션 제목의 {name}은 로그인한 학생의 이름으로 자동 치환되어 반환됩니다.\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)와 큐레이션 추천 정보(`StudentHomeResponseDTO`) 반환\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+                    "- 404(NOT_FOUND): 학생 정보를 찾을 수 없음"
+    )
+    @GetMapping("/recommend/curation")
+    public BaseResponse<StudentHomeResponseDTO> getRecommendCuration(
+            @AuthenticationPrincipal PrincipalDetails pd
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentHome(pd.getId()));
+    }
 
 }
