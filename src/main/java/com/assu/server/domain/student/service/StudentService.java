@@ -6,6 +6,7 @@ import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.assu.server.domain.student.dto.StudentHomeResponseDTO;
 import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
 
@@ -19,4 +20,5 @@ public interface StudentService {
 	void syncUserPapersForStudent(Long studentId);
 	StudentResponseDTO.CheckStampResponseDTO addStamp(Long id);
 	StudentProfileResponseDTO getStudentProfile(Long memberId);
+	StudentHomeResponseDTO getStudentHome(Long memberId);
 }

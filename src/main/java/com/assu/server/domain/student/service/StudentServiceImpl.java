@@ -3,21 +3,22 @@ package com.assu.server.domain.student.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-
-import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.store.entity.enums.StoreCategory;
-import com.assu.server.domain.student.entity.StampEventApplicant;
-import com.assu.server.domain.student.repository.StampEventApplicantRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
@@ -25,24 +26,34 @@ import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
-import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
+import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.converter.StudentConverter;
-import com.assu.server.domain.student.dto.StudentResponseDTO;
-import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.student.dto.StudentHomeResponseDTO;
 import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
+import com.assu.server.domain.student.entity.HomeCuration;
+import com.assu.server.domain.student.entity.HomeCurationItem;
 import com.assu.server.domain.student.entity.PartnershipUsage;
+import com.assu.server.domain.student.entity.StampEventApplicant;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.entity.UserPaper;
+import com.assu.server.domain.student.repository.HomeCurationItemRepository;
+import com.assu.server.domain.student.repository.HomeCurationRepository;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
+import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
-
-import org.springframework.transaction.annotation.Transactional;
+import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +68,10 @@ public class StudentServiceImpl implements StudentService {
 	private final PaperRepository paperRepository;
 	private final NotificationCommandService notificationCommandService;
 	private final MemberRepository memberRepository;
+	private final HomeCurationRepository homeCurationRepository;
+	private final HomeCurationItemRepository homeCurationItemRepository;
+	private final StoreRepository storeRepository;
+	private final AmazonS3Manager amazonS3Manager;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -325,6 +340,146 @@ public class StudentServiceImpl implements StudentService {
 		Member member = memberRepository.findStudentWithProfileById(memberId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 		return StudentProfileResponseDTO.from(member);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public StudentHomeResponseDTO getStudentHome(Long memberId) {
+		Student student = studentRepository.findById(memberId)
+				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+
+		HomeCuration curation = homeCurationRepository.findLatest()
+				.orElse(null);
+
+		String studentName = (student.getName() != null && !student.getName().isBlank()) ? student.getName() : "학생";
+
+		if (curation == null) {
+			List<Store> activeStores = storeRepository.findAll().stream()
+					.sorted(Comparator.comparing(Store::getRate, Comparator.nullsLast(Comparator.reverseOrder())))
+					.limit(5)
+					.toList();
+
+			StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
+			if (!activeStores.isEmpty()) {
+				Store fs = activeStores.get(0);
+				String fsImg = getStoreProfileImageUrl(fs);
+				String fsDiscount = resolveStoreDiscountDescription(fs.getId());
+				featuredDTO = StudentHomeResponseDTO.FeaturedRecommendationDTO.of(
+						fs.getId(),
+						fs.getName(),
+						fsDiscount,
+						fs.getStoreCategory() != null ? fs.getStoreCategory().name() : null,
+						fsImg
+				);
+			}
+
+			List<StudentHomeResponseDTO.CurationStoreDTO> g1Stores = new ArrayList<>();
+			List<StudentHomeResponseDTO.CurationStoreDTO> g2Stores = new ArrayList<>();
+			if (activeStores.size() > 1) {
+				List<Store> rem = activeStores.subList(1, activeStores.size());
+				for (int i = 0; i < rem.size(); i++) {
+					Store s = rem.get(i);
+					String sImg = getStoreProfileImageUrl(s);
+					String discount = resolveStoreDiscountDescription(s.getId());
+					var storeDTO = StudentHomeResponseDTO.CurationStoreDTO.of(
+							s.getId(),
+							s.getName(),
+							discount,
+							s.getStoreCategory() != null ? s.getStoreCategory().name() : null,
+							sImg
+					);
+					if (i < 2) {
+						g1Stores.add(storeDTO);
+					} else if (i < 4) {
+						g2Stores.add(storeDTO);
+					}
+				}
+			}
+
+			return StudentHomeResponseDTO.of(
+					featuredDTO,
+					studentName + "님을 위한 제휴",
+					List.of(
+							StudentHomeResponseDTO.CurationGroupDTO.of(1, "추천 제휴 1", g1Stores),
+							StudentHomeResponseDTO.CurationGroupDTO.of(2, "추천 제휴 2", g2Stores)
+					)
+			);
+		}
+
+		String rawTitle = curation.getTitle();
+		String formattedTitle = rawTitle != null ? rawTitle.replace("{name}", studentName) : studentName + "님을 위한 제휴";
+
+		StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
+		if (curation.getFeaturedStore() != null) {
+			Store fs = curation.getFeaturedStore();
+			String fsImg = getStoreProfileImageUrl(fs);
+			String discount = curation.getFeaturedDiscountContent();
+			if (discount == null || discount.isBlank()) {
+				discount = resolveStoreDiscountDescription(fs.getId());
+			}
+			featuredDTO = StudentHomeResponseDTO.FeaturedRecommendationDTO.of(
+					fs.getId(),
+					fs.getName(),
+					discount,
+					fs.getStoreCategory() != null ? fs.getStoreCategory().name() : null,
+					fsImg
+			);
+		}
+
+		List<HomeCurationItem> items = homeCurationItemRepository.findByHomeCurationIdWithStoreAndPartner(curation.getId());
+		Map<Integer, List<HomeCurationItem>> itemsByGroup = items.stream()
+				.collect(Collectors.groupingBy(HomeCurationItem::getGroupIndex));
+
+		List<StudentHomeResponseDTO.CurationGroupDTO> curationLists = new ArrayList<>();
+		for (int groupIdx = 1; groupIdx <= 2; groupIdx++) {
+			List<HomeCurationItem> groupItems = itemsByGroup.getOrDefault(groupIdx, List.of());
+			String groupTitle = groupItems.isEmpty() ? "추천 제휴 " + groupIdx : groupItems.get(0).getGroupTitle();
+
+			List<StudentHomeResponseDTO.CurationStoreDTO> storeList = groupItems.stream()
+					.map(item -> {
+						Store s = item.getStore();
+						String sImg = getStoreProfileImageUrl(s);
+						String discount = item.getCustomDiscountContent();
+						if (discount == null || discount.isBlank()) {
+							discount = resolveStoreDiscountDescription(s.getId());
+						}
+						return StudentHomeResponseDTO.CurationStoreDTO.of(
+								s.getId(),
+								s.getName(),
+								discount,
+								s.getStoreCategory() != null ? s.getStoreCategory().name() : null,
+								sImg
+						);
+					})
+					.toList();
+
+			curationLists.add(StudentHomeResponseDTO.CurationGroupDTO.of(groupIdx, groupTitle, storeList));
+		}
+
+		return StudentHomeResponseDTO.of(featuredDTO, formattedTitle, curationLists);
+	}
+
+	private String getStoreProfileImageUrl(Store store) {
+		if (store == null || store.getPartner() == null || store.getPartner().getMember() == null) {
+			return null;
+		}
+		String key = store.getPartner().getMember().getProfileUrl();
+		if (key != null && !key.isBlank()) {
+			return amazonS3Manager.generatePresignedUrl(key);
+		}
+		return null;
+	}
+
+	private String resolveStoreDiscountDescription(Long storeId) {
+		if (storeId == null) {
+			return "";
+		}
+		List<PaperContent> contents = paperContentRepository.findTopByStoreIdIn(List.of(storeId));
+		if (!contents.isEmpty()) {
+			PaperContent pc = contents.get(0);
+			return PaperContentResponseDTO.toContentResponse(pc).paperContent();
+		}
+		return "제휴 혜택 제공";
 	}
 }
 
