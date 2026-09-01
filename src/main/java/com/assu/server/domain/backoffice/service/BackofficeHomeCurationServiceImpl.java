@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -77,6 +78,8 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
 
     @Override
     public BackofficeHomeCurationResponseDTO updateHomeCuration(BackofficeHomeCurationUpdateRequestDTO request) {
+        validateCurationGroups(request.curationLists());
+
         Store featuredStore = storeRepository.findById(request.featuredStoreId())
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_STORE));
 
@@ -112,6 +115,30 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
         HomeCuration savedCuration = homeCurationRepository.save(curation);
         List<HomeCurationItem> items = homeCurationItemRepository.findByHomeCurationIdWithStoreAndPartner(savedCuration.getId());
         return mapToBackofficeResponseDTO(savedCuration, items);
+    }
+
+    private void validateCurationGroups(List<BackofficeHomeCurationUpdateRequestDTO.GroupUpdateRequestDTO> curationLists) {
+        if (curationLists == null || curationLists.size() != 2) {
+            throw new GeneralException(ErrorStatus._BAD_REQUEST);
+        }
+        Set<Integer> groupIndices = curationLists.stream()
+                .map(BackofficeHomeCurationUpdateRequestDTO.GroupUpdateRequestDTO::groupIndex)
+                .collect(Collectors.toSet());
+        if (!Set.of(1, 2).equals(groupIndices)) {
+            throw new GeneralException(ErrorStatus._BAD_REQUEST);
+        }
+
+        for (BackofficeHomeCurationUpdateRequestDTO.GroupUpdateRequestDTO groupReq : curationLists) {
+            if (groupReq.stores() == null || groupReq.stores().size() != 2) {
+                throw new GeneralException(ErrorStatus._BAD_REQUEST);
+            }
+            Set<Integer> sortOrders = groupReq.stores().stream()
+                    .map(BackofficeHomeCurationUpdateRequestDTO.StoreItemRequestDTO::sortOrder)
+                    .collect(Collectors.toSet());
+            if (!Set.of(1, 2).equals(sortOrders)) {
+                throw new GeneralException(ErrorStatus._BAD_REQUEST);
+            }
+        }
     }
 
     @Override
