@@ -8,10 +8,16 @@ public record BackofficeHomeAutoRecommendResponseDTO(
     @Schema(description = "추천 기본 섹션 제목", example = "{name}님을 위한 제휴")
     String suggestedTitle,
 
-    @Schema(description = "자동 추출된 상단 추천 업체")
+    @Schema(
+        description = "자동 추출된 상단 추천 업체",
+        example = "{\"storeId\": 1, \"storeName\": \"더진국 숭실대점\", \"discountContent\": \"전 메뉴 1,000원 할인 또는 음료수 증정\", \"storeCategory\": \"RESTAURANT\"}"
+    )
     AutoFeaturedDTO featuredRecommendation,
 
-    @Schema(description = "자동 추출된 추천 큐레이션 2개 그룹 (각 2개 업체)")
+    @Schema(
+        description = "자동 추출된 추천 큐레이션 2개 그룹 (각 2개 업체)",
+        example = "[{\"groupIndex\": 1, \"groupTitle\": \"추천 제휴 1\", \"stores\": [{\"storeId\": 10, \"storeName\": \"가게 1\", \"discountContent\": \"10% 할인\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 1}, {\"storeId\": 11, \"storeName\": \"가게 2\", \"discountContent\": \"음료 증정\", \"storeCategory\": \"CAFE\", \"sortOrder\": 2}]}, {\"groupIndex\": 2, \"groupTitle\": \"추천 제휴 2\", \"stores\": [{\"storeId\": 20, \"storeName\": \"가게 3\", \"discountContent\": \"500원 할인\", \"storeCategory\": \"PUB\", \"sortOrder\": 1}, {\"storeId\": 21, \"storeName\": \"가게 4\", \"discountContent\": \"사이드 무료\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 2}]}]"
+    )
     List<AutoGroupDTO> curationLists
 ) {
 
@@ -45,7 +51,10 @@ public record BackofficeHomeAutoRecommendResponseDTO(
         @Schema(description = "그룹 소제목", example = "추천 제휴 1")
         String groupTitle,
 
-        @Schema(description = "추천 업체 2개 목록")
+        @Schema(
+            description = "추천 업체 2개 목록",
+            example = "[{\"storeId\": 10, \"storeName\": \"가게 1\", \"discountContent\": \"10% 할인\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 1}, {\"storeId\": 11, \"storeName\": \"가게 2\", \"discountContent\": \"음료 증정\", \"storeCategory\": \"CAFE\", \"sortOrder\": 2}]"
+        )
         List<AutoStoreDTO> stores
     ) {
         public static AutoGroupDTO of(

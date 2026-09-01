@@ -11,10 +11,16 @@ public record BackofficeHomeCurationResponseDTO(
     @Schema(description = "설정된 큐레이션 제목 템플릿", example = "{name}님을 위한 제휴")
     String title,
 
-    @Schema(description = "상단 추천 업체 및 할인 정보")
+    @Schema(
+        description = "상단 추천 업체 및 할인 정보",
+        example = "{\"storeId\": 1, \"storeName\": \"더진국 숭실대점\", \"discountContent\": \"전 메뉴 1,000원 할인 또는 음료수 증정\", \"storeCategory\": \"RESTAURANT\"}"
+    )
     FeaturedDTO featuredRecommendation,
 
-    @Schema(description = "추천 큐레이션 그룹 목록 (2개 그룹 x 2개 업체)")
+    @Schema(
+        description = "추천 큐레이션 그룹 목록 (2개 그룹 x 2개 업체)",
+        example = "[{\"groupIndex\": 1, \"groupTitle\": \"추천 제휴 1\", \"stores\": [{\"storeId\": 10, \"storeName\": \"가게 A\", \"discountContent\": \"10% 할인\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 1}, {\"storeId\": 11, \"storeName\": \"가게 B\", \"discountContent\": \"음료 무료\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 2}]}, {\"groupIndex\": 2, \"groupTitle\": \"추천 제휴 2\", \"stores\": [{\"storeId\": 20, \"storeName\": \"가게 C\", \"discountContent\": \"사이즈업\", \"storeCategory\": \"CAFE\", \"sortOrder\": 1}, {\"storeId\": 21, \"storeName\": \"가게 D\", \"discountContent\": \"500원 할인\", \"storeCategory\": \"CAFE\", \"sortOrder\": 2}]}]"
+    )
     List<GroupDTO> curationLists
 ) {
 
@@ -48,7 +54,10 @@ public record BackofficeHomeCurationResponseDTO(
         @Schema(description = "그룹 소제목", example = "인기 식사 혜택")
         String groupTitle,
 
-        @Schema(description = "그룹 내 추천 업체 목록 (2개)")
+        @Schema(
+            description = "그룹 내 추천 업체 목록 (2개)",
+            example = "[{\"storeId\": 10, \"storeName\": \"가게 A\", \"discountContent\": \"10% 할인\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 1}, {\"storeId\": 11, \"storeName\": \"가게 B\", \"discountContent\": \"음료 무료\", \"storeCategory\": \"RESTAURANT\", \"sortOrder\": 2}]"
+        )
         List<StoreItemDTO> stores
     ) {
         public static GroupDTO of(

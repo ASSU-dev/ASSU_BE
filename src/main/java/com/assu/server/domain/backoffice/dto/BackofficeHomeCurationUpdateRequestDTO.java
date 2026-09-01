@@ -18,13 +18,17 @@ public record BackofficeHomeCurationUpdateRequestDTO(
     @Schema(description = "상단 추천 업체 ID", example = "1")
     Long featuredStoreId,
 
+    @Size(max = 255)
     @Schema(description = "상단 추천 할인 내용 문구 (미입력 시 제휴 기본 내용 적용)", example = "전 메뉴 1,000원 할인 또는 음료수 증정")
     String featuredDiscountContent,
 
     @NotEmpty
     @Size(min = 2, max = 2)
     @Valid
-    @Schema(description = "추천 업체 그룹 목록 (반드시 2개 그룹)")
+    @Schema(
+        description = "추천 업체 그룹 목록 (반드시 2개 그룹)",
+        example = "[{\"groupIndex\": 1, \"groupTitle\": \"인기 식사 혜택\", \"stores\": [{\"storeId\": 10, \"customDiscountContent\": \"10% 할인\", \"sortOrder\": 1}, {\"storeId\": 11, \"customDiscountContent\": \"음료 무료\", \"sortOrder\": 2}]}, {\"groupIndex\": 2, \"groupTitle\": \"카페/디저트\", \"stores\": [{\"storeId\": 20, \"customDiscountContent\": \"사이즈업\", \"sortOrder\": 1}, {\"storeId\": 21, \"customDiscountContent\": \"500원 할인\", \"sortOrder\": 2}]}]"
+    )
     List<GroupUpdateRequestDTO> curationLists
 ) {
 
@@ -39,7 +43,10 @@ public record BackofficeHomeCurationUpdateRequestDTO(
         @NotEmpty
         @Size(min = 2, max = 2)
         @Valid
-        @Schema(description = "그룹 내 추천 업체 목록 (반드시 2개)")
+        @Schema(
+            description = "그룹 내 추천 업체 목록 (반드시 2개)",
+            example = "[{\"storeId\": 10, \"customDiscountContent\": \"10% 할인\", \"sortOrder\": 1}, {\"storeId\": 11, \"customDiscountContent\": \"음료 무료\", \"sortOrder\": 2}]"
+        )
         List<StoreItemRequestDTO> stores
     ) {}
 
@@ -48,6 +55,7 @@ public record BackofficeHomeCurationUpdateRequestDTO(
         @Schema(description = "추천할 가게 ID", example = "2")
         Long storeId,
 
+        @Size(max = 255)
         @Schema(description = "할인 및 혜택 문구 직접 지정 (선택)", example = "아메리카노 사이즈업")
         String customDiscountContent,
 
