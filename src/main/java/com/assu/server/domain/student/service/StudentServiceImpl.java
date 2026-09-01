@@ -18,7 +18,6 @@ import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -193,7 +192,6 @@ public class StudentServiceImpl implements StudentService {
 				}
 			}
 
-			Partner partner = paper.getPartner();
 			int extraCount = countByPaperId.get(paper.getId()).intValue() - 1;
 			return StudentResponseDTO.UsablePartnershipDTO.builder()
 					.partnershipId(paper.getId())
@@ -207,9 +205,9 @@ public class StudentServiceImpl implements StudentService {
 					.cost(content.getCost())
 					.category(finalCategory)
 					.discountRate(content.getDiscount())
-.storeId(store != null ? store.getId() : null)
+					.storeId(store != null ? store.getId() : null)
 					.extraCount(extraCount)
-					.partnerProfileUrl(partner != null && partner.getMember() != null ? partner.getMember().getProfileUrl() : null)
+					.partnerProfileUrl(getStoreProfileImageUrl(store))
 					.build();
 		}).toList();
 
@@ -233,7 +231,6 @@ public class StudentServiceImpl implements StudentService {
 		return randomUserPapers.stream().map(up -> {
 			PaperContent content = up.getPaperContent();
 			Store store = up.getPaper().getStore();
-			Partner partner = up.getPaper().getPartner();
 
 			List<Goods> goods = goodsMap.get(content.getId());
 			String firstBelonging = (goods != null && !goods.isEmpty()) ? goods.get(0).getBelonging() : null;
@@ -241,7 +238,7 @@ public class StudentServiceImpl implements StudentService {
 			return new StudentResponseDTO.RecommendCarouselDTO(
 					content.getCategory(),
 					firstBelonging,
-					partner != null && partner.getMember() != null ? partner.getMember().getProfileUrl() : null,
+					getStoreProfileImageUrl(store),
 					store != null ? store.getName() : null,
 					store != null ? store.getId() : null
 			);
