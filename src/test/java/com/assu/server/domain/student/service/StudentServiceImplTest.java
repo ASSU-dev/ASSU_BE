@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partnership.entity.Goods;
@@ -39,6 +41,7 @@ import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.s3.AmazonS3Manager;
 
 @ExtendWith(MockitoExtension.class)
 class StudentServiceImplTest {
@@ -72,6 +75,9 @@ class StudentServiceImplTest {
 
 	@Mock
 	private NotificationCommandService notificationCommandService;
+
+	@Mock
+	private AmazonS3Manager amazonS3Manager;
 
 	private static final Long STUDENT_ID = 1L;
 
@@ -125,6 +131,19 @@ class StudentServiceImplTest {
 	}
 
 	// ===== getUsablePartnership =====
+
+	private UserPaper usablePartnershipWithPartner(Long paperId, Long contentId, String profileKey) {
+		Admin admin = Admin.builder().id(10L).name("총학생회").isPhoneVerified(false).build();
+		Member member = mock(Member.class);
+		when(member.getProfileUrl()).thenReturn(profileKey);
+		Partner partner = mock(Partner.class);
+		when(partner.getMember()).thenReturn(member);
+		Store store = Store.builder().id(500L).name("역전할머니 맥주").partner(partner).build();
+		Paper paper = Paper.builder().id(paperId).admin(admin).store(store).build();
+		PaperContent content = PaperContent.builder()
+			.id(contentId).paper(paper).category("안주").optionType(OptionType.SERVICE).build();
+		return UserPaper.builder().paper(paper).paperContent(content).build();
+	}
 
 	private UserPaper usablePartnership(Long paperId, Long contentId, String category, OptionType optionType) {
 		Admin admin = Admin.builder().id(10L).name("총학생회").isPhoneVerified(false).build();
@@ -248,6 +267,40 @@ class StudentServiceImplTest {
 		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, null);
 	}
 
+	@Test
+	@DisplayName("파트너 프로필 이미지가 있으면 getUsablePartnership은 presigned URL을 반환한다")
+	void getUsablePartnership_WithPartnerProfileUrl_ReturnsPresignedUrl() {
+		// given
+		UserPaper up = usablePartnershipWithPartner(100L, 1000L, "partners/42/profile.jpg");
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+
+		// when
+		List<StudentResponseDTO.UsablePartnershipDTO> result =
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
+
+		// then
+		assertEquals("https://presigned.url", result.get(0).getPartnerProfileUrl());
+	}
+
+	@Test
+	@DisplayName("파트너가 없으면 getUsablePartnership의 partnerProfileUrl은 null이다")
+	void getUsablePartnership_NoPartner_ReturnsNullProfileUrl() {
+		// given (기존 helper는 partner 없는 store)
+		UserPaper up = usablePartnership(100L, 1000L, "안주", OptionType.SERVICE);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		List<StudentResponseDTO.UsablePartnershipDTO> result =
+			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
+
+		// then
+		assertNull(result.get(0).getPartnerProfileUrl());
+		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
+	}
+
 	// ===== getRecommendPartnership =====
 
 	@Test
@@ -319,6 +372,38 @@ class StudentServiceImplTest {
 		ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
 		verify(goodsRepository).findByContentIdIn(captor.capture());
 		assertEquals(10, captor.getValue().size());
+	}
+
+	@Test
+	@DisplayName("파트너 프로필 이미지가 있으면 getRecommendCarouselPartnership은 presigned URL을 반환한다")
+	void getRecommendCarouselPartnership_WithPartnerProfileUrl_ReturnsPresignedUrl() {
+		// given
+		UserPaper up = usablePartnershipWithPartner(100L, 1000L, "partners/42/profile.jpg");
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+
+		// when
+		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
+
+		// then
+		assertEquals("https://presigned.url", result.get(0).partnerProfileUrl());
+	}
+
+	@Test
+	@DisplayName("파트너가 없으면 getRecommendCarouselPartnership의 partnerProfileUrl은 null이다")
+	void getRecommendCarouselPartnership_NoPartner_ReturnsNullProfileUrl() {
+		// given
+		UserPaper up = usablePartnership(100L, 1000L, "안주", OptionType.SERVICE);
+		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
+		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
+
+		// when
+		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
+
+		// then
+		assertNull(result.get(0).partnerProfileUrl());
+		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
 	}
 
 	// ===== syncUserPapersForStudent =====
