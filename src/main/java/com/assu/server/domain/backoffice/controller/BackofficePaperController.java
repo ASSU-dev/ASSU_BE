@@ -1,5 +1,6 @@
 package com.assu.server.domain.backoffice.controller;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -66,7 +67,7 @@ public class BackofficePaperController {
     )
     @GetMapping
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPapers(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePaperService.getPapers(pageable));
     }

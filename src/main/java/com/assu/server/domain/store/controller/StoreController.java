@@ -1,7 +1,7 @@
 package com.assu.server.domain.store.controller;
 
-import java.awt.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +33,38 @@ public class StoreController {
 
     private final StoreService storeService;
 	private final PaperQueryService paperQueryService;
+
+	@GetMapping("/{storeId}")
+	@Operation(
+		summary = "가게 상세 조회 API",
+		description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed806eb1abce6ab4c5f4fb?source=copy_link)\n" +
+			"- 가게 ID로 가게 상세 정보를 조회합니다.\n\n" +
+			"**Path Variable:**\n" +
+			"  - `storeId` (Long, required): 조회할 가게 ID\n\n" +
+			"**Response (GetStoreDetailsDTO):**\n" +
+			"  - `storeId` (Long): 가게 고유 ID\n" +
+			"  - `storeName` (String): 가게 이름\n" +
+			"  - `address` (String): 가게 주소\n" +
+			"  - `detailAddress` (String): 가게 상세 주소\n" +
+			"  - `latitude` (Double): 위도\n" +
+			"  - `longitude` (Double): 경도\n" +
+			"  - `storeCategory` (String): 가게 카테고리\n" +
+			"  - `rate` (Integer): 가게 평점\n" +
+			"  - `phoneNumber` (String): 업체 전화번호\n" +
+			"  - `hasPartner` (Boolean): 제휴업체 여부\n" +
+			"  - `profileUrl` (String): 업체 프로필 이미지 presigned URL\n\n" +
+			"**Error Cases:**\n" +
+			"  - 성공: 200 OK\n" +
+			"  - 404 NOT_FOUND: 해당 가게를 찾을 수 없는 경우"
+	)
+	@Parameters({
+		@Parameter(name = "storeId", description = "조회할 가게 ID를 입력해주세요")
+	})
+	public ResponseEntity<BaseResponse<StoreResponseDTO.GetStoreDetailsDTO>> getStoreDetails(
+			@PathVariable Long storeId
+	) {
+		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, storeService.getStoreDetails(storeId)));
+	}
 
 	@GetMapping("/best")
 	@Operation(

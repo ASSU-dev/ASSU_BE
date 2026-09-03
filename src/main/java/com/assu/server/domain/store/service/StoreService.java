@@ -3,6 +3,7 @@ import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 
 public interface StoreService {
+    StoreResponseDTO.GetStoreDetailsDTO getStoreDetails(Long storeId);
 	TodayBestResponseDTO getTodayBestStore();
     StoreResponseDTO.WeeklyRankResponseDTO getWeeklyRank(Long memberId);
     StoreResponseDTO.ListWeeklyRankResponseDTO getListWeeklyRank(Long memberId);

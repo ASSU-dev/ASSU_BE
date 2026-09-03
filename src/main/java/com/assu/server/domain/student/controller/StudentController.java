@@ -2,6 +2,8 @@ package com.assu.server.domain.student.controller;
 
 import java.util.List;
 
+import org.springdoc.core.annotations.ParameterObject;
+import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.assu.server.domain.student.dto.StudentHomeResponseDTO;
 import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.service.StudentService;
@@ -71,7 +74,7 @@ public class StudentController {
 	)
 	public ResponseEntity<BaseResponse<Page<StudentResponseDTO.UsageDetail>>> getUnreviewedUsage(
 		@AuthenticationPrincipal PrincipalDetails pd,
-		Pageable pageable
+		@ParameterObject Pageable pageable
 	){
 		return ResponseEntity.ok(BaseResponse
 			.onSuccess(SuccessStatus.UNREVIEWED_HISTORY_SUCCESS,
@@ -108,13 +111,14 @@ public class StudentController {
 
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",
-			description = "# [v1.0 (2025-10-30)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
+			description = "# [v1.1 (2026-08-31)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
 					"- 현재 로그인한 사용자가 이용 가능한 제휴 목록을 조회합니다.\n" +
 					"- 활성 상태인 제휴만 반환합니다.\n\n" +
 					"**Request Parameters:**\n" +
 					"- `all` (Boolean, optional): 전체 조회 여부 - 기본값: false\n" +
 					"  - true: 모든 이용 가능한 제휴 조회\n" +
-					"  - false: 최대 2개만 조회\n\n" +
+					"  - false: 최대 2개만 조회\n" +
+					"- `storeCategory` (StoreCategory, optional): 카테고리 필터 - 미입력 시 전체 조회\n\n" +
 					"**Response:**\n" +
 					"- 성공 시 200(OK)와 이용 가능한 제휴 목록 반환\n" +
 					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
@@ -123,9 +127,28 @@ public class StudentController {
 	@GetMapping("/usable")
 	public BaseResponse<List<StudentResponseDTO.UsablePartnershipDTO>> getUsablePartnership(
 			@AuthenticationPrincipal PrincipalDetails pd,
-			@RequestParam(name = "all", defaultValue = "false") boolean all
+			@RequestParam(name = "all", defaultValue = "false") boolean all,
+			@RequestParam(required = false) StoreCategory storeCategory,
+			@RequestParam(required = false) Long adminId
+			) {
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all, storeCategory, adminId));
+	}
+
+	@Operation(
+			summary = "사용자의 추천 제휴 조회 API",
+			description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed800b86f5ed255f91caf1?source=copy_link)\n" +
+					"- 현재 로그인한 사용자가 이용 가능한 제휴 중 최대 14개를 랜덤으로 반환합니다.\n" +
+					"- 활성 상태인 제휴만 포함됩니다.\n\n" +
+					"**Response:**\n" +
+					"- 성공 시 200(OK)와 추천 제휴 목록(최대 14개) 반환\n" +
+					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
+	)
+	@GetMapping("/recommend/carousel")
+	public BaseResponse<List<StudentResponseDTO.RecommendCarouselDTO>> getRecommendCarouselPartnership(
+			@AuthenticationPrincipal PrincipalDetails pd
 	) {
-		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getUsablePartnership(pd.getId(), all));
+		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getRecommendCarouselPartnership(pd.getId()));
 	}
 
 	@Operation(
@@ -142,5 +165,21 @@ public class StudentController {
 	) {
 		return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentProfile(pd.getId()));
 	}
+
+    @Operation(
+            summary = "학생 맞춤 큐레이션 추천 제휴 조회 API",
+            description = "- 학생 홈 화면에 노출될 상단 추천 제휴(추천 업체/할인 내용) 및 맞춤형 큐레이션 리스트(2개 그룹 x 2개 업체)를 조회합니다.\n" +
+                    "- 큐레이션 섹션 제목의 {name}은 로그인한 학생의 이름으로 자동 치환되어 반환됩니다.\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)와 큐레이션 추천 정보(`StudentHomeResponseDTO`) 반환\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
+                    "- 404(NOT_FOUND): 학생 정보를 찾을 수 없음"
+    )
+    @GetMapping("/recommend/curation")
+    public BaseResponse<StudentHomeResponseDTO> getRecommendCuration(
+            @AuthenticationPrincipal PrincipalDetails pd
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStudentHome(pd.getId()));
+    }
 
 }

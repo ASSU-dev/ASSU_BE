@@ -25,4 +25,18 @@ public class StoreResponseDTO {
         List<WeeklyRankResponseDTO> items // 과거→현재 (6개)
     ) {}
 
+    public record GetStoreDetailsDTO(
+        Long storeId,
+        String storeName,
+        String address,
+        String detailAddress,
+        Double latitude,
+        Double longitude,
+        String storeCategory,
+        Integer rate,
+        String phoneNumber,
+        boolean hasPartner,
+        String profileUrl
+    ) {}
+
 }

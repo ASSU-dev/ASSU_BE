@@ -1,5 +1,6 @@
 package com.assu.server.domain.backoffice.controller;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -60,7 +61,7 @@ public class BackofficePartnershipController {
     )
     @GetMapping
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnerships(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnerships(pageable));
     }
@@ -98,7 +99,7 @@ public class BackofficePartnershipController {
     @GetMapping("/admin/{adminId}")
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnershipsByAdmin(
             @PathVariable @Parameter(description = "학생회 ID", required = true) Long adminId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnershipsByAdmin(adminId, pageable));
     }
@@ -136,7 +137,7 @@ public class BackofficePartnershipController {
     @GetMapping("/store/{storeId}")
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnershipsByStore(
             @PathVariable @Parameter(description = "가게 ID", required = true) Long storeId,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnershipsByStore(storeId, pageable));
     }

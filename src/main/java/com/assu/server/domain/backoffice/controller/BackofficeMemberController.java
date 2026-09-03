@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -53,7 +54,7 @@ public class BackofficeMemberController {
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) ActivationStatus status,
             @RequestParam(required = false) Boolean deleted,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(
                 SuccessStatus._OK,
@@ -73,7 +74,7 @@ public class BackofficeMemberController {
     )
     @GetMapping("/deleted")
     public BaseResponse<PageResponseDTO<BackofficeMemberSummaryDTO>> listDeletedMembers(
-            @PageableDefault(size = 20, sort = "deletedAt", direction = Sort.Direction.DESC) Pageable pageable
+            @ParameterObject @PageableDefault(size = 20, sort = "deletedAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return BaseResponse.onSuccess(
                 SuccessStatus._OK,
