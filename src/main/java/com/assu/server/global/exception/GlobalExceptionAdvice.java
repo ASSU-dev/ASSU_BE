@@ -99,7 +99,7 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler
     public ResponseEntity<Object> exception(Exception e, WebRequest request) {
-        e.printStackTrace();
+        log.error("처리되지 않은 예외 발생", e);
 
         return handleExceptionInternalFalse(
                 e,
