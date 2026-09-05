@@ -1,5 +1,7 @@
 package com.assu.server.domain.store.dto;
 
+import com.assu.server.domain.store.entity.enums.LinkType;
+
 import java.util.List;
 
 public class StoreResponseDTO {
@@ -36,7 +38,8 @@ public class StoreResponseDTO {
         Integer rate,
         String phoneNumber,
         boolean hasPartner,
-        String profileUrl
+        String profileUrl,
+        LinkType linkType
     ) {}
 
 }

@@ -71,7 +71,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		// dto 변환
 		List<PaperContentResponseDTO> contents = toContentResponseList(contentList);
 
-		return new PaperResponseDTO(contents, store.getName(), store.getId());
+		return new PaperResponseDTO(contents, store.getName(), store.getId(), store.getLinkType());
 
 	}
 

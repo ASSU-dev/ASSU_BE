@@ -52,7 +52,8 @@ public class StoreController {
 			"  - `rate` (Integer): 가게 평점\n" +
 			"  - `phoneNumber` (String): 업체 전화번호\n" +
 			"  - `hasPartner` (Boolean): 제휴업체 여부\n" +
-			"  - `profileUrl` (String): 업체 프로필 이미지 presigned URL\n\n" +
+			"  - `profileUrl` (String): 업체 프로필 이미지 presigned URL\n" +
+			"  - `linkType` (LinkType): 외부 링크로 리다이렉트되어야 하는 가게인지 구분하는 타입 (해당 없으면 null)\n\n" +
 			"**Error Cases:**\n" +
 			"  - 성공: 200 OK\n" +
 			"  - 404 NOT_FOUND: 해당 가게를 찾을 수 없는 경우"
@@ -94,6 +95,7 @@ public class StoreController {
 			"**Response (PaperResponseDTO):**\n" +
 			"  - `storeId` (Long): 매장 고유 ID\n" +
 			"  - `storeName` (String): 매장 이름\n" +
+			"  - `linkType` (LinkType): 외부 링크로 리다이렉트되어야 하는 매장인지 구분하는 타입 (해당 없으면 null)\n" +
 			"  - `partnershipContents` (List): 제휴 컨텐츠 상세 목록\n" +
 			"    - `adminId` (Long): 혜택 제공자 ID\n" +
 			"    - `adminName` (String): 혜택 제공자 이름 (예: OO대학 학생회)\n" +
