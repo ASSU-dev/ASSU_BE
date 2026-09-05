@@ -44,15 +44,6 @@ spring:
         max-concurrency: 4
         default-requeue-rejected: false
 
-logging:
-  level:
-    org.springframework.web: DEBUG
-    org.springframework.web.client.DefaultRestClient: OFF
-    org.springframework.messaging.simp: DEBUG
-    org.springframework.messaging.handler: DEBUG
-    org.springframework.messaging: DEBUG
-    org.springframework.web.socket: DEBUG
-
 server:
   shutdown: graceful
 
@@ -60,4 +51,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: "health" # 따옴표를 붙여 문자열임을 명시하세요.
+        include: "health,prometheus" # 따옴표를 붙여 문자열임을 명시하세요.
+  endpoint:
+    health:
+      probes:
+        enabled: true
