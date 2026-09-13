@@ -1,6 +1,7 @@
 package com.assu.server.domain.auth.service;
 
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.deviceToken.repository.DeviceTokenRepository;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.auth.exception.CustomAuthException;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class WithdrawalServiceImpl implements WithdrawalService {
 
     private final MemberRepository memberRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
     private final JwtUtil jwtUtil;
 
     @Override
@@ -41,14 +43,14 @@ public class WithdrawalServiceImpl implements WithdrawalService {
 
     @Override
     public void withdrawMember(Member member) {
-        if (member.getDeletedAt() != null) {
+        if (member.isWithdrawn()) {
             throw new CustomAuthException(ErrorStatus.MEMBER_ALREADY_WITHDRAWN);
         }
 
-        // 소프트 삭제 처리
-        member.setDeletedAt(java.time.LocalDateTime.now());
+        member.withdraw();
         memberRepository.save(member);
 
+        deviceTokenRepository.deleteAllByMemberId(member.getId());
         jwtUtil.removeAllRefreshTokens(member.getId());
     }
 }

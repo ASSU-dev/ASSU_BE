@@ -2,9 +2,11 @@ package com.assu.server.domain.auth.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,16 +21,21 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.dto.common.TokensDTO;
 import com.assu.server.domain.auth.dto.signup.AdminSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.signup.SignUpResponseDTO;
 import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.entity.SSUAuth;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
+import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.entity.enums.University;
+import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
@@ -99,7 +106,13 @@ class SignUpServiceImplTest {
 		USaintAuthResponseDTO authResponse =
 			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
 		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
-		when(ssuAuthRepository.existsByStudentNumber("20211438")).thenReturn(true);
+
+		Member member = mock(Member.class);
+		when(member.isWithdrawn()).thenReturn(false);
+
+		SSUAuth ssuAuth = mock(SSUAuth.class);
+		when(ssuAuth.getMember()).thenReturn(member);
+		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.of(ssuAuth));
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -107,6 +120,7 @@ class SignUpServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.EXISTED_STUDENT, exception.getCode());
+		verify(member, never()).restore();
 		verify(memberRepository, never()).save(any());
 		verify(studentRepository, never()).save(any());
 	}
@@ -121,7 +135,7 @@ class SignUpServiceImplTest {
 		USaintAuthResponseDTO authResponse =
 			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
 		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
-		when(ssuAuthRepository.existsByStudentNumber("20211438")).thenReturn(false);
+		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
 		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
 
 		Member member = mock(Member.class);
@@ -145,6 +159,100 @@ class SignUpServiceImplTest {
 		InOrder inOrder = inOrder(studentService, jwtUtil);
 		inOrder.verify(studentService).syncUserPapersForStudent(99L);
 		inOrder.verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
+	}
+
+	@Test
+	@DisplayName("탈퇴한 학생이 동일 학번으로 재가입하면 기존 계정을 복구하고 JWT를 발급한다")
+	void signupSsuStudent_WithdrawnStudent_RestoresAccountAndIssuesTokens() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+
+		Member member = stubWithdrawnStudentAccount();
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		Major major = Major.fromDisplayName("컴퓨터학부");
+		verify(member, times(1)).restore();
+		verify(memberRepository, times(1)).save(member);
+		verify(studentRepository, times(1)).save(any(Student.class));
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
+		verify(realmAuthAdapter, never()).registerCredentials(any(), anyString(), anyString());
+
+		assertEquals(1L, response.memberId());
+		assertEquals("access-token", response.tokens().accessToken());
+		assertEquals(major.getDisplayName(), response.basicInfo().major());
+	}
+
+	@Test
+	@DisplayName("탈퇴한 학생이 재가입하면 재가입 요청의 약관 동의값으로 갱신한다")
+	void signupSsuStudent_WithdrawnStudent_UpdatesTermAgreements() {
+		// 1. Given (마케팅 미동의, 위치 동의)
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			false, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+
+		Member member = stubWithdrawnStudentAccount();
+
+		// 2. When
+		signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		verify(member, times(1)).updateTermAgreements(true, false);
+	}
+
+	@Test
+	@DisplayName("탈퇴한 학생이 재가입하면 유세인트 최신 학적 정보로 프로필을 갱신한다")
+	void signupSsuStudent_WithdrawnStudent_UpdatesStudentInfoFromUSaint() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+
+		Member member = stubWithdrawnStudentAccount();
+		Student student = member.getStudentProfile();
+
+		// 2. When
+		signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		Major major = Major.fromDisplayName("컴퓨터학부");
+		verify(student, times(1)).updateStudentInfo(
+			"홍길동", major, major.getDepartment(), EnrollmentStatus.ENROLLED, "4학년 1학기");
+	}
+
+	/**
+	 * 탈퇴한 학생 계정(학번 20211438)이 존재하는 상황을 구성한다.
+	 */
+	private Member stubWithdrawnStudentAccount() {
+		USaintAuthResponseDTO authResponse =
+			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
+		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
+
+		Major major = Major.fromDisplayName("컴퓨터학부");
+
+		Student student = mock(Student.class);
+		when(student.getId()).thenReturn(99L);
+		when(student.getName()).thenReturn("홍길동");
+		when(student.getUniversity()).thenReturn(University.SSU);
+		when(student.getDepartment()).thenReturn(major.getDepartment());
+		when(student.getMajor()).thenReturn(major);
+
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+		when(member.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+		when(member.isWithdrawn()).thenReturn(true);
+		when(member.getStudentProfile()).thenReturn(student);
+
+		SSUAuth ssuAuth = mock(SSUAuth.class);
+		when(ssuAuth.getMember()).thenReturn(member);
+		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.of(ssuAuth));
+
+		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
+			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+
+		return member;
 	}
 
 	@Test

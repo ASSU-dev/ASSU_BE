@@ -55,8 +55,8 @@ public class SSUAuthAdapter implements RealmAuthAdapter {
         ssuAuth.setAuthenticatedAt(LocalDateTime.now());
         ssuAuthRepository.save(member.getSsuAuth());
 
-        if (member.getDeletedAt() != null) {
-            member.setDeletedAt(null);
+        if (member.isWithdrawn()) {
+            member.restore();
             memberRepository.save(member);
         }
 

@@ -89,6 +89,27 @@ public class Member extends BaseEntity {
         };
     }
 
+    public boolean isWithdrawn() {
+        return deletedAt != null;
+    }
+
+    public void withdraw() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    public void updateTermAgreements(Boolean locationAgreed, Boolean marketingAgreed) {
+        if (locationAgreed != null) {
+            this.isLocationTermAgreed = locationAgreed;
+        }
+        if (marketingAgreed != null) {
+            this.isMarketingTermAgreed = marketingAgreed;
+        }
+    }
+
     public void setProfile(Object profile) {
         if (profile instanceof Student s) {
             this.studentProfile = s;

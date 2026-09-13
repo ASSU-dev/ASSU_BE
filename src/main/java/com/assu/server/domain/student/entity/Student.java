@@ -64,6 +64,7 @@ public class Student {
     public void updateStudentInfo(String name, Major major, Department department, EnrollmentStatus enrollmentStatus, String yearSemester) {
         this.name = name;
         this.major = major;
+        this.department = department;
         this.enrollmentStatus = enrollmentStatus;
         this.yearSemester = yearSemester;
     }
