@@ -22,7 +22,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -112,7 +111,6 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStudentReview(Long memberId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Page<Review> reviews = reviewRepository.findByMemberId(memberId, pageable);
 
         for (Review review : reviews) {
@@ -125,7 +123,6 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Partner partner = partnerRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
@@ -169,7 +166,6 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
         Store store = storeRepository.findById(storeId).orElseThrow(
                 () -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
 
