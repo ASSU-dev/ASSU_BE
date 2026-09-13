@@ -16,6 +16,8 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 
     boolean existsByPhoneNum(String phoneNum);
 
+    boolean existsByPhoneNumAndMember_DeletedAtIsNull(String phoneNum);
+
 	@Query("""
 		SELECT a FROM Admin a
 		WHERE a.university = :university

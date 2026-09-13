@@ -18,7 +18,8 @@ public class EmailAuthServiceImpl implements EmailAuthService {
     @Override
     public void checkEmailAvailability(EmailVerificationCheckRequestDTO request) {
 
-        boolean exists = commonAuthRepository.existsByEmail(request.email());
+        // 탈퇴 회원의 이메일은 재가입 대상이므로 중복으로 보지 않는다
+        boolean exists = commonAuthRepository.existsByEmailAndMember_DeletedAtIsNull(request.email());
 
         if (exists) {
             throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
