@@ -54,7 +54,7 @@ public class GroupCertificationController {
 
 				if (principalDetails != null) {
 					CertificationProgressResponseDTO result = certificationService.handleCertification(dto, principalDetails.getMember());
-					meterRegistry.counter("certification.group.result", "result", "success").increment();
+					meterRegistry.counter("certification.group.result", "result", result.type()).increment();
 					return result;
 				}
 			} catch (Exception e) {

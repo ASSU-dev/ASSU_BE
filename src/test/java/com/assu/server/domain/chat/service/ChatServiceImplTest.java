@@ -10,12 +10,16 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -77,6 +81,9 @@ class ChatServiceImplTest {
 
 	@Mock
 	private BlockRepository blockRepository;
+
+	@Spy
+	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
@@ -260,6 +267,7 @@ class ChatServiceImplTest {
 		verify(messageRepository).saveAndFlush(captor.capture());
 		assertEquals(0, captor.getValue().getUnreadCount());
 		assertTrue(captor.getValue().isRead());
+		assertEquals(1.0, meterRegistry.counter("chat.message.sent").count());
 	}
 
 	@Test
