@@ -10,9 +10,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.domain.partner.entity.Partner;
@@ -173,5 +178,69 @@ class ReviewServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.NO_SUCH_STORE, exception.getCode());
+	}
+
+	// ===== 페이지 번호 보정 (1-based 계약) =====
+
+	@Test
+	@DisplayName("page=1로 조회하면 첫 페이지(0번 인덱스)를 조회한다")
+	void checkStudentReview_OneIndexedPage_QueriesFirstPage() {
+		// 1. Given
+		when(reviewRepository.findByMemberId(anyLong(), any(Pageable.class))).thenReturn(Page.empty());
+
+		// 2. When
+		reviewService.checkStudentReview(1L, PageRequest.of(1, 10));
+
+		// 3. Then
+		assertEquals(0, capturedPageNumber());
+	}
+
+	@Test
+	@DisplayName("page를 생략하면 음수가 되지 않고 첫 페이지를 조회한다")
+	void checkStudentReview_PageOmitted_QueriesFirstPageWithoutError() {
+		// 1. Given (page 미지정 시 Pageable 기본값은 0)
+		when(reviewRepository.findByMemberId(anyLong(), any(Pageable.class))).thenReturn(Page.empty());
+
+		// 2. When
+		assertDoesNotThrow(() -> reviewService.checkStudentReview(1L, PageRequest.of(0, 10)));
+
+		// 3. Then
+		assertEquals(0, capturedPageNumber());
+	}
+
+	@Test
+	@DisplayName("page=2로 조회하면 두 번째 페이지(1번 인덱스)를 조회한다")
+	void checkStudentReview_SecondPage_QueriesIndexOne() {
+		// 1. Given
+		when(reviewRepository.findByMemberId(anyLong(), any(Pageable.class))).thenReturn(Page.empty());
+
+		// 2. When
+		reviewService.checkStudentReview(1L, PageRequest.of(2, 10));
+
+		// 3. Then
+		assertEquals(1, capturedPageNumber());
+	}
+
+	@Test
+	@DisplayName("정렬 조건은 페이지 번호 보정 후에도 유지된다")
+	void checkStudentReview_PreservesSort() {
+		// 1. Given
+		Sort sort = Sort.by(Sort.Direction.DESC, "id");
+		when(reviewRepository.findByMemberId(anyLong(), any(Pageable.class))).thenReturn(Page.empty());
+
+		// 2. When
+		reviewService.checkStudentReview(1L, PageRequest.of(1, 10, sort));
+
+		// 3. Then
+		ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+		verify(reviewRepository).findByMemberId(anyLong(), captor.capture());
+		assertEquals(sort, captor.getValue().getSort());
+		assertEquals(10, captor.getValue().getPageSize());
+	}
+
+	private int capturedPageNumber() {
+		ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+		verify(reviewRepository).findByMemberId(anyLong(), captor.capture());
+		return captor.getValue().getPageNumber();
 	}
 }
