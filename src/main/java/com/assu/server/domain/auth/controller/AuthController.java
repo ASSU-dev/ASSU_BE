@@ -522,7 +522,8 @@ public class AuthController {
             description = "# [v1.1 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed800a844bdafa2e2e8d2e?source=copy_link)\n" +
                     "- 현재 로그인한 사용자의 회원 탈퇴를 처리합니다.\n" +
                     "- 소프트 삭제 방식으로, 한 달 후 완전히 삭제됩니다.\n" +
-                    "- 탈퇴 즉시 모든 토큰이 무효화되고 등록된 FCM 디바이스 토큰이 삭제됩니다.\n" +
+                    "- 탈퇴 즉시 요청에 사용한 액세스 토큰이 블랙리스트에 등록되고, 해당 회원의 리프레시 토큰과 등록된 FCM 디바이스 토큰이 모두 삭제됩니다.\n" +
+                    "  - 다른 기기에서 이미 발급받은 액세스 토큰은 만료 시점까지 유효할 수 있습니다.\n" +
                     "- 유예기간(한 달) 내에는 로그인 또는 재가입 시 계정이 복구됩니다.\n" +
                     "\n**Headers:**\n" +
                     "  - `Authorization` (String, required): Bearer 토큰 형식의 액세스 토큰\n" +
