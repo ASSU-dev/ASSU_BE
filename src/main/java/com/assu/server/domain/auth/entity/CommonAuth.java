@@ -45,4 +45,8 @@ public class CommonAuth extends BaseEntity {
     @Column(name = "last_login_at")
     @NotNull
     private LocalDateTime lastLoginAt;
+
+    public void updatePassword(String hashedPassword) {
+        this.hashedPassword = hashedPassword;
+    }
 }

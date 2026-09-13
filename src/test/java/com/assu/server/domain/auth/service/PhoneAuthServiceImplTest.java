@@ -59,7 +59,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("이미 가입된 전화번호로 인증번호를 요청하면 EXISTED_PHONE 예외가 발생한다")
 	void checkAndSendAuthNumber_ExistingPhone_ThrowsException() {
 		// 1. Given (파트너로 이미 가입된 번호)
-		when(partnerRepository.existsByPhoneNum(PHONE)).thenReturn(true);
+		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(true);
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -74,8 +74,8 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("인증번호 발송 성공 시 6자리 인증번호가 5분 TTL로 Redis에 저장되고 SMS로 전송된다")
 	void checkAndSendAuthNumber_Success_StoresCodeAndSendsSms() {
 		// 1. Given
-		when(partnerRepository.existsByPhoneNum(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNum(PHONE)).thenReturn(false);
+		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
+		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
@@ -98,8 +98,8 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("SMS 발송이 실패하면 저장했던 인증번호를 삭제하고 FAILED_TO_SEND_SMS 예외가 발생한다")
 	void checkAndSendAuthNumber_SmsFailed_DeletesCodeAndThrows() {
 		// 1. Given
-		when(partnerRepository.existsByPhoneNum(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNum(PHONE)).thenReturn(false);
+		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
+		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("-101"));
 
@@ -116,8 +116,8 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("SMS 발송 중 알리고 예외가 발생하면 저장했던 인증번호를 삭제하고 예외를 전파한다")
 	void checkAndSendAuthNumber_SmsThrowsAligoException_DeletesCodeAndRethrows() {
 		// 1. Given
-		when(partnerRepository.existsByPhoneNum(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNum(PHONE)).thenReturn(false);
+		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
+		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
 			.thenThrow(new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO));
@@ -175,5 +175,47 @@ class PhoneAuthServiceImplTest {
 
 		// 3. Then
 		verify(redisTemplate, times(1)).delete(PHONE);
+	}
+
+	@Test
+	@DisplayName("인증번호 검증에 성공하면 가입 시 확인할 인증 표식을 30분 TTL로 저장한다")
+	void verifyAuthNumber_Success_StoresVerificationMarker() {
+		// 1. Given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.get(PHONE)).thenReturn("123456");
+
+		// 2. When
+		phoneAuthService.verifyAuthNumber(PHONE, "123456");
+
+		// 3. Then
+		verify(valueOperations, times(1))
+			.set("phone-verified:" + PHONE, "1", Duration.ofMinutes(30));
+	}
+
+	@Test
+	@DisplayName("인증 표식이 있으면 소비 후 통과한다")
+	void consumeVerification_Verified_DeletesMarker() {
+		// 1. Given
+		when(redisTemplate.delete("phone-verified:" + PHONE)).thenReturn(true);
+
+		// 2. When
+		assertDoesNotThrow(() -> phoneAuthService.consumeVerification(PHONE));
+
+		// 3. Then
+		verify(redisTemplate, times(1)).delete("phone-verified:" + PHONE);
+	}
+
+	@Test
+	@DisplayName("인증 표식이 없으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
+	void consumeVerification_NotVerified_ThrowsException() {
+		// 1. Given (인증을 건너뛰었거나 30분이 지나 만료된 경우)
+		when(redisTemplate.delete("phone-verified:" + PHONE)).thenReturn(false);
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.consumeVerification(PHONE));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
 	}
 }

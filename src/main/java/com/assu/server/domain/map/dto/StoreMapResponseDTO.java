@@ -1,6 +1,7 @@
 package com.assu.server.domain.map.dto;
 
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.store.entity.enums.LinkType;
 import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -39,7 +40,10 @@ public record StoreMapResponseDTO(
         List<PartnershipInfo> partnerships,
 
         @Schema(description = "가게 카테고리", example = "CAFE")
-        StoreCategory storeCategory
+        StoreCategory storeCategory,
+
+        @Schema(description = "외부 링크로 리다이렉트되어야 하는 가게인지 구분하는 타입 (해당 없으면 null)", example = "EXTERNAL")
+        LinkType linkType
 ) {
     public record PartnershipInfo(
             Long adminId,
@@ -72,7 +76,8 @@ public record StoreMapResponseDTO(
                 profileUrl,
                 phoneNumber,
                 partnerships,
-                store.getStoreCategory()
+                store.getStoreCategory(),
+                store.getLinkType()
         );
     }
 }

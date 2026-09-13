@@ -56,7 +56,8 @@ public class StoreServiceImpl implements StoreService {
                 store.getRate(),
                 partner != null ? partner.getPhoneNum() : null,
                 partner != null,
-                profileUrl
+                profileUrl,
+                store.getLinkType()
         );
     }
 
