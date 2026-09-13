@@ -61,8 +61,8 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
         commonAuth.setLastLoginAt(LocalDateTime.now());
         commonAuthRepository.save(commonAuth);
 
-        if (member.getDeletedAt() != null) {
-            member.setDeletedAt(null);
+        if (member.isWithdrawn()) {
+            member.restore();
             memberRepository.save(member);
         }
 

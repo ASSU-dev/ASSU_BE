@@ -7,6 +7,7 @@ import com.assu.server.domain.auth.dto.signup.*;
 import com.assu.server.domain.auth.dto.signup.common.CommonInfoPayloadDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.entity.SSUAuth;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
@@ -78,11 +79,17 @@ public class SignUpServiceImpl implements SignUpService {
 
         USaintAuthResponseDTO authResponse = ssuAuthService.uSaintAuth(authRequest);
 
-        if (ssuAuthRepository.existsByStudentNumber(authResponse.studentNumber())) {
-            throw new CustomAuthException(ErrorStatus.EXISTED_STUDENT);
+        // 2) 기존 계정 확인 — 탈퇴 유예기간 내라면 신규 생성 대신 복구한다
+        Optional<SSUAuth> existingAuth = ssuAuthRepository.findByStudentNumber(authResponse.studentNumber());
+        if (existingAuth.isPresent()) {
+            Member existingMember = existingAuth.get().getMember();
+            if (!existingMember.isWithdrawn()) {
+                throw new CustomAuthException(ErrorStatus.EXISTED_STUDENT);
+            }
+            return restoreWithdrawnStudent(existingMember, req, authResponse);
         }
 
-        // 2) member 생성
+        // 3) member 생성
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
@@ -91,11 +98,11 @@ public class SignUpServiceImpl implements SignUpService {
                         .isActivated(ActivationStatus.ACTIVE)
                         .build());
 
-        // 3) SSUAuth 생성 (학번만 저장)
+        // 4) SSUAuth 생성 (학번만 저장)
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.SSU);
         adapter.registerCredentials(member, authResponse.studentNumber(), ""); // 더미 패스워드
 
-        // 4) Student 프로필 생성 (크롤링된 정보 사용)
+        // 5) Student 프로필 생성 (크롤링된 정보 사용)
         Major major = Major.fromDisplayName(authResponse.majorStr());
 
         Student student = studentRepository.save(Student.builder()
@@ -110,17 +117,52 @@ public class SignUpServiceImpl implements SignUpService {
                 .build());
         member.setProfile(student);
 
-        // 5) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
+        // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
         studentService.syncUserPapersForStudent(student.getId());
 
-        // 6) JWT 토큰 발급
+        // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authResponse.studentNumber(),
                 UserRole.STUDENT,
                 "SSU");
 
-        // 6) SignUpResponseDTO 생성
+        return SignUpResponseDTO.from(member, tokens);
+    }
+
+    private SignUpResponseDTO restoreWithdrawnStudent(
+            Member member,
+            StudentTokenSignUpRequestDTO req,
+            USaintAuthResponseDTO authResponse
+    ) {
+        Student student = member.getStudentProfile();
+        if (student == null) {
+            throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+        }
+
+        member.restore();
+        member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
+        memberRepository.save(member);
+
+        Major major = Major.fromDisplayName(authResponse.majorStr());
+        student.updateStudentInfo(
+                authResponse.name(),
+                major,
+                major.getDepartment(),
+                parseEnrollmentStatus(authResponse.enrollmentStatus()),
+                authResponse.yearSemester()
+        );
+        studentRepository.save(student);
+
+        // 탈퇴 기간 중 변동된 제휴를 반영한다
+        studentService.syncUserPapersForStudent(student.getId());
+
+        TokensDTO tokens = jwtUtil.issueTokens(
+                member.getId(),
+                authResponse.studentNumber(),
+                UserRole.STUDENT,
+                "SSU");
+
         return SignUpResponseDTO.from(member, tokens);
     }
 

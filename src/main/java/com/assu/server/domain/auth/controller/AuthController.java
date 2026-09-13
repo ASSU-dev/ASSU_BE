@@ -145,10 +145,13 @@ public class AuthController {
 
     @Operation(
             summary = "학생 회원가입 API",
-            description = "# [v1.3 (2026-04-02)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
                     "- `application/json` 요청 바디를 사용합니다.\n" +
                     "- 처리: 유세인트 인증 → 학생 정보 추출 → 회원가입 완료\n" +
-                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 학번으로 재가입하면 기존 계정이 복구되며, 신규 가입과 동일하게 200(OK)과 JWT 토큰을 반환합니다.\n" +
+                    "  - 복구 시 요청한 약관 동의값으로 갱신되고, 유세인트 최신 학적 정보가 반영됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이 재가입을 시도하면 `EXISTED_STUDENT` 에러를 반환합니다.\n" +
+                    "- 성공 시 200(OK)과 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
                     "  - `StudentTokenSignUpRequestDTO` 객체 (JSON, required): 숭실대 학생 토큰 가입 정보\n" +
                     "    - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
@@ -516,15 +519,16 @@ public class AuthController {
 
     @Operation(
             summary = "회원 탈퇴 API",
-            description = "# [v1.0 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed800a844bdafa2e2e8d2e?source=copy_link)\n" +
+            description = "# [v1.1 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed800a844bdafa2e2e8d2e?source=copy_link)\n" +
                     "- 현재 로그인한 사용자의 회원 탈퇴를 처리합니다.\n" +
                     "- 소프트 삭제 방식으로, 한 달 후 완전히 삭제됩니다.\n" +
-                    "- 탈퇴 즉시 모든 토큰이 무효화됩니다.\n" +
+                    "- 탈퇴 즉시 모든 토큰이 무효화되고 등록된 FCM 디바이스 토큰이 삭제됩니다.\n" +
+                    "- 유예기간(한 달) 내에는 로그인 또는 재가입 시 계정이 복구됩니다.\n" +
                     "\n**Headers:**\n" +
                     "  - `Authorization` (String, required): Bearer 토큰 형식의 액세스 토큰\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 성공 메시지 반환\n" +
-                    "  - 탈퇴 후 재로그인 가능"
+                    "  - 유예기간 내 재로그인 및 재가입 시 계정 복구"
     )
     @PatchMapping("/withdraw")
     public BaseResponse<Void> withdrawMember(
