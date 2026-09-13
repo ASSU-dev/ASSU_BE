@@ -112,7 +112,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStudentReview(Long memberId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
+        pageable = toZeroIndexed(pageable);
         Page<Review> reviews = reviewRepository.findByMemberId(memberId, pageable);
 
         for (Review review : reviews) {
@@ -125,7 +125,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
+        pageable = toZeroIndexed(pageable);
         Partner partner = partnerRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
@@ -169,7 +169,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
-        pageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize(), pageable.getSort());
+        pageable = toZeroIndexed(pageable);
         Store store = storeRepository.findById(storeId).orElseThrow(
                 () -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
 
@@ -211,5 +211,17 @@ public class ReviewServiceImpl implements ReviewService {
             s.setRate(rounded);
             storeRepository.save(s);
         });
+    }
+
+    /**
+     * 이 API들은 프론트와 1-based 페이지 번호로 계약되어 있다.
+     * page 를 생략하면 Pageable 기본값 0 이 들어오므로 음수가 되지 않도록 보정한다.
+     */
+    private Pageable toZeroIndexed(Pageable pageable) {
+        return PageRequest.of(
+                Math.max(pageable.getPageNumber() - 1, 0),
+                pageable.getPageSize(),
+                pageable.getSort()
+        );
     }
 }

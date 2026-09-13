@@ -12,6 +12,8 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     boolean existsByPhoneNum(String phoneNum);
 
+    boolean existsByPhoneNumAndMember_DeletedAtIsNull(String phoneNum);
+
     @Query("""
         SELECT COUNT(p)
         FROM Partner p

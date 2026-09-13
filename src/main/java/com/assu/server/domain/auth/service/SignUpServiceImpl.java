@@ -7,8 +7,11 @@ import com.assu.server.domain.auth.dto.signup.*;
 import com.assu.server.domain.auth.dto.signup.common.CommonInfoPayloadDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
+import com.assu.server.domain.auth.entity.CommonAuth;
+import com.assu.server.domain.auth.entity.SSUAuth;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.repository.SSUAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
@@ -59,6 +62,8 @@ public class SignUpServiceImpl implements SignUpService {
     private final SSUAuthService ssuAuthService;
     private final SSUAuthRepository ssuAuthRepository;
     private final StudentService studentService;
+    private final PhoneAuthService phoneAuthService;
+    private final CommonAuthRepository commonAuthRepository;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -78,11 +83,17 @@ public class SignUpServiceImpl implements SignUpService {
 
         USaintAuthResponseDTO authResponse = ssuAuthService.uSaintAuth(authRequest);
 
-        if (ssuAuthRepository.existsByStudentNumber(authResponse.studentNumber())) {
-            throw new CustomAuthException(ErrorStatus.EXISTED_STUDENT);
+        // 2) 기존 계정 확인 — 탈퇴 유예기간 내라면 신규 생성 대신 복구한다
+        Optional<SSUAuth> existingAuth = ssuAuthRepository.findByStudentNumber(authResponse.studentNumber());
+        if (existingAuth.isPresent()) {
+            Member existingMember = existingAuth.get().getMember();
+            if (!existingMember.isWithdrawn()) {
+                throw new CustomAuthException(ErrorStatus.EXISTED_STUDENT);
+            }
+            return restoreWithdrawnStudent(existingMember, req, authResponse);
         }
 
-        // 2) member 생성
+        // 3) member 생성
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
@@ -91,11 +102,11 @@ public class SignUpServiceImpl implements SignUpService {
                         .isActivated(ActivationStatus.ACTIVE)
                         .build());
 
-        // 3) SSUAuth 생성 (학번만 저장)
+        // 4) SSUAuth 생성 (학번만 저장)
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.SSU);
         adapter.registerCredentials(member, authResponse.studentNumber(), ""); // 더미 패스워드
 
-        // 4) Student 프로필 생성 (크롤링된 정보 사용)
+        // 5) Student 프로필 생성 (크롤링된 정보 사용)
         Major major = Major.fromDisplayName(authResponse.majorStr());
 
         Student student = studentRepository.save(Student.builder()
@@ -110,43 +121,64 @@ public class SignUpServiceImpl implements SignUpService {
                 .build());
         member.setProfile(student);
 
-        // 5) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
+        // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
         studentService.syncUserPapersForStudent(student.getId());
 
-        // 6) JWT 토큰 발급
+        // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
                 authResponse.studentNumber(),
                 UserRole.STUDENT,
                 "SSU");
 
-        // 6) SignUpResponseDTO 생성
+        return SignUpResponseDTO.from(member, tokens);
+    }
+
+    private SignUpResponseDTO restoreWithdrawnStudent(
+            Member member,
+            StudentTokenSignUpRequestDTO req,
+            USaintAuthResponseDTO authResponse
+    ) {
+        Student student = member.getStudentProfile();
+        if (student == null) {
+            throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+        }
+
+        member.restore();
+        member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
+        memberRepository.save(member);
+
+        Major major = Major.fromDisplayName(authResponse.majorStr());
+        student.updateStudentInfo(
+                authResponse.name(),
+                major,
+                major.getDepartment(),
+                parseEnrollmentStatus(authResponse.enrollmentStatus()),
+                authResponse.yearSemester()
+        );
+        studentRepository.save(student);
+
+        // 탈퇴 기간 중 변동된 제휴를 반영한다
+        studentService.syncUserPapersForStudent(student.getId());
+
+        TokensDTO tokens = jwtUtil.issueTokens(
+                member.getId(),
+                authResponse.studentNumber(),
+                UserRole.STUDENT,
+                "SSU");
+
         return SignUpResponseDTO.from(member, tokens);
     }
 
     @Override
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
-        if (partnerRepository.existsByPhoneNum(req.phoneNumber())
-                || adminRepository.existsByPhoneNum(req.phoneNumber())) {
+        phoneAuthService.consumeVerification(req.phoneNumber());
+
+        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
-        // 1) member 생성
-        Member member = memberRepository.save(
-                Member.builder()
-                        .isLocationTermAgreed(req.locationAgree())
-                        .isMarketingTermAgreed(req.marketingAgree())
-                        .role(UserRole.PARTNER)
-                        .isActivated(ActivationStatus.SUSPEND)
-                        .build());
-
-        // 2) RealmAuthAdapter 로 Common 자격 저장
-        RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
-        adapter.registerCredentials(member, req.commonAuth().email(), req.commonAuth().password());
-
-        String keyPath = "partners/" + member.getId() + "/" + licenseImage.getOriginalFilename();
-        String keyName = amazonS3Manager.generateKeyName(keyPath);
-        String licenseUrl = amazonS3Manager.uploadFile(keyName, licenseImage);
         CommonInfoPayloadDTO info = req.commonInfo();
         var sp = Optional.ofNullable(info.selectedPlace())
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
@@ -156,7 +188,28 @@ public class SignUpServiceImpl implements SignUpService {
         Double lng = sp.getLongitude();
         Point point = toPoint(lat, lng);
 
-        // 3) Partner 프로필 생성
+        // 1) 기존 계정 확인 — 탈퇴 유예기간 내라면 신규 생성 대신 복구한다
+        Member withdrawnMember = findRestorableMember(req.commonAuth().email(), UserRole.PARTNER);
+        if (withdrawnMember != null) {
+            return restoreWithdrawnPartner(withdrawnMember, req, licenseImage, address, lat, lng, point);
+        }
+
+        // 2) member 생성
+        Member member = memberRepository.save(
+                Member.builder()
+                        .isLocationTermAgreed(req.locationAgree())
+                        .isMarketingTermAgreed(req.marketingAgree())
+                        .role(UserRole.PARTNER)
+                        .isActivated(ActivationStatus.SUSPEND)
+                        .build());
+
+        // 3) RealmAuthAdapter 로 Common 자격 저장
+        RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
+        adapter.registerCredentials(member, req.commonAuth().email(), req.commonAuth().password());
+
+        String licenseUrl = uploadPartnerLicense(member.getId(), licenseImage);
+
+        // 4) Partner 프로필 생성
         Partner partner = partnerRepository.save(
                 Partner.builder()
                         .member(member)
@@ -172,12 +225,77 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(partner);
 
-        // store 생성/연결
-        Optional<Store> storeOpt = storeRepository.findBySameAddress(address, info.detailAddress());
+        linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
+
+        return SignUpResponseDTO.from(member, null);
+    }
+
+    /**
+     * 이메일로 복구 가능한 탈퇴 회원을 조회한다.
+     *
+     * @return 복구 대상 회원. 가입 이력이 없으면 null
+     * @throws CustomAuthException 활성 회원이거나 역할이 다른 경우
+     */
+    private Member findRestorableMember(String email, UserRole role) {
+        CommonAuth commonAuth = commonAuthRepository.findByEmail(email).orElse(null);
+        if (commonAuth == null) {
+            return null;
+        }
+
+        Member member = commonAuth.getMember();
+        if (!member.isWithdrawn() || member.getRole() != role) {
+            throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
+        }
+        return member;
+    }
+
+    private SignUpResponseDTO restoreWithdrawnPartner(
+            Member member,
+            PartnerSignUpRequestDTO req,
+            MultipartFile licenseImage,
+            String address,
+            Double lat,
+            Double lng,
+            Point point
+    ) {
+        Partner partner = member.getPartnerProfile();
+        if (partner == null) {
+            throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+        }
+
+        // isActivated는 유지한다 — 승인받았던 업체는 재승인 없이 바로 로그인 가능
+        member.restore();
+        member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
+        memberRepository.save(member);
+
+        RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
+        member.getCommonAuth()
+                .updatePassword(adapter.passwordEncoder().encode(req.commonAuth().password()));
+
+        CommonInfoPayloadDTO info = req.commonInfo();
+        String licenseUrl = uploadPartnerLicense(member.getId(), licenseImage);
+        partner.updateBusinessInfo(info.name(), req.phoneNumber(), address, info.detailAddress(),
+                licenseUrl, point, lat, lng);
+        partnerRepository.save(partner);
+
+        linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
+
+        return SignUpResponseDTO.from(member, null);
+    }
+
+    private String uploadPartnerLicense(Long memberId, MultipartFile licenseImage) {
+        String keyPath = "partners/" + memberId + "/" + licenseImage.getOriginalFilename();
+        String keyName = amazonS3Manager.generateKeyName(keyPath);
+        return amazonS3Manager.uploadFile(keyName, licenseImage);
+    }
+
+    private void linkStore(Partner partner, String name, String address, String detailAddress,
+                           Double lat, Double lng, Point point) {
+        Optional<Store> storeOpt = storeRepository.findBySameAddress(address, detailAddress);
         if (storeOpt.isPresent()) {
             Store store = storeOpt.get();
             store.linkPartner(partner);
-            store.setName(info.name());
+            store.setName(name);
             store.setGeo(lat, lng, point);
             storeRepository.save(store);
         } else {
@@ -185,17 +303,15 @@ public class SignUpServiceImpl implements SignUpService {
                     .partner(partner)
                     .rate(0)
                     .isActivate(ActivationStatus.SUSPEND)
-                    .name(info.name())
+                    .name(name)
                     .address(address)
-                    .detailAddress(info.detailAddress())
+                    .detailAddress(detailAddress)
                     .latitude(lat)
                     .longitude(lng)
                     .point(point)
                     .build();
             storeRepository.save(newly);
         }
-
-        return SignUpResponseDTO.from(member, null);
     }
 
     @Override
@@ -232,27 +348,7 @@ public class SignUpServiceImpl implements SignUpService {
                             .build());
             member.setProfile(partner);
 
-            Optional<Store> storeOpt = storeRepository.findBySameAddress(roadAddress, null);
-            if (storeOpt.isPresent()) {
-                Store store = storeOpt.get();
-                store.linkPartner(partner);
-                store.setName(req.name());
-                store.setGeo(lat, lng, point);
-                storeRepository.save(store);
-            } else {
-                Store newly = Store.builder()
-                        .partner(partner)
-                        .rate(0)
-                        .isActivate(ActivationStatus.SUSPEND)
-                        .name(req.name())
-                        .address(roadAddress)
-                        .detailAddress(null)
-                        .latitude(lat)
-                        .longitude(lng)
-                        .point(point)
-                        .build();
-                storeRepository.save(newly);
-            }
+            linkStore(partner, req.name(), roadAddress, null, lat, lng, point);
 
             return SignUpResponseDTO.from(member, null);
         }).toList();
@@ -260,9 +356,16 @@ public class SignUpServiceImpl implements SignUpService {
 
     @Override
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
-        if (partnerRepository.existsByPhoneNum(req.phoneNumber())
-                || adminRepository.existsByPhoneNum(req.phoneNumber())) {
+        phoneAuthService.consumeVerification(req.phoneNumber());
+
+        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
+        }
+
+        Member withdrawnMember = findRestorableMember(req.commonAuth().email(), UserRole.ADMIN);
+        if (withdrawnMember != null) {
+            return restoreWithdrawnAdmin(withdrawnMember, req, signImage);
         }
 
         // 1) member 생성
@@ -278,9 +381,7 @@ public class SignUpServiceImpl implements SignUpService {
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
         adapter.registerCredentials(member, req.commonAuth().email(), req.commonAuth().password());
 
-        String keyPath = "admins/" + member.getId() + "/" + signImage.getOriginalFilename();
-        String keyName = amazonS3Manager.generateKeyName(keyPath);
-        String signUrl = amazonS3Manager.uploadFile(keyName, signImage);
+        String signUrl = uploadAdminSign(member.getId(), signImage);
         CommonInfoPayloadDTO info = req.commonInfo();
         var sp = Optional.ofNullable(info.selectedPlace())
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
@@ -311,6 +412,49 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(admin);
 
         return SignUpResponseDTO.from(member, null);
+    }
+
+    private SignUpResponseDTO restoreWithdrawnAdmin(
+            Member member,
+            AdminSignUpRequestDTO req,
+            MultipartFile signImage
+    ) {
+        Admin admin = member.getAdminProfile();
+        if (admin == null) {
+            throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+        }
+
+        CommonInfoPayloadDTO info = req.commonInfo();
+        var sp = Optional.ofNullable(info.selectedPlace())
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
+
+        String address = pickDisplayAddress(sp.getRoadAddress(), sp.getAddress());
+        Double lat = sp.getLatitude();
+        Double lng = sp.getLongitude();
+        Point point = toPoint(lat, lng);
+
+        // isActivated는 유지한다 — 승인받았던 학생회는 재승인 없이 바로 로그인 가능
+        member.restore();
+        member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
+        memberRepository.save(member);
+
+        RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
+        member.getCommonAuth()
+                .updatePassword(adapter.passwordEncoder().encode(req.commonAuth().password()));
+
+        String signUrl = uploadAdminSign(member.getId(), signImage);
+        admin.updateOrganizationInfo(info.name(), req.phoneNumber(), address, info.detailAddress(),
+                signUrl, req.commonAuth().major(), req.commonAuth().department(),
+                req.commonAuth().university(), point, lat, lng);
+        adminRepository.save(admin);
+
+        return SignUpResponseDTO.from(member, null);
+    }
+
+    private String uploadAdminSign(Long memberId, MultipartFile signImage) {
+        String keyPath = "admins/" + memberId + "/" + signImage.getOriginalFilename();
+        String keyName = amazonS3Manager.generateKeyName(keyPath);
+        return amazonS3Manager.uploadFile(keyName, signImage);
     }
 
     private EnrollmentStatus parseEnrollmentStatus(String status) {

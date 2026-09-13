@@ -4,4 +4,6 @@ public interface PhoneAuthService {
     void checkAndSendAuthNumber(String phoneNumber);
 
     void verifyAuthNumber(String phoneNumber, String authNumber);
+
+    void consumeVerification(String phoneNumber);
 }

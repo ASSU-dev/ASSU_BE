@@ -118,11 +118,11 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
         assertNotBackofficeOperator(member);
 
-        if (member.getDeletedAt() == null) {
+        if (!member.isWithdrawn()) {
             throw new CustomAuthException(ErrorStatus.MEMBER_NOT_DELETED);
         }
 
-        member.setDeletedAt(null);
+        member.restore();
         return BackofficeMemberSummaryDTO.from(loadProfileForSummary(member));
     }
 
@@ -267,7 +267,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         if (member.getRole() != UserRole.ADMIN && member.getRole() != UserRole.PARTNER) {
             throw new CustomAuthException(ErrorStatus.MEMBER_APPROVAL_NOT_SUPPORTED);
         }
-        if (member.getDeletedAt() != null) {
+        if (member.isWithdrawn()) {
             throw new CustomAuthException(ErrorStatus.MEMBER_ALREADY_WITHDRAWN);
         }
     }

@@ -29,7 +29,7 @@ class EmailAuthServiceImplTest {
 	void checkEmailAvailability_ExistingEmail_ThrowsException() {
 		// 1. Given
 		EmailVerificationCheckRequestDTO request = new EmailVerificationCheckRequestDTO("dup@assu.com");
-		when(commonAuthRepository.existsByEmail("dup@assu.com")).thenReturn(true);
+		when(commonAuthRepository.existsByEmailAndMember_DeletedAtIsNull("dup@assu.com")).thenReturn(true);
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -44,7 +44,7 @@ class EmailAuthServiceImplTest {
 	void checkEmailAvailability_NewEmail_Passes() {
 		// 1. Given
 		EmailVerificationCheckRequestDTO request = new EmailVerificationCheckRequestDTO("new@assu.com");
-		when(commonAuthRepository.existsByEmail("new@assu.com")).thenReturn(false);
+		when(commonAuthRepository.existsByEmailAndMember_DeletedAtIsNull("new@assu.com")).thenReturn(false);
 
 		// 2. When & Then
 		assertDoesNotThrow(() -> emailAuthService.checkEmailAvailability(request));

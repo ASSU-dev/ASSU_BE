@@ -58,6 +58,7 @@ public class AuthController {
             description = "# [v1.1 (2025-09-25)](https://clumsy-seeder-416.notion.site/2241197c19ed801bbcd9f61c3e5f5457?source=copy_link)\n" +
                     "- 입력한 휴대폰 번호로 1회용 인증번호(OTP)를 발송합니다.\n" +
                     "- 중복된 전화번호가 있으면 에러를 반환합니다.\n" +
+                    "- 탈퇴한 회원의 번호는 재가입 대상이므로 중복으로 보지 않고 인증번호를 발송합니다.\n" +
                     "- 관리자와 제휴업체의 회원가입 이전에 사용하여 전화번호를 검증합니다.\n" +
                     "- 유효시간/재요청 제한 정책은 서버 설정에 따릅니다.\n" +
                     "\n**Request Body:**\n" +
@@ -87,6 +88,7 @@ public class AuthController {
             summary = "휴대폰 인증번호 검증 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/2241197c19ed81bb8c05d9061c0306c0?source=copy_link)\n" +
                     "- 발송된 인증번호(OTP)를 검증합니다.\n" +
+                    "- 검증에 성공하면 30분간 유효한 인증 표식이 서버에 저장됩니다. 제휴업체/관리자 회원가입은 이 표식을 요구하므로 인증 후 30분 내에 가입을 완료해야 합니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `phoneNumber` (String, required): 인증받을 휴대폰 번호\n" +
                     "  - `authNumber` (String, required): 발송받은 인증번호(OTP)\n" +
@@ -119,6 +121,7 @@ public class AuthController {
             description = "# [v1.0 (2025-09-18)](https://clumsy-seeder-416.notion.site/2551197c19ed802d8f6dd373dd045f3a?source=copy_link)\n" +
                     "- 입력한 이메일이 이미 가입된 사용자가 있는지 확인합니다.\n" +
                     "- 중복된 이메일이 있으면 에러를 반환합니다.\n" +
+                    "- 탈퇴한 회원의 이메일은 재가입 대상이므로 사용 가능으로 응답합니다. 해당 이메일로 가입하면 기존 계정이 복구됩니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `email` (String, required): 확인할 이메일 주소\n" +
                     "\n**Response:**\n" +
@@ -145,10 +148,13 @@ public class AuthController {
 
     @Operation(
             summary = "학생 회원가입 API",
-            description = "# [v1.3 (2026-04-02)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2241197c19ed81129c85cf5bbe1f7971)\n" +
                     "- `application/json` 요청 바디를 사용합니다.\n" +
                     "- 처리: 유세인트 인증 → 학생 정보 추출 → 회원가입 완료\n" +
-                    "- 성공 시 200(OK)과 생성된 memberId, JWT 토큰, 기본 정보 반환.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 학번으로 재가입하면 기존 계정이 복구되며, 신규 가입과 동일하게 200(OK)과 JWT 토큰을 반환합니다.\n" +
+                    "  - 복구 시 요청한 약관 동의값으로 갱신되고, 유세인트 최신 학적 정보가 반영됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이 재가입을 시도하면 `EXISTED_STUDENT` 에러를 반환합니다.\n" +
+                    "- 성공 시 200(OK)과 memberId, JWT 토큰, 기본 정보 반환.\n" +
                     "\n**Request Body:**\n" +
                     "  - `StudentTokenSignUpRequestDTO` 객체 (JSON, required): 숭실대 학생 토큰 가입 정보\n" +
                     "    - `marketingAgree` (Boolean, required): 마케팅 수신 동의\n" +
@@ -194,11 +200,16 @@ public class AuthController {
 
     @Operation(
             summary = "제휴업체 회원가입 API",
-            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, PartnerSignUpRequestDTO) + `licenseImage`(파일, 사업자등록증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
+                    "- **휴대폰 인증 선행 필수**: `/auth/phone-verification/verify`로 인증을 완료한 번호여야 합니다. 인증 후 30분 내에 호출해야 하며, 가입 시 인증 표식이 소비됩니다.\n" +
                     "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 이메일로 재가입하면 기존 계정이 복구됩니다.\n" +
+                    "  - 탈퇴 시점의 승인 상태가 유지됩니다. `ACTIVE`였다면 **재승인 없이 바로 로그인 가능**합니다.\n" +
+                    "  - 제출한 업체 정보/사업자등록증/비밀번호는 재가입 요청 값으로 갱신됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이거나 역할이 다르면 `EXISTED_EMAIL` 에러를 반환합니다.\n" +
                     "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `PartnerSignUpRequestDTO` 객체\n" +
@@ -263,11 +274,16 @@ public class AuthController {
 
     @Operation(
             summary = "관리자 회원가입 API",
-            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, AdminSignUpRequestDTO) + `signImage`(파일, 신분증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
+                    "- **휴대폰 인증 선행 필수**: `/auth/phone-verification/verify`로 인증을 완료한 번호여야 합니다. 인증 후 30분 내에 호출해야 하며, 가입 시 인증 표식이 소비됩니다.\n" +
                     "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 이메일로 재가입하면 기존 계정이 복구됩니다.\n" +
+                    "  - 탈퇴 시점의 승인 상태가 유지됩니다. `ACTIVE`였다면 **재승인 없이 바로 로그인 가능**합니다.\n" +
+                    "  - 제출한 단체 정보/서명 이미지/비밀번호는 재가입 요청 값으로 갱신됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이거나 역할이 다르면 `EXISTED_EMAIL` 에러를 반환합니다.\n" +
                     "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `AdminSignUpRequestDTO` 객체\n" +
@@ -516,15 +532,17 @@ public class AuthController {
 
     @Operation(
             summary = "회원 탈퇴 API",
-            description = "# [v1.0 (2025-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed800a844bdafa2e2e8d2e?source=copy_link)\n" +
+            description = "# [v1.1 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed800a844bdafa2e2e8d2e?source=copy_link)\n" +
                     "- 현재 로그인한 사용자의 회원 탈퇴를 처리합니다.\n" +
                     "- 소프트 삭제 방식으로, 한 달 후 완전히 삭제됩니다.\n" +
-                    "- 탈퇴 즉시 모든 토큰이 무효화됩니다.\n" +
+                    "- 탈퇴 즉시 요청에 사용한 액세스 토큰이 블랙리스트에 등록되고, 해당 회원의 리프레시 토큰과 등록된 FCM 디바이스 토큰이 모두 삭제됩니다.\n" +
+                    "  - 다른 기기에서 이미 발급받은 액세스 토큰은 만료 시점까지 유효할 수 있습니다.\n" +
+                    "- 유예기간(한 달) 내에는 로그인 또는 재가입 시 계정이 복구됩니다.\n" +
                     "\n**Headers:**\n" +
                     "  - `Authorization` (String, required): Bearer 토큰 형식의 액세스 토큰\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 성공 메시지 반환\n" +
-                    "  - 탈퇴 후 재로그인 가능"
+                    "  - 유예기간 내 재로그인 및 재가입 시 계정 복구"
     )
     @PatchMapping("/withdraw")
     public BaseResponse<Void> withdrawMember(

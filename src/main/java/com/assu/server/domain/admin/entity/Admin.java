@@ -70,4 +70,21 @@ public class Admin {
     public void updateMember(Member member) {
         this.member = member;
     }
+
+    public void updateOrganizationInfo(String name, String phoneNum, String officeAddress, String detailAddress,
+                                       String signImageUrl, Major major, Department department, University university,
+                                       Point point, Double latitude, Double longitude) {
+        this.name = name;
+        this.phoneNum = phoneNum;
+        this.isPhoneVerified = true;
+        this.officeAddress = officeAddress;
+        this.detailAddress = detailAddress;
+        this.signImageUrl = signImageUrl;
+        this.major = major;
+        this.department = department;
+        this.university = university;
+        this.point = point;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
 }

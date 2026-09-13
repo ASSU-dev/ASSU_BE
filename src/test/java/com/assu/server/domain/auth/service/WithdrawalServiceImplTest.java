@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.deviceToken.repository.DeviceTokenRepository;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
@@ -33,6 +33,9 @@ class WithdrawalServiceImplTest {
 
 	@Mock
 	private MemberRepository memberRepository;
+
+	@Mock
+	private DeviceTokenRepository deviceTokenRepository;
 
 	@Mock
 	private JwtUtil jwtUtil;
@@ -69,7 +72,7 @@ class WithdrawalServiceImplTest {
 	void withdrawCurrentUser_AlreadyWithdrawn_ThrowsException() {
 		// 1. Given
 		Member member = mock(Member.class);
-		when(member.getDeletedAt()).thenReturn(LocalDateTime.now().minusDays(1));
+		when(member.isWithdrawn()).thenReturn(true);
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
 
 		// 2. When
@@ -78,7 +81,9 @@ class WithdrawalServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.MEMBER_ALREADY_WITHDRAWN, exception.getCode());
+		verify(member, never()).withdraw();
 		verify(memberRepository, never()).save(any());
+		verify(deviceTokenRepository, never()).deleteAllByMemberId(anyLong());
 		verify(jwtUtil, never()).removeAllRefreshTokens(anyLong());
 	}
 
@@ -88,16 +93,32 @@ class WithdrawalServiceImplTest {
 		// 1. Given
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(MEMBER_ID);
-		when(member.getDeletedAt()).thenReturn(null);
+		when(member.isWithdrawn()).thenReturn(false);
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
 
 		// 2. When
 		withdrawalService.withdrawCurrentUser(AUTHORIZATION);
 
 		// 3. Then
-		verify(member, times(1)).setDeletedAt(any(LocalDateTime.class));
+		verify(member, times(1)).withdraw();
 		verify(memberRepository, times(1)).save(member);
 		verify(jwtUtil, times(1)).removeAllRefreshTokens(MEMBER_ID);
 		verify(jwtUtil, times(1)).blacklistAccess(RAW_TOKEN);
+	}
+
+	@Test
+	@DisplayName("탈퇴 시 등록된 FCM 디바이스 토큰을 모두 삭제한다")
+	void withdrawCurrentUser_Success_ClearsDeviceTokens() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.isWithdrawn()).thenReturn(false);
+		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+
+		// 2. When
+		withdrawalService.withdrawCurrentUser(AUTHORIZATION);
+
+		// 3. Then
+		verify(deviceTokenRepository, times(1)).deleteAllByMemberId(MEMBER_ID);
 	}
 }
