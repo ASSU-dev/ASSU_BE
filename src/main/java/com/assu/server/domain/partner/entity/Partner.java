@@ -55,4 +55,17 @@ public class Partner {
     private double latitude;
     private double longitude;
 
+    public void updateBusinessInfo(String name, String phoneNum, String address, String detailAddress,
+                                   String licenseUrl, Point point, Double latitude, Double longitude) {
+        this.name = name;
+        this.phoneNum = phoneNum;
+        this.isPhoneVerified = true;
+        this.address = address;
+        this.detailAddress = detailAddress;
+        this.licenseUrl = licenseUrl;
+        this.point = point;
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
 }

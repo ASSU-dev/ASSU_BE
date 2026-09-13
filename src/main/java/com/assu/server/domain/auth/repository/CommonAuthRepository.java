@@ -10,5 +10,7 @@ import java.util.Optional;
 public interface CommonAuthRepository extends JpaRepository<CommonAuth, Long> {
     boolean existsByEmail(String email);
 
+    boolean existsByEmailAndMember_DeletedAtIsNull(String email);
+
     Optional<CommonAuth> findByEmail(String email);
 }

@@ -58,6 +58,7 @@ public class AuthController {
             description = "# [v1.1 (2025-09-25)](https://clumsy-seeder-416.notion.site/2241197c19ed801bbcd9f61c3e5f5457?source=copy_link)\n" +
                     "- 입력한 휴대폰 번호로 1회용 인증번호(OTP)를 발송합니다.\n" +
                     "- 중복된 전화번호가 있으면 에러를 반환합니다.\n" +
+                    "- 탈퇴한 회원의 번호는 재가입 대상이므로 중복으로 보지 않고 인증번호를 발송합니다.\n" +
                     "- 관리자와 제휴업체의 회원가입 이전에 사용하여 전화번호를 검증합니다.\n" +
                     "- 유효시간/재요청 제한 정책은 서버 설정에 따릅니다.\n" +
                     "\n**Request Body:**\n" +
@@ -87,6 +88,7 @@ public class AuthController {
             summary = "휴대폰 인증번호 검증 API",
             description = "# [v1.0 (2025-09-03)](https://clumsy-seeder-416.notion.site/2241197c19ed81bb8c05d9061c0306c0?source=copy_link)\n" +
                     "- 발송된 인증번호(OTP)를 검증합니다.\n" +
+                    "- 검증에 성공하면 30분간 유효한 인증 표식이 서버에 저장됩니다. 제휴업체/관리자 회원가입은 이 표식을 요구하므로 인증 후 30분 내에 가입을 완료해야 합니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `phoneNumber` (String, required): 인증받을 휴대폰 번호\n" +
                     "  - `authNumber` (String, required): 발송받은 인증번호(OTP)\n" +
@@ -119,6 +121,7 @@ public class AuthController {
             description = "# [v1.0 (2025-09-18)](https://clumsy-seeder-416.notion.site/2551197c19ed802d8f6dd373dd045f3a?source=copy_link)\n" +
                     "- 입력한 이메일이 이미 가입된 사용자가 있는지 확인합니다.\n" +
                     "- 중복된 이메일이 있으면 에러를 반환합니다.\n" +
+                    "- 탈퇴한 회원의 이메일은 재가입 대상이므로 사용 가능으로 응답합니다. 해당 이메일로 가입하면 기존 계정이 복구됩니다.\n" +
                     "\n**Request Body:**\n" +
                     "  - `email` (String, required): 확인할 이메일 주소\n" +
                     "\n**Response:**\n" +
@@ -197,11 +200,16 @@ public class AuthController {
 
     @Operation(
             summary = "제휴업체 회원가입 API",
-            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80d7a8f2c3a6fcd8b537)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, PartnerSignUpRequestDTO) + `licenseImage`(파일, 사업자등록증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
+                    "- **휴대폰 인증 선행 필수**: `/auth/phone-verification/verify`로 인증을 완료한 번호여야 합니다. 인증 후 30분 내에 호출해야 하며, 가입 시 인증 표식이 소비됩니다.\n" +
                     "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 이메일로 재가입하면 기존 계정이 복구됩니다.\n" +
+                    "  - 탈퇴 시점의 승인 상태가 유지됩니다. `ACTIVE`였다면 **재승인 없이 바로 로그인 가능**합니다.\n" +
+                    "  - 제출한 업체 정보/사업자등록증/비밀번호는 재가입 요청 값으로 갱신됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이거나 역할이 다르면 `EXISTED_EMAIL` 에러를 반환합니다.\n" +
                     "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `PartnerSignUpRequestDTO` 객체\n" +
@@ -266,11 +274,16 @@ public class AuthController {
 
     @Operation(
             summary = "관리자 회원가입 API",
-            description = "# [v1.3 (2026-07-03)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
+            description = "# [v1.4 (2026-09-13)](https://clumsy-seeder-416.notion.site/2501197c19ed80cdb98bc2b4d5042b48)\n" +
                     "- `multipart/form-data`로 호출합니다.\n" +
                     "- 파트: `request`(JSON, AdminSignUpRequestDTO) + `signImage`(파일, 신분증).\n" +
                     "- 처리: users + common_auth 생성, 이메일 중복/비밀번호 규칙 검증.\n" +
+                    "- **휴대폰 인증 선행 필수**: `/auth/phone-verification/verify`로 인증을 완료한 번호여야 합니다. 인증 후 30분 내에 호출해야 하며, 가입 시 인증 표식이 소비됩니다.\n" +
                     "- 가입 직후 `SUSPEND` 상태이며 JWT는 발급되지 않습니다. 백오피스 승인 후 로그인 가능합니다.\n" +
+                    "- 탈퇴 유예기간(한 달) 내에 동일 이메일로 재가입하면 기존 계정이 복구됩니다.\n" +
+                    "  - 탈퇴 시점의 승인 상태가 유지됩니다. `ACTIVE`였다면 **재승인 없이 바로 로그인 가능**합니다.\n" +
+                    "  - 제출한 단체 정보/서명 이미지/비밀번호는 재가입 요청 값으로 갱신됩니다.\n" +
+                    "  - 탈퇴하지 않은 활성 회원이거나 역할이 다르면 `EXISTED_EMAIL` 에러를 반환합니다.\n" +
                     "- 성공 시 200(OK)과 생성된 memberId, 기본 정보 반환.\n" +
                     "\n**Request Parts:**\n" +
                     "  - `request` (JSON, required): `AdminSignUpRequestDTO` 객체\n" +
