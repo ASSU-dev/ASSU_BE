@@ -21,12 +21,16 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PresenceTracker;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.transaction.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +49,7 @@ public class ChatServiceImpl implements ChatService {
     private final NotificationCommandService notificationCommandService;
     private final PresenceTracker presenceTracker;
     private final BlockRepository blockRepository;
+    private final MeterRegistry meterRegistry;
 
 
     @Override
@@ -115,6 +120,7 @@ public class ChatServiceImpl implements ChatService {
         // 3. 메시지 저장 (기존 로직)
         Message message = Message.toMessageEntity(request, room, sender, receiver, unreadForSender);
         Message saved = messageRepository.saveAndFlush(message);
+        incrementAfterCommit(meterRegistry.counter("chat.message.sent"));
         log.info("saved message id={}, roomId={}, senderId={}, receiverId={}",
                 saved.getId(), room.getId(), sender.getId(), receiver.getId());
 
@@ -254,5 +260,18 @@ public class ChatServiceImpl implements ChatService {
             throw new DatabaseException(ErrorStatus.NO_MEMBER);
         }
         return new  ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, isLeftSuccessfully,isRoomDeleted);
+    }
+
+    private void incrementAfterCommit(Counter counter) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            counter.increment();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                counter.increment();
+            }
+        });
     }
 }

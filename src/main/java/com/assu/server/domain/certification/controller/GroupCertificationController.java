@@ -14,6 +14,8 @@ import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.global.util.PrincipalDetails;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GroupCertificationController {
 
 	private final CertificationService certificationService;
+	private final MeterRegistry meterRegistry;
 
 	@MessageMapping("/certify")
 	@Operation(
@@ -44,15 +47,21 @@ public class GroupCertificationController {
 			UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken)principal;
 			PrincipalDetails principalDetails = (PrincipalDetails)auth.getPrincipal();
 
+			Timer.Sample sample = Timer.start(meterRegistry);
 			try {
 				log.info("### SUCCESS ### 인증 요청 메시지 수신 - user: {}, adminId: {}, sessionId: {}",
 					principalDetails.getUsername(), dto.adminId(), dto.sessionId());
 
 				if (principalDetails != null) {
-					return certificationService.handleCertification(dto, principalDetails.getMember());
+					CertificationProgressResponseDTO result = certificationService.handleCertification(dto, principalDetails.getMember());
+					meterRegistry.counter("certification.group.result", "result", result.type()).increment();
+					return result;
 				}
 			} catch (Exception e) {
 				log.error("### ERROR ### 인증 처리 중 오류 발생: {}", e.getMessage(), e);
+				meterRegistry.counter("certification.group.result", "result", "failure").increment();
+			} finally {
+				sample.stop(meterRegistry.timer("certification.group.duration"));
 			}
 		}
 		return null;

@@ -8,6 +8,7 @@ import com.assu.server.infra.messaging.ConditionalOnRabbitEnabled;
 import com.assu.server.domain.notification.dto.NotificationMessageDTO;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.rabbitmq.client.Channel;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -28,6 +29,7 @@ public class NotificationListener {
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
     private final ApplicationEventPublisher eventPublisher;
+    private final MeterRegistry meterRegistry;
 
     @RabbitListener(queues = AmqpConfig.QUEUE, ackMode = "MANUAL")
     public void onMessage(@Payload NotificationMessageDTO notificationMessageDTO,
@@ -67,11 +69,17 @@ public class NotificationListener {
 
         if (outboxId != null) outboxStatus.markSent(outboxId);
 
+        meterRegistry.counter("notification.fcm.send", "result", "success").increment(result.successCount());
+        if (result.failureCount() > 0) {
+            meterRegistry.counter("notification.fcm.send", "result", "failure").increment(result.failureCount());
+        }
+
         log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
                 outboxId, dto.receiverId(), result.successCount(), result.failureCount(), result.invalidTokens());
     }
 
     private void handleException(Exception e, Long outboxId, Long memberId) {
+        meterRegistry.counter("notification.fcm.send", "result", "exception").increment();
         if (outboxId != null) {
             outboxStatus.markFailed(outboxId);
             

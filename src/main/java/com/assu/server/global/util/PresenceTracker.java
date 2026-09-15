@@ -1,5 +1,7 @@
 package com.assu.server.global.util;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -21,6 +23,11 @@ public class PresenceTracker {
     private final Map<String, Set<Long>> sessionToRooms = new ConcurrentHashMap<>();
     // "sessionId:subscriptionId" -> roomId: 특정 구독 해제 시 어느 방인지 추적
     private final Map<String, Long> subToRoom = new ConcurrentHashMap<>();
+
+    public PresenceTracker(MeterRegistry meterRegistry) {
+        Gauge.builder("chat.active.sessions", sessionToMember, Map::size)
+                .register(meterRegistry);
+    }
 
     private Long parseRoomId(String dest) { // "/sub/chat/26" -> 26
         if (dest == null) return null;

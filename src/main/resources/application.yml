@@ -47,6 +47,10 @@ spring:
 server:
   shutdown: graceful
 
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} [reqId=%X{requestId}] %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+
 management:
   endpoints:
     web:
@@ -56,3 +60,10 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,800ms,1s,2s,5s,10s,30s
+        certification.group.duration: 100ms,500ms,1s,3s,10s,30s

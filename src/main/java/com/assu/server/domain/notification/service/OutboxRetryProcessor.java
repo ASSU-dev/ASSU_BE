@@ -4,6 +4,7 @@ import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
 import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,9 +20,11 @@ public class OutboxRetryProcessor {
     
     private final NotificationOutboxRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
-    
+    private final MeterRegistry meterRegistry;
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processRetry(NotificationOutbox outbox) {
+        meterRegistry.counter("notification.outbox.retry").increment();
         try {
             outbox.incrementRetryCount();
             outboxRepository.save(outbox);
