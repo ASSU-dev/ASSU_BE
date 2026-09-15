@@ -65,5 +65,5 @@ management:
       application: ${spring.application.name}
     distribution:
       slo:
-        http.server.requests: 50ms,100ms,200ms,500ms,800ms,1s,2s,5s
-        certification.group.duration: 100ms,500ms,1s,3s,10s
+        http.server.requests: 50ms,100ms,200ms,500ms,800ms,1s,2s,5s,10s,30s
+        certification.group.duration: 100ms,500ms,1s,3s,10s,30s
