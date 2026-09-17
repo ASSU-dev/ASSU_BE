@@ -174,8 +174,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
@@ -358,8 +359,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
