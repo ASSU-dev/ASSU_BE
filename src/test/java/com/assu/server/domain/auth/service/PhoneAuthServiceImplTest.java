@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.exception.CustomAuthException;
@@ -48,6 +49,8 @@ class PhoneAuthServiceImplTest {
 	private AdminRepository adminRepository;
 
 	private static final String PHONE = "01012345678";
+	private static final String MASTER_PHONE = "01000000000";
+	private static final String MASTER_AUTH_NUMBER = "123456";
 
 	private AligoSendResponse aligoResponse(String resultCode) {
 		AligoSendResponse response = new AligoSendResponse();
@@ -217,5 +220,94 @@ class PhoneAuthServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("마스터키 활성화 상태에서 마스터 번호로 인증번호를 요청하면 중복 체크와 SMS 발송 없이 통과한다")
+	void checkAndSendAuthNumber_MasterPhoneNumberAndEnabled_SkipsCheckAndSms() {
+		// 1. Given
+		ReflectionTestUtils.setField(phoneAuthService, "masterKeyEnabled", true);
+
+		// 2. When
+		assertDoesNotThrow(() -> phoneAuthService.checkAndSendAuthNumber(MASTER_PHONE));
+
+		// 3. Then
+		verify(partnerRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(adminRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
+	}
+
+	@Test
+	@DisplayName("마스터키가 비활성화 상태면 마스터 번호도 일반 번호와 동일하게 처리된다")
+	void checkAndSendAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
+		// 1. Given
+		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
+		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(aligoSmsClient.sendSms(eq(MASTER_PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
+
+		// 2. When
+		phoneAuthService.checkAndSendAuthNumber(MASTER_PHONE);
+
+		// 3. Then
+		verify(aligoSmsClient).sendSms(eq(MASTER_PHONE), anyString(), anyString());
+	}
+
+	@Test
+	@DisplayName("마스터키 활성화 상태에서 고정 인증번호로 검증하면 Redis 조회 없이 인증 완료 표식이 저장된다")
+	void verifyAuthNumber_MasterPhoneNumberAndEnabled_CorrectCode_MarksVerified() {
+		// 1. Given
+		ReflectionTestUtils.setField(phoneAuthService, "masterKeyEnabled", true);
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+		// 2. When
+		assertDoesNotThrow(() -> phoneAuthService.verifyAuthNumber(MASTER_PHONE, MASTER_AUTH_NUMBER));
+
+		// 3. Then
+		verify(valueOperations).set("phone-verified:" + MASTER_PHONE, "1", Duration.ofMinutes(30));
+		verify(redisTemplate, never()).delete(MASTER_PHONE);
+	}
+
+	@Test
+	@DisplayName("마스터키 활성화 상태에서 고정 인증번호가 틀리면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
+	void verifyAuthNumber_MasterPhoneNumberAndEnabled_WrongCode_ThrowsException() {
+		// 1. Given
+		ReflectionTestUtils.setField(phoneAuthService, "masterKeyEnabled", true);
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(MASTER_PHONE, "000000"));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("마스터키가 비활성화 상태면 고정 인증번호를 넣어도 Redis에 저장된 값과 비교한다")
+	void verifyAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
+		// 1. Given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.get(MASTER_PHONE)).thenReturn(null);
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(MASTER_PHONE, MASTER_AUTH_NUMBER));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("isMasterPhoneNumber는 마스터키 활성화 및 번호 일치 여부에 따라 판별한다")
+	void isMasterPhoneNumber_ChecksEnabledFlagAndNumber() {
+		// 1. Given
+		ReflectionTestUtils.setField(phoneAuthService, "masterKeyEnabled", true);
+
+		// 2. When & Then
+		assertTrue(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE));
+		assertFalse(phoneAuthService.isMasterPhoneNumber(PHONE));
+
+		ReflectionTestUtils.setField(phoneAuthService, "masterKeyEnabled", false);
+		assertFalse(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE));
 	}
 }
