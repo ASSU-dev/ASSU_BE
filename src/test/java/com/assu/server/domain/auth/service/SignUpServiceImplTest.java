@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -108,6 +109,7 @@ class SignUpServiceImplTest {
 	private PasswordEncoder passwordEncoder;
 
 	private static final String PHONE = "01012345678";
+	private static final String MASTER_PHONE = "01000000000";
 	private static final String EMAIL = "partner@assu.site";
 
 	@BeforeEach
@@ -309,6 +311,96 @@ class SignUpServiceImplTest {
 		// 3. Then
 		assertEquals(ErrorStatus.EXISTED_PHONE, exception.getCode());
 		verify(memberRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("마스터 번호로 파트너 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
+	void signupPartner_MasterPhoneNumber_ActivatesImmediately() {
+		// 1. Given
+		SelectedPlacePayload place = SelectedPlacePayload.builder()
+			.address("서울특별시 동작구 상도로 369")
+			.roadAddress("서울특별시 동작구 상도로 369")
+			.latitude(37.5)
+			.longitude(126.96)
+			.build();
+		PartnerSignUpRequestDTO request = new PartnerSignUpRequestDTO(
+			MASTER_PHONE, true, true,
+			new CommonAuthPayloadDTO(EMAIL, "P@ssw0rd!", null, null, null),
+			new CommonInfoPayloadDTO("숭실카페", "101호", place));
+
+		when(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE)).thenReturn(true);
+		when(commonAuthRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+		Member savedMember = mock(Member.class);
+		when(savedMember.getId()).thenReturn(1L);
+		when(savedMember.getRole()).thenReturn(UserRole.PARTNER);
+		when(savedMember.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+
+		ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
+
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+
+		Partner partner = mock(Partner.class);
+		when(partnerRepository.save(any(Partner.class))).thenReturn(partner);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.empty());
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupPartner(request, licenseImage);
+
+		// 3. Then
+		assertEquals(ActivationStatus.ACTIVE, memberCaptor.getValue().getIsActivated());
+		assertEquals(ActivationStatus.ACTIVE, response.status());
+		verify(partnerRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(adminRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+	}
+
+	@Test
+	@DisplayName("마스터 번호로 관리자 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
+	void signupAdmin_MasterPhoneNumber_ActivatesImmediately() {
+		// 1. Given
+		SelectedPlacePayload place = SelectedPlacePayload.builder()
+			.address("서울특별시 동작구 상도로 369")
+			.roadAddress("서울특별시 동작구 상도로 369")
+			.latitude(37.5)
+			.longitude(126.96)
+			.build();
+		AdminSignUpRequestDTO request = new AdminSignUpRequestDTO(
+			MASTER_PHONE, true, true,
+			new CommonAuthPayloadDTO(EMAIL, "P@ssw0rd!", null, null, null),
+			new CommonInfoPayloadDTO("숭실대 학생회", "101호", place));
+
+		when(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE)).thenReturn(true);
+		when(commonAuthRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+		Member savedMember = mock(Member.class);
+		when(savedMember.getId()).thenReturn(1L);
+		when(savedMember.getRole()).thenReturn(UserRole.ADMIN);
+		when(savedMember.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+
+		ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
+
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+
+		MockMultipartFile signImage =
+			new MockMultipartFile("signImage", "sign.png", "image/png", new byte[] {1});
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupAdmin(request, signImage);
+
+		// 3. Then
+		assertEquals(ActivationStatus.ACTIVE, memberCaptor.getValue().getIsActivated());
+		assertEquals(ActivationStatus.ACTIVE, response.status());
+		verify(partnerRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(adminRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
 	}
 
 	@Test
