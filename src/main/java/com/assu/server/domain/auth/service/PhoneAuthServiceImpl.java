@@ -9,6 +9,7 @@ import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import com.assu.server.infra.aligo.exception.AligoException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
@@ -29,9 +30,20 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final Duration VERIFIED_TTL = Duration.ofMinutes(30); // 인증 완료 후 가입까지 허용 시간
     private static final String VERIFIED_KEY_PREFIX = "phone-verified:";
 
+    // iOS 앱스토어 심사(해외 번호)용 마스터 번호 - 알리고가 국내 번호만 지원해 SMS 수신이 불가능한 심사 환경 우회용
+    private static final String MASTER_PHONE_NUMBER = "01000000000";
+    private static final String MASTER_AUTH_NUMBER = "123456";
+
+    @Value("${phone-auth.master-key.enabled:false}")
+    private boolean masterKeyEnabled;
+
     @Override
     @Transactional(readOnly = true)
     public void checkAndSendAuthNumber(String phoneNumber) {
+        if (isMasterPhoneNumber(phoneNumber)) {
+            return;
+        }
+
         // 탈퇴 회원의 번호는 재가입 대상이므로 중복으로 보지 않는다
         boolean exists = partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber)
                 || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber);
@@ -62,6 +74,15 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
     @Override
     public void verifyAuthNumber(String phoneNumber, String authNumber) {
+        if (isMasterPhoneNumber(phoneNumber)) {
+            if (!MASTER_AUTH_NUMBER.equals(authNumber)) {
+                throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+            }
+
+            redisTemplate.opsForValue().set(VERIFIED_KEY_PREFIX + phoneNumber, "1", VERIFIED_TTL);
+            return;
+        }
+
         ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
         String stored = valueOps.get(phoneNumber);
 
@@ -82,5 +103,10 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         if (!Boolean.TRUE.equals(verified)) {
             throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
         }
+    }
+
+    @Override
+    public boolean isMasterPhoneNumber(String phoneNumber) {
+        return masterKeyEnabled && MASTER_PHONE_NUMBER.equals(phoneNumber);
     }
 }

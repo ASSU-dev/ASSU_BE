@@ -174,8 +174,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
@@ -194,13 +195,13 @@ public class SignUpServiceImpl implements SignUpService {
             return restoreWithdrawnPartner(withdrawnMember, req, licenseImage, address, lat, lng, point);
         }
 
-        // 2) member 생성
+        // 2) member 생성 (마스터 번호는 iOS 심사 대응을 위해 승인 절차 없이 즉시 ACTIVE)
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.PARTNER)
-                        .isActivated(ActivationStatus.SUSPEND)
+                        .isActivated(resolveInitialActivationStatus(req.phoneNumber()))
                         .build());
 
         // 3) RealmAuthAdapter 로 Common 자격 저장
@@ -358,8 +359,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
@@ -368,13 +370,13 @@ public class SignUpServiceImpl implements SignUpService {
             return restoreWithdrawnAdmin(withdrawnMember, req, signImage);
         }
 
-        // 1) member 생성
+        // 1) member 생성 (마스터 번호는 iOS 심사 대응을 위해 승인 절차 없이 즉시 ACTIVE)
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.ADMIN)
-                        .isActivated(ActivationStatus.SUSPEND)
+                        .isActivated(resolveInitialActivationStatus(req.phoneNumber()))
                         .build());
 
         // 2) RealmAuthAdapter 로 Common 자격 저장
@@ -472,6 +474,12 @@ public class SignUpServiceImpl implements SignUpService {
             // 기본값은 재학으로 설정
             return EnrollmentStatus.ENROLLED;
         }
+    }
+
+    private ActivationStatus resolveInitialActivationStatus(String phoneNumber) {
+        return phoneAuthService.isMasterPhoneNumber(phoneNumber)
+                ? ActivationStatus.ACTIVE
+                : ActivationStatus.SUSPEND;
     }
 
     private Point toPoint(Double lat, Double lng) {

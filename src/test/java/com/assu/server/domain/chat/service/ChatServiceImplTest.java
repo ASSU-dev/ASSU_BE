@@ -10,14 +10,20 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
@@ -77,6 +83,9 @@ class ChatServiceImplTest {
 
 	@Mock
 	private BlockRepository blockRepository;
+
+	@Spy
+	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
@@ -260,6 +269,40 @@ class ChatServiceImplTest {
 		verify(messageRepository).saveAndFlush(captor.capture());
 		assertEquals(0, captor.getValue().getUnreadCount());
 		assertTrue(captor.getValue().isRead());
+		assertEquals(1.0, meterRegistry.counter("chat.message.sent").count());
+	}
+
+	@Test
+	@DisplayName("트랜잭션 동기화가 활성화되어 있으면 메시지 전송 카운터는 커밋 이후에 증가한다")
+	void handleMessage_WithTransactionSynchronization_IncrementsCounterAfterCommit() {
+		// 1. Given
+		ChatRequestDTO.ChatMessageRequestDTO request =
+			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
+
+		ChattingRoom room = ChattingRoom.builder().id(ROOM_ID).build();
+		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
+		Member sender = givenMember(PARTNER_ID);
+		Member receiver = givenMember(ADMIN_ID);
+		when(presenceTracker.isInRoom(ADMIN_ID, ROOM_ID)).thenReturn(true);
+
+		Message saved = Message.builder()
+			.id(100L).chattingRoom(room).sender(sender).receiver(receiver)
+			.message("안녕하세요").unreadCount(0).isRead(true).type(MessageType.TEXT)
+			.build();
+		when(messageRepository.saveAndFlush(any(Message.class))).thenReturn(saved);
+
+		TransactionSynchronizationManager.initSynchronization();
+		try {
+			// 2. When
+			chatService.handleMessage(request);
+
+			// 3. Then
+			assertEquals(0.0, meterRegistry.counter("chat.message.sent").count());
+			TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+			assertEquals(1.0, meterRegistry.counter("chat.message.sent").count());
+		} finally {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
 	}
 
 	@Test
