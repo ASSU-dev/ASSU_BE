@@ -2,7 +2,6 @@ package com.assu.server.backoffice;
 
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
-import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
@@ -39,7 +38,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -125,11 +123,11 @@ class BackofficeSecurityIntegrationTest {
                 AuthRealm.COMMON.name()
         ).accessToken();
 
-        assertThatThrownBy(() -> mockMvc.perform(post("/backoffice/students/sync")
-                        .header("Authorization", "Bearer " + accessToken)))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
-                .isEqualTo(ErrorStatus.JWT_AUDIENCE_MISMATCH);
+        mockMvc.perform(post("/backoffice/students/sync")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getCode()))
+                .andExpect(jsonPath("$.message").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getMessage()));
 
         assertThat(backofficeAuditLogRepository.findAll()).isEmpty();
     }
@@ -145,11 +143,11 @@ class BackofficeSecurityIntegrationTest {
                 AuthRealm.COMMON.name()
         ).accessToken();
 
-        assertThatThrownBy(() -> mockMvc.perform(post("/backoffice/students/sync")
-                        .header("Authorization", "Bearer " + accessToken)))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
-                .isEqualTo(ErrorStatus.JWT_AUDIENCE_MISMATCH);
+        mockMvc.perform(post("/backoffice/students/sync")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getCode()))
+                .andExpect(jsonPath("$.message").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getMessage()));
 
         assertThat(backofficeAuditLogRepository.findAll()).isEmpty();
     }
@@ -194,11 +192,11 @@ class BackofficeSecurityIntegrationTest {
                 AuthRealm.COMMON.name()
         ).accessToken();
 
-        assertThatThrownBy(() -> mockMvc.perform(patch("/backoffice/members/{memberId}/approve", partnerMember.getId())
-                        .header("Authorization", "Bearer " + accessToken)))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
-                .isEqualTo(ErrorStatus.JWT_AUDIENCE_MISMATCH);
+        mockMvc.perform(patch("/backoffice/members/{memberId}/approve", partnerMember.getId())
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getCode()))
+                .andExpect(jsonPath("$.message").value(ErrorStatus.JWT_AUDIENCE_MISMATCH.getMessage()));
     }
 
     @Test
