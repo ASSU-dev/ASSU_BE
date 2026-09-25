@@ -23,10 +23,8 @@ public record BackofficeAdminCreateRequestDTO(
     @NotNull(message = "대학교는 필수입니다.")
     University university,
 
-    @NotNull(message = "학과는 필수입니다.")
     Department department,
 
-    @NotNull(message = "전공은 필수입니다.")
     Major major,
 
     String officeAddress,
