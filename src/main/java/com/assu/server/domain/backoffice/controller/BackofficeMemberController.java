@@ -156,8 +156,9 @@ public class BackofficeMemberController {
     @BackofficeAudited(action = "MEMBER_FORCE_WITHDRAW", targetId = "#memberId")
     @Operation(
             summary = "회원 강제 탈퇴 API",
-            description = "# [v1.0 (2026-07-03)]\n" +
+            description = "# [v1.1 (2026-09-25)]\n" +
                     "- 회원을 소프트 탈퇴 처리하고 refresh token을 삭제합니다.\n" +
+                    "- 탈퇴 즉시 해당 회원에게 발급된 모든 액세스 토큰이 무효화되어(발급 시각 기준 컷오프), 만료 전이라도 다음 요청부터 즉시 거부됩니다.\n" +
                     "- BACKOFFICE 운영자는 강제 탈퇴할 수 없습니다.\n" +
                     "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
                     "**Path Variable:**\n" +

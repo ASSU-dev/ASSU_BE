@@ -2,6 +2,8 @@ package com.assu.server.domain.auth.security.jwt;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.security.SecurityErrorResponseWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,6 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private String jwtHeader;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final AntPathMatcher PATH = new AntPathMatcher();
     private static final String[] WHITELIST = {
@@ -95,16 +98,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String accessToken = jwtUtil.getTokenFromHeader(authorizationHeader);
             jwtUtil.assertNotBlacklisted(accessToken);
             Claims claims = jwtUtil.validateToken(accessToken);
+            jwtUtil.assertNotRevoked(claims);
             assertAudienceForRequest(requestUri, claims);
 
             Authentication authentication = jwtUtil.getAuthentication(accessToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             chain.doFilter(request, response);
         } catch (CustomAuthException exception) {
-            throw exception;
+            SecurityErrorResponseWriter.write(response, objectMapper, exception.getErrorReasonHttpStatus());
         } catch (Exception exception) {
             log.error("인증 과정 중, 예상치 못한 예외 발생: {}", exception.getMessage(), exception);
-            throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
+            SecurityErrorResponseWriter.write(response, objectMapper, ErrorStatus.AUTHORIZATION_EXCEPTION.getReasonHttpStatus());
         }
     }
 
@@ -153,10 +157,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             chain.doFilter(request, response);
         } catch (CustomAuthException exception) {
-            throw exception;
+            SecurityErrorResponseWriter.write(response, objectMapper, exception.getErrorReasonHttpStatus());
         } catch (Exception exception) {
             log.error("인증 과정 중, 예상치 못한 예외 발생: {}", exception.getMessage(), exception);
-            throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
+            SecurityErrorResponseWriter.write(response, objectMapper, ErrorStatus.AUTHORIZATION_EXCEPTION.getReasonHttpStatus());
         }
     }
 
