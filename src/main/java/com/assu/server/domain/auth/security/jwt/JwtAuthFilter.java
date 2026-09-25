@@ -95,6 +95,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String accessToken = jwtUtil.getTokenFromHeader(authorizationHeader);
             jwtUtil.assertNotBlacklisted(accessToken);
             Claims claims = jwtUtil.validateToken(accessToken);
+            jwtUtil.assertNotRevoked(claims);
             assertAudienceForRequest(requestUri, claims);
 
             Authentication authentication = jwtUtil.getAuthentication(accessToken);

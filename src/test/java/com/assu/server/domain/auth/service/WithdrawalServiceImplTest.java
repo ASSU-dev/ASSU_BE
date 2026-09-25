@@ -103,7 +103,25 @@ class WithdrawalServiceImplTest {
 		verify(member, times(1)).withdraw();
 		verify(memberRepository, times(1)).save(member);
 		verify(jwtUtil, times(1)).removeAllRefreshTokens(MEMBER_ID);
+		verify(jwtUtil, times(1)).revokeAllAccessTokensSince(MEMBER_ID);
 		verify(jwtUtil, times(1)).blacklistAccess(RAW_TOKEN);
+	}
+
+	@Test
+	@DisplayName("백오피스 강제 탈퇴(withdrawMember(Member)) 시에도 회원 단위 Access 토큰 무효화가 적용된다")
+	void withdrawMember_ByMemberEntity_RevokesAllAccessTokens() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.isWithdrawn()).thenReturn(false);
+
+		// 2. When
+		withdrawalService.withdrawMember(member);
+
+		// 3. Then
+		verify(jwtUtil, times(1)).removeAllRefreshTokens(MEMBER_ID);
+		verify(jwtUtil, times(1)).revokeAllAccessTokensSince(MEMBER_ID);
+		verify(jwtUtil, never()).blacklistAccess(anyString());
 	}
 
 	@Test

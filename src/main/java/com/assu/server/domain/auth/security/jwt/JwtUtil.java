@@ -15,8 +15,10 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -32,10 +34,13 @@ import java.util.concurrent.TimeUnit;
 /**
  * JWT 발급/검증 및 Authentication 복원 유틸리티.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @Profile("!test")
 public class JwtUtil {
+
+    private static final String REVOKED_BEFORE_KEY_PREFIX = "revoked-before:";
 
     public static final String AUD_APP = "app";
     public static final String AUD_BACKOFFICE = "backoffice";
@@ -363,6 +368,48 @@ public class JwtUtil {
             return issueBackofficeTokens(memberId, username, role, authRealm);
         }
         return issueTokens(memberId, username, role, authRealm);
+    }
+
+    // ───────────────────────── 회원 단위 Access 토큰 무효화 ─────────────────────────
+
+    /**
+     * 특정 회원에게 발급된 모든 Access 토큰을 무효화(탈퇴/강제 탈퇴 시 사용).
+     * - Redis에 "revoked-before:{memberId}" 키로 현재 시각을 저장.
+     * - TTL은 발급 가능한 Access 토큰의 최대 유효 시간으로 설정.
+     * @param memberId 사용자 ID
+     */
+    public void revokeAllAccessTokensSince(Long memberId) {
+        long ttlSeconds = Math.max(accessValidSeconds, backofficeAccessValidSeconds);
+        redisTemplate.opsForValue().set(
+                REVOKED_BEFORE_KEY_PREFIX + memberId,
+                String.valueOf(System.currentTimeMillis()),
+                ttlSeconds,
+                TimeUnit.SECONDS
+        );
+    }
+
+    /**
+     * Access 토큰이 회원 단위 무효화 시점 이전에 발급되었는지 확인.
+     * - Redis 조회 실패 시 정상 요청을 막지 않기 위해 fail-open으로 통과시킨다.
+     * @param claims 검증된 Access 토큰의 Claims
+     * @throws CustomAuthException 무효화 시점 이후 요청이 거부되어야 하는 경우
+     */
+    public void assertNotRevoked(Claims claims) {
+        Long memberId = ((Number) claims.get("userId")).longValue();
+        String revokedBeforeValue;
+        try {
+            revokedBeforeValue = redisTemplate.opsForValue().get(REVOKED_BEFORE_KEY_PREFIX + memberId);
+        } catch (RedisSystemException exception) {
+            log.warn("Redis 장애로 revoked-before 조회를 건너뜁니다. memberId={}", memberId, exception);
+            return;
+        }
+        if (revokedBeforeValue == null) {
+            return;
+        }
+        long revokedBeforeMillis = Long.parseLong(revokedBeforeValue);
+        if (claims.getIssuedAt().getTime() < revokedBeforeMillis) {
+            throw new CustomAuthException(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED);
+        }
     }
 
 }
