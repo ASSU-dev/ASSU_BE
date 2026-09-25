@@ -2,6 +2,7 @@ package com.assu.server.support;
 
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.member.repository.MemberRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -46,14 +47,15 @@ public class CommonMockConfig {
     public JwtUtil jwtUtil(
             MemberRepository memberRepository,
             StringRedisTemplate stringRedisTemplate,
-            RedisConnectionFactory redisConnectionFactory
+            RedisConnectionFactory redisConnectionFactory,
+            MeterRegistry meterRegistry
     ) {
         ValueOperations<String, String> valueOperations = Mockito.mock(ValueOperations.class);
         Mockito.when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         Mockito.when(stringRedisTemplate.hasKey(Mockito.anyString())).thenReturn(false);
         Mockito.when(stringRedisTemplate.getConnectionFactory()).thenReturn(redisConnectionFactory);
 
-        JwtUtil jwtUtil = new JwtUtil(memberRepository, stringRedisTemplate);
+        JwtUtil jwtUtil = new JwtUtil(memberRepository, stringRedisTemplate, meterRegistry);
         ReflectionTestUtils.setField(jwtUtil, "secretKey", "S3csfifR3TrgwiKeyM2023WClokeyAppWIFNEGIBKWMGJ");
         ReflectionTestUtils.setField(jwtUtil, "accessValidSeconds", 3600);
         ReflectionTestUtils.setField(jwtUtil, "backofficeAccessValidSeconds", 1800);
