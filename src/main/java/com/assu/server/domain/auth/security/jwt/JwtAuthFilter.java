@@ -124,11 +124,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             String accessToken = jwtUtil.getTokenFromHeader(authorizationHeader);
             Claims accessClaims = jwtUtil.validateTokenOnlySignature(accessToken);
-            String accessJti = accessClaims.getId();
-            Boolean accessBlacklisted = redisTemplate.hasKey("blacklist:" + accessJti);
-            if (Boolean.TRUE.equals(accessBlacklisted)) {
-                throw new CustomAuthException(ErrorStatus.LOGOUT_USER);
-            }
+            jwtUtil.assertNotBlacklisted(accessToken);
 
             jwtUtil.validateRefreshToken(refreshToken);
             Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);

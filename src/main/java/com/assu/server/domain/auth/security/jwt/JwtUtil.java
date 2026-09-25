@@ -13,10 +13,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -32,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * JWT 발급/검증 및 Authentication 복원 유틸리티.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @Profile("!test")
@@ -54,6 +58,7 @@ public class JwtUtil {
 
     private final MemberRepository memberRepository;
     private final RedisTemplate<String, String> redisTemplate;
+    private final MeterRegistry meterRegistry;
 
     @PostConstruct
     public void clearRedisOnStartup() {
@@ -299,7 +304,15 @@ public class JwtUtil {
     public void assertNotBlacklisted(String accessToken) {
         Claims claims = validateTokenOnlySignature(accessToken);
         String jti = claims.getId();
-        Boolean exists = redisTemplate.hasKey("blacklist:" + jti);
+        Boolean exists;
+        try {
+            exists = redisTemplate.hasKey("blacklist:" + jti);
+        } catch (DataAccessException exception) {
+            // Redis 장애 시 서명·만료가 이미 검증된 토큰까지 차단하면 서비스 전체가 다운되므로, 노출 창을 액세스 토큰 잔여 만료 시간으로 제한하는 대신 통과시킨다(fail-open)
+            log.warn("Redis 블랙리스트 조회 실패로 fail-open 처리. jti={}", jti, exception);
+            meterRegistry.counter("auth.blacklist.failopen").increment();
+            return;
+        }
         if (Boolean.TRUE.equals(exists)) {
             throw new CustomAuthException(ErrorStatus.LOGOUT_USER);
         }
