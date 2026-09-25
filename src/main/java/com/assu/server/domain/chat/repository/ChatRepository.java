@@ -78,4 +78,7 @@ public interface ChatRepository extends JpaRepository<ChattingRoom, Long> {
             @Param("adminId") Long adminId,
             @Param("partnerId")Long partnerId
     );
+
+    boolean existsByAdmin_Id(Long adminId);
+    boolean existsByPartner_Id(Long partnerId);
 }

@@ -16,11 +16,11 @@ public class Block extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "blocker_id", nullable = false)
+    @JoinColumn(name = "blocker_id")
     private Member blocker; // 차단한 사람
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "blocked_id", nullable = false)
+    @JoinColumn(name = "blocked_id")
     private Member blocked; // 차단당한 사람
 
     @Builder

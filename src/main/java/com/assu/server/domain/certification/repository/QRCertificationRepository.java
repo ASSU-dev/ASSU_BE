@@ -2,11 +2,17 @@ package com.assu.server.domain.certification.repository;
 
 import com.assu.server.domain.certification.entity.QRCertification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface QRCertificationRepository extends JpaRepository<QRCertification, Long> {
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE QRCertification q SET q.student = null WHERE q.student.id = :studentId")
+    void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
 
     @Query(value = """
         SELECT s.id AS storeId, s.name AS storeName, COUNT(qr.id) AS stampCount
