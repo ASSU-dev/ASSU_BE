@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +55,13 @@ class JwtUtilTest {
 	private Claims claimsIssuedAt(long issuedAtMillis) {
 		Claims claims = mock(Claims.class);
 		when(claims.get("userId")).thenReturn(MEMBER_ID.intValue());
-		when(claims.getIssuedAt()).thenReturn(new Date(issuedAtMillis));
+		when(claims.get("iatMillis")).thenReturn(issuedAtMillis);
+		return claims;
+	}
+
+	private Claims claimsWithMemberId() {
+		Claims claims = mock(Claims.class);
+		when(claims.get("userId")).thenReturn(MEMBER_ID.intValue());
 		return claims;
 	}
 
@@ -105,7 +110,7 @@ class JwtUtilTest {
 	@DisplayName("무효화된 적 없는 회원의 토큰은 assertNotRevoked를 통과한다")
 	void assertNotRevoked_NeverRevoked_Passes() {
 		// 1. Given
-		Claims claims = claimsIssuedAt(1_000_000L);
+		Claims claims = claimsWithMemberId();
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(valueOperations.get(REVOKED_BEFORE_KEY)).thenReturn(null);
 

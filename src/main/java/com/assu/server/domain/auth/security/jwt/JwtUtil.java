@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.redis.RedisSystemException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class JwtUtil {
 
     private static final String REVOKED_BEFORE_KEY_PREFIX = "revoked-before:";
+    private static final String ISSUED_AT_MILLIS_CLAIM = "iatMillis";
 
     public static final String AUD_APP = "app";
     public static final String AUD_BACKOFFICE = "backoffice";
@@ -62,8 +63,17 @@ public class JwtUtil {
 
     @PostConstruct
     public void clearRedisOnStartup() {
-        if (redisTemplate != null && redisTemplate.getConnectionFactory() != null) {
-            redisTemplate.getConnectionFactory().getConnection().flushAll();
+        if (redisTemplate == null || redisTemplate.getConnectionFactory() == null) {
+            return;
+        }
+        Set<String> keysToClear = redisTemplate.keys("*");
+        if (keysToClear == null || keysToClear.isEmpty()) {
+            return;
+        }
+        // 탈퇴 회원의 revoked-before 무효화 기록은 재시작 후에도 유지해야 하므로 flushAll 대신 선택 삭제한다
+        keysToClear.removeIf(key -> key.startsWith(REVOKED_BEFORE_KEY_PREFIX));
+        if (!keysToClear.isEmpty()) {
+            redisTemplate.delete(keysToClear);
         }
     }
 
@@ -92,11 +102,14 @@ public class JwtUtil {
      * @return 서명된 토큰 문자열
      */
     private String generateToken(Map<String, Object> claims, int validSeconds, String jti) {
+        long issuedAtMillis = System.currentTimeMillis();
+        Map<String, Object> tokenClaims = new HashMap<>(claims);
+        tokenClaims.put(ISSUED_AT_MILLIS_CLAIM, issuedAtMillis);
         return Jwts.builder()
                 .setHeader(Map.of("typ", "JWT"))
-                .setClaims(claims)
+                .setClaims(tokenClaims)
                 .setId(jti)
-                .setIssuedAt(new Date())
+                .setIssuedAt(new Date(issuedAtMillis))
                 .setExpiration(Date.from(ZonedDateTime.now().plusSeconds(validSeconds).toInstant()))
                 .signWith(key())
                 .compact();
@@ -399,15 +412,19 @@ public class JwtUtil {
         String revokedBeforeValue;
         try {
             revokedBeforeValue = redisTemplate.opsForValue().get(REVOKED_BEFORE_KEY_PREFIX + memberId);
-        } catch (RedisSystemException exception) {
-            log.warn("Redis 장애로 revoked-before 조회를 건너뜁니다. memberId={}", memberId, exception);
+        } catch (DataAccessException exception) {
+            log.warn("Redis 장애로 revoked-before 조회를 건너뜁니다. memberId={}, cause={}", memberId, exception.getMessage());
             return;
         }
         if (revokedBeforeValue == null) {
             return;
         }
         long revokedBeforeMillis = Long.parseLong(revokedBeforeValue);
-        if (claims.getIssuedAt().getTime() < revokedBeforeMillis) {
+        Object issuedAtMillisClaim = claims.get(ISSUED_AT_MILLIS_CLAIM);
+        long issuedAtMillis = issuedAtMillisClaim != null
+                ? ((Number) issuedAtMillisClaim).longValue()
+                : claims.getIssuedAt().getTime();
+        if (issuedAtMillis < revokedBeforeMillis) {
             throw new CustomAuthException(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED);
         }
     }

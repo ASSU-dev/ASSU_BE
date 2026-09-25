@@ -8,7 +8,6 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,8 +43,7 @@ class WithdrawalServiceImplTest {
 	private static final String RAW_TOKEN = "access-token";
 	private static final Long MEMBER_ID = 7L;
 
-	@BeforeEach
-	void setUpToken() {
+	private void stubTokenExtraction() {
 		Claims claims = mock(Claims.class);
 		when(claims.get("userId")).thenReturn(MEMBER_ID.intValue());
 		when(jwtUtil.getTokenFromHeader(AUTHORIZATION)).thenReturn(RAW_TOKEN);
@@ -56,6 +54,7 @@ class WithdrawalServiceImplTest {
 	@DisplayName("존재하지 않는 회원이 탈퇴를 요청하면 NO_SUCH_MEMBER 예외가 발생한다")
 	void withdrawCurrentUser_MemberNotFound_ThrowsException() {
 		// 1. Given
+		stubTokenExtraction();
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.empty());
 
 		// 2. When
@@ -71,6 +70,7 @@ class WithdrawalServiceImplTest {
 	@DisplayName("이미 탈퇴한 회원이 다시 탈퇴를 요청하면 MEMBER_ALREADY_WITHDRAWN 예외가 발생한다")
 	void withdrawCurrentUser_AlreadyWithdrawn_ThrowsException() {
 		// 1. Given
+		stubTokenExtraction();
 		Member member = mock(Member.class);
 		when(member.isWithdrawn()).thenReturn(true);
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
@@ -91,6 +91,7 @@ class WithdrawalServiceImplTest {
 	@DisplayName("탈퇴 성공 시 소프트 삭제 처리하고 Refresh 토큰 제거 및 Access 토큰을 블랙리스트에 등록한다")
 	void withdrawCurrentUser_Success_SoftDeletesAndRevokesTokens() {
 		// 1. Given
+		stubTokenExtraction();
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(MEMBER_ID);
 		when(member.isWithdrawn()).thenReturn(false);
@@ -128,6 +129,7 @@ class WithdrawalServiceImplTest {
 	@DisplayName("탈퇴 시 등록된 FCM 디바이스 토큰을 모두 삭제한다")
 	void withdrawCurrentUser_Success_ClearsDeviceTokens() {
 		// 1. Given
+		stubTokenExtraction();
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(MEMBER_ID);
 		when(member.isWithdrawn()).thenReturn(false);
