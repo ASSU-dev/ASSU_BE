@@ -19,4 +19,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Page<Notification> findByReceiverIdAndTypeNot(Long receiverId, NotificationType type, Pageable pageable);
     Page<Notification> findByReceiverIdAndIsReadFalseAndTypeNot(Long receiverId, NotificationType type, Pageable pageable);
     boolean existsByReceiverIdAndIsReadFalseAndTypeNot(Long receiverId, NotificationType type);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.receiver.id = :receiverId")
+    void deleteAllByReceiverId(@Param("receiverId") Long receiverId);
 }

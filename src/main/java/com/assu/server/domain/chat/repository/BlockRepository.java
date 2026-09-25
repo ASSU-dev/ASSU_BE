@@ -28,4 +28,12 @@ public interface BlockRepository extends JpaRepository<Block, Long> {
     @Query("DELETE FROM Block b WHERE (b.blocker.id = :id1 AND b.blocked.id = :id2) OR (b.blocker.id = :id2 AND b.blocked.id = :id1)")
     void deleteAllBlocksBetween(@Param("id1") Long id1, @Param("id2") Long id2);
 
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Block b SET b.blocker = null WHERE b.blocker.id = :memberId")
+    void anonymizeBlockerByMemberId(@Param("memberId") Long memberId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Block b SET b.blocked = null WHERE b.blocked.id = :memberId")
+    void anonymizeBlockedByMemberId(@Param("memberId") Long memberId);
+
 }

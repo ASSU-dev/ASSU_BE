@@ -25,11 +25,11 @@ public class Message extends BaseEntity {
 	private ChattingRoom chattingRoom;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_id", nullable = false)
+    @JoinColumn(name = "sender_id")
     private Member sender;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "receiver_id", nullable = true) // 그룹 채팅이면 nullable
+    @JoinColumn(name = "receiver_id")
     private Member receiver;
 
 

@@ -3,6 +3,7 @@ package com.assu.server.domain.admin.repository;
 import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
 import com.assu.server.domain.admin.entity.StudentAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +14,14 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
 
     @Query("select count(sa) from StudentAdmin sa where sa.admin.id = :adminId")
     Long countAllByAdminId(@Param("adminId") Long adminId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE StudentAdmin sa SET sa.student = null WHERE sa.student.id = :studentId")
+    void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM StudentAdmin sa WHERE sa.admin.id = :adminId")
+    void deleteAllByAdminId(@Param("adminId") Long adminId);
 
     @Query("select count(sa) from StudentAdmin sa where sa.admin.id = :adminId and sa.createdAt >= :from and sa.createdAt < :to")
     Long countByAdminIdBetween(@Param("adminId") Long adminId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);

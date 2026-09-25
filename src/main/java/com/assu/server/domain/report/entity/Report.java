@@ -22,7 +22,7 @@ public class Report extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reporter_id", nullable = false)
+    @JoinColumn(name = "reporter_id")
     private Member reporter; // 신고자
 
     @Enumerated(EnumType.STRING)
