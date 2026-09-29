@@ -1,14 +1,14 @@
 package com.assu.server.domain.notification.service;
 
+import com.assu.server.domain.notification.dto.NotificationMessageDTO;
 import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.infra.firebase.ConditionalOnFirebaseEnabled;
 import com.assu.server.infra.firebase.FcmClient;
 import com.assu.server.infra.messaging.AmqpConfig;
 import com.assu.server.infra.messaging.ConditionalOnRabbitEnabled;
-import com.assu.server.domain.notification.dto.NotificationMessageDTO;
+import com.assu.server.infra.messaging.NotificationMetrics;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.rabbitmq.client.Channel;
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -29,7 +29,7 @@ public class NotificationListener {
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
     private final ApplicationEventPublisher eventPublisher;
-    private final MeterRegistry meterRegistry;
+    private final NotificationMetrics notificationMetrics;
 
     @RabbitListener(queues = AmqpConfig.QUEUE, ackMode = "MANUAL")
     public void onMessage(@Payload NotificationMessageDTO notificationMessageDTO,
@@ -61,29 +61,23 @@ public class NotificationListener {
         return false;
     }
 
-    private void sendNotification(NotificationMessageDTO dto, Long outboxId) 
-            throws FirebaseMessagingException, java.util.concurrent.TimeoutException, 
+    private void sendNotification(NotificationMessageDTO dto, Long outboxId)
+            throws FirebaseMessagingException, java.util.concurrent.TimeoutException,
                    InterruptedException, java.util.concurrent.ExecutionException {
         FcmClient.FcmResult result = fcmClient.sendToMemberId(
                 dto.receiverId(), dto.title(), dto.body(), dto.data());
 
         if (outboxId != null) outboxStatus.markSent(outboxId);
-
-        meterRegistry.counter("notification.fcm.send", "result", "success").increment(result.successCount());
-        if (result.failureCount() > 0) {
-            meterRegistry.counter("notification.fcm.send", "result", "failure").increment(result.failureCount());
-        }
+        notificationMetrics.incrementFcmSend("success");
 
         log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
                 outboxId, dto.receiverId(), result.successCount(), result.failureCount(), result.invalidTokens());
     }
 
     private void handleException(Exception e, Long outboxId, Long memberId) {
-        meterRegistry.counter("notification.fcm.send", "result", "exception").increment();
         if (outboxId != null) {
             outboxStatus.markFailed(outboxId);
-            
-            // 일시적 실패인 경우에만 재시도 이벤트 발행
+
             if (isRetryable(e)) {
                 eventPublisher.publishEvent(new NotificationFailedEvent(outboxId, 0));
                 log.info("[Notify] Scheduled retry for outboxId={}", outboxId);
@@ -93,12 +87,15 @@ public class NotificationListener {
         if (e instanceof FirebaseMessagingException fme) {
             handleFcmException(fme, outboxId, memberId);
         } else if (e instanceof java.net.UnknownHostException || e instanceof javax.net.ssl.SSLHandshakeException) {
+            notificationMetrics.incrementFcmSend("exception");
             log.error("[Notify] ENV failure outboxId={} memberId={} root={} [type=network]",
                     outboxId, memberId, rootSummary(e), e);
         } else if (e instanceof java.util.concurrent.TimeoutException || e instanceof java.net.SocketTimeoutException) {
+            notificationMetrics.incrementFcmSend("exception");
             log.warn("[Notify] TIMEOUT failure outboxId={} memberId={} root={} [type=timeout]",
                     outboxId, memberId, rootSummary(e), e);
         } else {
+            notificationMetrics.incrementFcmSend("exception");
             log.error("[Notify] UNKNOWN failure outboxId={} memberId={} root={} [type=unknown]",
                     outboxId, memberId, rootSummary(e), e);
         }
@@ -106,6 +103,7 @@ public class NotificationListener {
 
     private void handleFcmException(FirebaseMessagingException fme, Long outboxId, Long memberId) {
         boolean permanent = isPermanent(fme);
+        notificationMetrics.incrementFcmSend(permanent ? "failure" : "exception");
         log.error("[Notify] FCM failure outboxId={} memberId={} root={} [permanent={} http={} code={}]",
                 outboxId, memberId, rootSummary(fme),
                 permanent, FcmClient.httpStatusOf(fme), fme.getMessagingErrorCode(), fme);
@@ -115,7 +113,6 @@ public class NotificationListener {
         if (e instanceof FirebaseMessagingException fme) {
             return !isPermanent(fme);
         }
-        // 네트워크, 타임아웃 등은 재시도 가능
         return e instanceof java.net.UnknownHostException ||
                e instanceof javax.net.ssl.SSLHandshakeException ||
                e instanceof java.util.concurrent.TimeoutException ||

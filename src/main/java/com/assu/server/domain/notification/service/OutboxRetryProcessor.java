@@ -4,7 +4,7 @@ import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
 import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
-import io.micrometer.core.instrument.MeterRegistry;
+import com.assu.server.infra.messaging.NotificationMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -17,18 +17,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class OutboxRetryProcessor {
-    
+
     private final NotificationOutboxRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final MeterRegistry meterRegistry;
+    private final NotificationMetrics notificationMetrics;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processRetry(NotificationOutbox outbox) {
-        meterRegistry.counter("notification.outbox.retry").increment();
         try {
             outbox.incrementRetryCount();
             outboxRepository.save(outbox);
-            
+
             var n = outbox.getNotification();
             OutboxCreatedEvent event = new OutboxCreatedEvent(
                     outbox.getId(),
@@ -41,14 +40,14 @@ public class OutboxRetryProcessor {
                     n.getId()
             );
             eventPublisher.publishEvent(event);
-            
-            log.debug("[OutboxRetry] Retrying outboxId={} retryCount={}", 
+            notificationMetrics.incrementOutboxRetry();
+
+            log.debug("[OutboxRetry] Retrying outboxId={} retryCount={}",
                 outbox.getId(), outbox.getRetryCount());
-                
+
         } catch (Exception e) {
             log.error("[OutboxRetry] Failed to retry outboxId={}", outbox.getId(), e);
-            
-            // 재시도 실패 시 이벤트 발행
+
             if (outbox.getRetryCount() < 3) {
                 eventPublisher.publishEvent(new NotificationFailedEvent(outbox.getId(), outbox.getRetryCount()));
             }
