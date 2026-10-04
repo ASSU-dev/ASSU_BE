@@ -3,10 +3,12 @@ package com.assu.server.domain.backoffice.service;
 import com.assu.server.domain.backoffice.dto.BackofficeDocumentUrlResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberDetailDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeProfileImageResponseDTO;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface BackofficeMemberService {
 
@@ -34,4 +36,8 @@ public interface BackofficeMemberService {
     BackofficeMemberSummaryDTO verifyPartnerLicense(Long memberId);
 
     BackofficeDocumentUrlResponseDTO getAdminSignImageUrl(Long memberId);
+
+    BackofficeProfileImageResponseDTO updatePartnerProfileImage(Long memberId, MultipartFile image);
+
+    void deletePartnerProfileImage(Long memberId);
 }

@@ -6,11 +6,13 @@ import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeDocumentUrlResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberDetailDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeProfileImageResponseDTO;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.member.service.ProfileImageService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -40,6 +43,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     private final StoreRepository storeRepository;
     private final WithdrawalService withdrawalService;
     private final AmazonS3Manager amazonS3Manager;
+    private final ProfileImageService profileImageService;
 
     @Override
     @Transactional(readOnly = true)
@@ -166,6 +170,19 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             throw new CustomAuthException(ErrorStatus.SIGN_IMAGE_NOT_FOUND);
         }
         return BackofficeDocumentUrlResponseDTO.of(url);
+    }
+
+    @Override
+    public BackofficeProfileImageResponseDTO updatePartnerProfileImage(Long memberId, MultipartFile image) {
+        Partner partner = findPartner(memberId);
+        String key = profileImageService.updateProfileImage(partner.getId(), image);
+        return BackofficeProfileImageResponseDTO.of(amazonS3Manager.generatePresignedUrl(key));
+    }
+
+    @Override
+    public void deletePartnerProfileImage(Long memberId) {
+        Partner partner = findPartner(memberId);
+        profileImageService.deleteProfileImage(partner.getId());
     }
 
     private Member findMemberWithRoleProfile(Long memberId) {
