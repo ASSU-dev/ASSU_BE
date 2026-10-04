@@ -48,14 +48,16 @@ import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.s3.AmazonS3Manager;
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudentServiceImpl implements StudentService {
@@ -73,7 +75,6 @@ public class StudentServiceImpl implements StudentService {
 	private final HomeCurationItemRepository homeCurationItemRepository;
 	private final StoreRepository storeRepository;
 	private final AmazonS3Manager amazonS3Manager;
-	private final MeterRegistry meterRegistry;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -213,7 +214,6 @@ public class StudentServiceImpl implements StudentService {
 					.build();
 		}).toList();
 
-		meterRegistry.counter("student.usable.queried").increment();
 		return Boolean.FALSE.equals(all) ? result.stream().limit(2).toList() : result;
 	}
 
@@ -248,7 +248,7 @@ public class StudentServiceImpl implements StudentService {
 		}).toList();
 	}
 
-	@Transactional
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	@Override
 	public void syncUserPapersForStudent(Long studentId) {
 		Student student = studentRepository.findById(studentId)
@@ -290,6 +290,7 @@ public class StudentServiceImpl implements StudentService {
 		if (!newUserPapers.isEmpty()) {
 			userPaperRepository.saveAll(newUserPapers);
 		}
+		log.info("[UserPaper] studentId={} synced={}", studentId, newUserPapers.size());
 	}
 	@Transactional
 	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {
