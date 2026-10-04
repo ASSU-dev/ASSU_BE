@@ -29,6 +29,9 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
     List<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Sort sort);
     Page<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Pageable pageable);
 
+    boolean existsByAdmin_Id(Long adminId);
+    boolean existsByPartner_Id(Long partnerId);
+
     boolean existsByAdmin_IdAndPartner_IdAndIsActivatedIn(Long adminId, Long partnerId, List<ActivationStatus> statuses);
     Optional<Paper> findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(Long adminId, Long partnerId, List<ActivationStatus> statuses);
 

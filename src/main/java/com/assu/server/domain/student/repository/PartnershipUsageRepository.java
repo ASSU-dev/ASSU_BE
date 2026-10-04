@@ -6,12 +6,17 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.assu.server.domain.student.entity.PartnershipUsage;
 
 public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsage, Long> {
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE PartnershipUsage p SET p.student = null WHERE p.student.id = :studentId")
+    void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
 
 	@Query(value = """
        SELECT place

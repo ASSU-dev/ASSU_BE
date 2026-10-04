@@ -52,5 +52,6 @@ public class WithdrawalServiceImpl implements WithdrawalService {
 
         deviceTokenRepository.deleteAllByMemberId(member.getId());
         jwtUtil.removeAllRefreshTokens(member.getId());
+        jwtUtil.revokeAllAccessTokensSince(member.getId());
     }
 }

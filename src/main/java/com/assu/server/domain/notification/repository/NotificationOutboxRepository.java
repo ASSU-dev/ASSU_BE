@@ -53,4 +53,8 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
            AND o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).FAILED}
         """)
     int resetToPendingById(@Param("id") Long id);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM NotificationOutbox o WHERE o.notification.receiver.id = :receiverId")
+    void deleteAllByReceiverId(@Param("receiverId") Long receiverId);
 }

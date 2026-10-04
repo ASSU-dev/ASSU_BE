@@ -4,10 +4,16 @@ import com.assu.server.domain.inquiry.entity.Inquiry;
 import com.assu.server.domain.inquiry.entity.Inquiry.Status;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM Inquiry i WHERE i.member.id = :memberId")
+    void deleteAllByMemberId(@Param("memberId") Long memberId);
+
     Page<Inquiry> findByMemberId(Long memberId, Pageable pageable);
     Page<Inquiry> findByMemberIdAndStatus(Long memberId, Status status, Pageable pageable);
     Page<Inquiry> findByStatus(Status status, Pageable pageable);

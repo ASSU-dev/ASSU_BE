@@ -6,6 +6,7 @@ import com.assu.server.domain.auth.service.SignUpService;
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
 import com.assu.server.domain.backoffice.dto.BackofficeDocumentUrlResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
+import com.assu.server.domain.backoffice.dto.BackofficeProfileImageResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
@@ -16,13 +17,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -77,6 +82,58 @@ public class BackofficePartnerController {
     @PatchMapping("/{memberId}/license/verify")
     public BaseResponse<BackofficeMemberSummaryDTO> verifyLicense(@PathVariable Long memberId) {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficeMemberService.verifyPartnerLicense(memberId));
+    }
+
+    @BackofficeAudited(action = "PARTNER_PROFILE_IMAGE_UPDATE", targetId = "#memberId")
+    @Operation(
+            summary = "제휴업체 프로필 이미지 업로드 API",
+            description = "# [v1.0 (2026-10-04)]\n" +
+                    "- Partner 회원의 프로필 이미지를 대신 등록(교체)합니다.\n" +
+                    "- 이 이미지는 학생 홈, 지도, 가게 상세에서 가게 이미지로 노출됩니다.\n" +
+                    "- 기존 이미지가 있으면 S3에서 삭제 후 교체합니다.\n" +
+                    "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
+                    "**Path Variable:**\n" +
+                    "- `memberId` (Long, required): Partner 회원 ID (Partner ID와 동일)\n\n" +
+                    "**Request Part:**\n" +
+                    "- `image` (MultipartFile, required): jpg, jpeg, png, gif / 최대 5MB\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)과 프로필 이미지 presigned URL 반환 (약 10분 유효)\n" +
+                    "- 400(BAD_REQUEST): 파일 크기 초과, 지원하지 않는 확장자/Content-Type, 잘못된 파일명\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
+                    "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
+                    "- 404(NOT_FOUND): Partner가 아니거나 빈 파일"
+    )
+    @PutMapping(value = "/{memberId}/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BaseResponse<BackofficeProfileImageResponseDTO> updateProfileImage(
+            @Parameter(description = "Partner 회원 ID") @PathVariable Long memberId,
+            @Parameter(description = "프로필 이미지 파일") @RequestPart("image") MultipartFile image
+    ) {
+        return BaseResponse.onSuccess(
+                SuccessStatus._OK,
+                backofficeMemberService.updatePartnerProfileImage(memberId, image)
+        );
+    }
+
+    @BackofficeAudited(action = "PARTNER_PROFILE_IMAGE_DELETE", targetId = "#memberId")
+    @Operation(
+            summary = "제휴업체 프로필 이미지 삭제 API",
+            description = "# [v1.0 (2026-10-04)]\n" +
+                    "- Partner 회원의 프로필 이미지를 S3에서 삭제하고 연결을 해제합니다.\n" +
+                    "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
+                    "**Path Variable:**\n" +
+                    "- `memberId` (Long, required): Partner 회원 ID (Partner ID와 동일)\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)\n" +
+                    "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
+                    "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
+                    "- 404(NOT_FOUND): Partner가 아니거나 프로필 이미지 없음"
+    )
+    @DeleteMapping("/{memberId}/profile-image")
+    public BaseResponse<String> deleteProfileImage(
+            @Parameter(description = "Partner 회원 ID") @PathVariable Long memberId
+    ) {
+        backofficeMemberService.deletePartnerProfileImage(memberId);
+        return BaseResponse.onSuccess(SuccessStatus._OK, "프로필 이미지가 삭제되었습니다.");
     }
 
     @BackofficeAudited(action = "PARTNER_BATCH_SIGNUP")

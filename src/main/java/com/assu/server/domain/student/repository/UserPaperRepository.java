@@ -3,11 +3,16 @@ package com.assu.server.domain.student.repository;
 import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.student.entity.UserPaper;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM UserPaper u WHERE u.student.id = :studentId")
+    void deleteAllByStudentId(@Param("studentId") Long studentId);
 
     @Query("""
         SELECT up FROM UserPaper up

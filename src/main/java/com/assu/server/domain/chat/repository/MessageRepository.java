@@ -3,12 +3,21 @@ package com.assu.server.domain.chat.repository;
 import com.assu.server.domain.chat.dto.ChatMessageDTO;
 import com.assu.server.domain.chat.entity.Message;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Message m SET m.sender = null WHERE m.sender.id = :memberId")
+    void anonymizeSenderByMemberId(@Param("memberId") Long memberId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Message m SET m.receiver = null WHERE m.receiver.id = :memberId")
+    void anonymizeReceiverByMemberId(@Param("memberId") Long memberId);
     @Query("""
         SELECT m FROM Message m
         WHERE m.chattingRoom.id = :roomId

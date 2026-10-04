@@ -7,12 +7,19 @@ import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
+
+    boolean existsByPartnerId(Long partnerId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE Review r SET r.student = null WHERE r.student.id = :studentId")
+    void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
     @Query("""
                 SELECT r
                 FROM Review r
