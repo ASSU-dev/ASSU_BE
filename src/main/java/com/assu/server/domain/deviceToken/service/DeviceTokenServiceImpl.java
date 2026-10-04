@@ -7,10 +7,13 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
-
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +24,7 @@ import java.util.Optional;
 public class DeviceTokenServiceImpl implements DeviceTokenService {
     private final DeviceTokenRepository deviceTokenRepository;
     private final MemberRepository memberRepository;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public Long register(String token, Long memberId) {
@@ -52,6 +56,7 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
                 .build();
 
         deviceTokenRepository.save(newToken);
+        incrementAfterCommit(meterRegistry.counter("device.token.registered"));
         return newToken.getId();
     }
 
@@ -63,9 +68,23 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
                         throw new DatabaseException(ErrorStatus.DEVICE_TOKEN_NOT_OWNED);
                     }
                     deviceToken.setActive(false);
+                    incrementAfterCommit(meterRegistry.counter("device.token.deleted"));
                 }, () -> {
                     throw new DatabaseException(ErrorStatus.DEVICE_TOKEN_NOT_FOUND);
                 });
+    }
+
+    private void incrementAfterCommit(Counter counter) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            counter.increment();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                counter.increment();
+            }
+        });
     }
 
     @Override

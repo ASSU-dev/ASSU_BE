@@ -11,10 +11,14 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @Transactional
@@ -23,6 +27,7 @@ public class InquiryServiceImpl implements InquiryService {
 
     private final InquiryRepository inquiryRepository;
     private final MemberRepository memberRepository;
+    private final MeterRegistry meterRegistry;
 
     /** 문의 등록 */
     @Override
@@ -33,7 +38,21 @@ public class InquiryServiceImpl implements InquiryService {
         Inquiry inquiry = Inquiry.create(member, inquiryCreateRequestDTO);
 
         inquiryRepository.save(inquiry);
+        incrementAfterCommit(meterRegistry.counter("inquiry.created"));
         return inquiry.getId();
+    }
+
+    private void incrementAfterCommit(Counter counter) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            counter.increment();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                counter.increment();
+            }
+        });
     }
 
     /** 문의 내역 조회 (status=all|waiting|answered) */

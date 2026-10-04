@@ -48,6 +48,7 @@ import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -72,6 +73,7 @@ public class StudentServiceImpl implements StudentService {
 	private final HomeCurationItemRepository homeCurationItemRepository;
 	private final StoreRepository storeRepository;
 	private final AmazonS3Manager amazonS3Manager;
+	private final MeterRegistry meterRegistry;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -211,6 +213,7 @@ public class StudentServiceImpl implements StudentService {
 					.build();
 		}).toList();
 
+		meterRegistry.counter("student.usable.queried").increment();
 		return Boolean.FALSE.equals(all) ? result.stream().limit(2).toList() : result;
 	}
 
