@@ -1,5 +1,6 @@
 package com.assu.server.domain.inquiry.service;
 
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.inquiry.dto.InquiryCreateRequestDTO;
 import com.assu.server.domain.inquiry.dto.InquiryResponseDTO;
@@ -23,11 +24,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class InquiryServiceImpl implements InquiryService {
+public class
+InquiryServiceImpl implements InquiryService {
 
     private final InquiryRepository inquiryRepository;
     private final MemberRepository memberRepository;
     private final MeterRegistry meterRegistry;
+    private final DiscordNotifier discordNotifier;
 
     /** 문의 등록 */
     @Override
@@ -39,7 +42,21 @@ public class InquiryServiceImpl implements InquiryService {
 
         inquiryRepository.save(inquiry);
         incrementAfterCommit(meterRegistry.counter("inquiry.created"));
+        runAfterCommit(discordNotifier::sendInquiryAlert);
         return inquiry.getId();
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 
     private void incrementAfterCommit(Counter counter) {
