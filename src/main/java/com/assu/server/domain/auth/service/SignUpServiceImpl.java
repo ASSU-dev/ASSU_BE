@@ -32,6 +32,7 @@ import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -42,6 +43,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -122,7 +124,11 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(student);
 
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
-        studentService.syncUserPapersForStudent(student.getId());
+        try {
+            studentService.syncUserPapersForStudent(student.getId());
+        } catch (Exception e) {
+            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", student.getId(), e);
+        }
 
         // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -159,7 +165,11 @@ public class SignUpServiceImpl implements SignUpService {
         studentRepository.save(student);
 
         // 탈퇴 기간 중 변동된 제휴를 반영한다
-        studentService.syncUserPapersForStudent(student.getId());
+        try {
+            studentService.syncUserPapersForStudent(student.getId());
+        } catch (Exception e) {
+            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", student.getId(), e);
+        }
 
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
