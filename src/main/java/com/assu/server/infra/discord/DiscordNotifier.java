@@ -25,6 +25,14 @@ public class DiscordNotifier {
         send("📬 새 문의가 접수되었습니다. 백오피스에서 확인해 주세요.");
     }
 
+    public void sendReportAlert() {
+        send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요.");
+    }
+
+    public void sendSignupPendingAlert(String role) {
+        send("🔔 새 " + role + " 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요.");
+    }
+
     private void send(String message) {
         if (serviceAlertWebhookUrl.isBlank()) {
             return;

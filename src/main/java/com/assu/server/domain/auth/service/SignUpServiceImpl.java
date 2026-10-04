@@ -30,6 +30,7 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,8 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -66,6 +69,7 @@ public class SignUpServiceImpl implements SignUpService {
     private final StudentService studentService;
     private final PhoneAuthService phoneAuthService;
     private final CommonAuthRepository commonAuthRepository;
+    private final DiscordNotifier discordNotifier;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -236,6 +240,8 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(partner);
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
+
+        runAfterCommit(() -> discordNotifier.sendSignupPendingAlert("제휴업체"));
 
         return SignUpResponseDTO.from(member, null);
     }
@@ -421,6 +427,8 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
+        runAfterCommit(() -> discordNotifier.sendSignupPendingAlert("학생회"));
+
         return SignUpResponseDTO.from(member, null);
     }
 
@@ -494,5 +502,18 @@ public class SignUpServiceImpl implements SignUpService {
 
     private String pickDisplayAddress(String road, String jibun) {
         return (road != null && !road.isBlank()) ? road : jibun;
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }
