@@ -15,7 +15,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -27,6 +30,10 @@ public class SSUAuthServiceImpl implements SSUAuthService {
 
     private static final String USaintSSOUrl = "https://saint.ssu.ac.kr/webSSO/sso.jsp";
     private static final String USaintPortalUrl = "https://saint.ssu.ac.kr/webSSUMain/main_student.jsp";
+
+    // 조회(GET)라 멱등이므로 연결 실패/타임아웃 같은 일시적 오류에만 1회 재시도한다
+    private static final Retry TRANSIENT_RETRY = Retry.backoff(1, Duration.ofMillis(500))
+            .filter(throwable -> throwable instanceof WebClientRequestException);
 
     @Override
     public USaintAuthResponseDTO uSaintAuth(USaintAuthRequestDTO uSaintAuthRequest) {
@@ -159,6 +166,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 .header("Cookie", "sToken=" + sToken + "; sIdno=" + sIdno)
                 .retrieve()
                 .toEntity(String.class) // ResponseEntity<String> 전체 반환 (body + header 포함)
+                .retryWhen(TRANSIENT_RETRY)
                 .block();
     }
 
@@ -168,6 +176,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 .header(HttpHeaders.COOKIE, cookie.toString())
                 .retrieve()
                 .toEntity(String.class)
+                .retryWhen(TRANSIENT_RETRY)
                 .block();
     }
 }
