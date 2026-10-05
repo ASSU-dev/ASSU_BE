@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.deviceToken.entity.DeviceToken;
@@ -22,6 +23,8 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceTokenServiceImplTest {
@@ -34,6 +37,9 @@ class DeviceTokenServiceImplTest {
 
 	@Mock
 	private MemberRepository memberRepository;
+
+	@Spy
+	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
 	private static final Long MEMBER_ID = 1L;
 	private static final String TOKEN = "fcm-token-abc";

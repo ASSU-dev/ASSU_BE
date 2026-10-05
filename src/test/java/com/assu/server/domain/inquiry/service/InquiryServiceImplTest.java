@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -29,6 +30,9 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.infra.discord.DiscordNotifier;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class InquiryServiceImplTest {
@@ -41,6 +45,12 @@ class InquiryServiceImplTest {
 
 	@Mock
 	private MemberRepository memberRepository;
+
+	@Spy
+	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+	@Mock
+	private DiscordNotifier discordNotifier;
 
 	private static final Long MEMBER_ID = 1L;
 
