@@ -14,9 +14,10 @@ public record BackofficePartnerProfileDetailDTO(
         @Schema(description = "주소") String address,
         @Schema(description = "상세 주소") String detailAddress,
         @Schema(description = "사업자등록증 검증 여부") Boolean isLicenseVerified,
-        @Schema(description = "사업자등록증 검증 시각") LocalDateTime licenseVerifiedAt
+        @Schema(description = "사업자등록증 검증 시각") LocalDateTime licenseVerifiedAt,
+        @Schema(description = "프로필 이미지 presigned URL (없으면 null)", example = "https://bucket.s3.amazonaws.com/members/1/profile/image.png?X-Amz-Signature=...") String profileImageUrl
 ) {
-    public static BackofficePartnerProfileDetailDTO from(Member member) {
+    public static BackofficePartnerProfileDetailDTO from(Member member, String profileImageUrl) {
         Partner partner = member.getPartnerProfile();
         if (partner == null) {
             return null;
@@ -31,7 +32,8 @@ public record BackofficePartnerProfileDetailDTO(
                 partner.getAddress(),
                 partner.getDetailAddress(),
                 partner.getIsLicenseVerified(),
-                partner.getLicenseVerifiedAt()
+                partner.getLicenseVerifiedAt(),
+                profileImageUrl
         );
     }
 }
