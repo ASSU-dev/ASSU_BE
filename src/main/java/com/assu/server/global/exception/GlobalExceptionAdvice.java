@@ -4,8 +4,11 @@ package com.assu.server.global.exception;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.ErrorReasonDTO;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.util.ClientIpResolver;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
@@ -15,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -27,8 +31,11 @@ import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
+@RequiredArgsConstructor
 @RestControllerAdvice(annotations = {RestController.class})
 public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
+
+    private final MeterRegistry meterRegistry;
 
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(
@@ -115,6 +122,18 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
             GeneralException generalException, HttpServletRequest request) {
         ErrorReasonDTO errorReasonHttpStatus = generalException.getErrorReasonHttpStatus();
         return handleExceptionInternal(generalException, errorReasonHttpStatus, null, request);
+    }
+
+    // 로그인 실패는 인증 실패(401)다. 핸들러가 없으면 500으로 응답되어 5xx 알람이 오탐으로 울린다
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Object> handleAuthenticationException(
+            AuthenticationException exception, HttpServletRequest request) {
+        meterRegistry.counter("auth.login.result", "result", "failure").increment();
+        log.warn("[LOGIN_FAIL] ip={} uri={} reason={}",
+                ClientIpResolver.resolve(request), request.getRequestURI(), exception.getClass().getSimpleName());
+
+        ErrorReasonDTO reason = ErrorStatus.LOGIN_FAILED.getReasonHttpStatus();
+        return handleExceptionInternal(exception, reason, null, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -5,6 +5,7 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.security.SecurityErrorResponseWriter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,6 +32,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     private static final AntPathMatcher PATH = new AntPathMatcher();
     private static final String[] WHITELIST = {
@@ -153,6 +155,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             chain.doFilter(request, response);
         } catch (CustomAuthException exception) {
+            meterRegistry.counter("auth.refresh.rotate", "result", "failure", "stage", "filter",
+                    "reason", exception.getErrorReasonHttpStatus().getCode()).increment();
             SecurityErrorResponseWriter.write(response, objectMapper, exception.getErrorReasonHttpStatus());
         } catch (Exception exception) {
             log.error("인증 과정 중, 예상치 못한 예외 발생: {}", exception.getMessage(), exception);

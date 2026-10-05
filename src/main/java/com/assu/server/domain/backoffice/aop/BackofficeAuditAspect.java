@@ -4,6 +4,7 @@ import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
 import com.assu.server.domain.backoffice.entity.BackofficeAuditLog;
 import com.assu.server.domain.backoffice.entity.enums.BackofficeAuditStatus;
 import com.assu.server.domain.backoffice.service.BackofficeAuditLogService;
+import com.assu.server.global.util.ClientIpResolver;
 import com.assu.server.global.util.PrincipalDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -98,13 +99,6 @@ public class BackofficeAuditAspect {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        if (request == null) {
-            return null;
-        }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request);
     }
 }
