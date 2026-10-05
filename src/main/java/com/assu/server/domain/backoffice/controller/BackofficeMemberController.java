@@ -95,7 +95,7 @@ public class BackofficeMemberController {
                     "  - `base` (BackofficeMemberBaseDetailDTO): 공통 회원 정보\n" +
                     "  - `student` (BackofficeStudentProfileDetailDTO): STUDENT일 때만\n" +
                     "  - `admin` (BackofficeAdminProfileDetailDTO): ADMIN일 때만\n" +
-                    "  - `partner` (BackofficePartnerProfileDetailDTO): PARTNER일 때만\n" +
+                    "  - `partner` (BackofficePartnerProfileDetailDTO): PARTNER일 때만 (프로필 이미지 presigned URL `profileImageUrl` 포함, 없으면 null)\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
                     "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
                     "- 404(NOT_FOUND): 존재하지 않는 회원 ID"
