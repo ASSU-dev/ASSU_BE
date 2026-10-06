@@ -23,6 +23,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CertificationServiceImpl implements CertificationService {
 	private final StoreRepository storeRepository;
 	private final AssociateCertificationRepository associateCertificationRepository;
-
+	private final MeterRegistry meterRegistry;
 	// 세션 메니저
 	private final CertificationSessionManager sessionManager;
 	// AdminService 참조
@@ -88,6 +89,7 @@ public class CertificationServiceImpl implements CertificationService {
 		Long sessionId = dto.sessionId();
 
 		if (!sessionManager.exists(sessionId)) {
+			countGroupFailure("no_such_session");
 			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
 		}
 
@@ -107,6 +109,7 @@ public class CertificationServiceImpl implements CertificationService {
 				currentCertifiedUserIds
 			);
 			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			countGroupFailure("mismatch");
 			return response;
 		}
 
@@ -119,6 +122,7 @@ public class CertificationServiceImpl implements CertificationService {
 				currentCertifiedUserIds
 			);
 			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
 
@@ -128,9 +132,10 @@ public class CertificationServiceImpl implements CertificationService {
 
 		CertificationProgressResponseDTO response;
 		if (currentCount >= targetPeople) {
-			Store store = storeRepository.findById(storeId).orElseThrow(
-				() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
-			);
+			Store store = storeRepository.findById(storeId).orElseThrow(() -> {
+				countGroupFailure("store_not_found");
+				return new GeneralException(ErrorStatus.NO_SUCH_STORE);
+			});
 
 			AssociateCertification certification = AssociateCertification.builder()
 				.store(store)
@@ -145,21 +150,35 @@ public class CertificationServiceImpl implements CertificationService {
 			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
 
 			sessionManager.removeSession(sessionId);
+			countGroupSuccess("completed");
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
 			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			countGroupSuccess("success");
 		}
 		return response;
+	}
+
+	private void countGroupSuccess(String result){
+		meterRegistry.counter("certification.group.result", "result", result, "reason", "none").increment();
+	}
+
+	private void countGroupFailure(String reason){
+		meterRegistry.counter("certification.group.result", "result", "failure", "reason", reason).increment();
 	}
 
 	@Override
 	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
 		Store store = storeRepository.findById(dto.storeId()).orElseThrow(
-			() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
+			() -> {
+				meterRegistry.counter("certification.personal.result", "result", "failure", "reason", "store_not_found").increment();
+				return new GeneralException(ErrorStatus.NO_SUCH_STORE);
+			}
 		);
 
 		AssociateCertification personalCertificationData = dto.toPersonalCertification(store, member);
 		associateCertificationRepository.save(personalCertificationData);
+		meterRegistry.counter("certification.personal.result", "result", "success", "reason", "none").increment();
 	}
 }

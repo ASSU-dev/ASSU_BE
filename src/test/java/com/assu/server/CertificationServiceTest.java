@@ -15,12 +15,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.service.AdminService;
 import com.assu.server.domain.certification.component.CertificationSessionManager;
+import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.entity.AssociateCertification;
@@ -34,6 +36,12 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.common.entity.enums.Department;
 import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.entity.enums.University;
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceImplTest {
@@ -55,6 +63,14 @@ class CertificationServiceImplTest {
 
 	@Mock
 	private SimpMessagingTemplate messagingTemplate;
+
+	@Spy
+	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+	private double count(String name, String result, String reason) {
+		Counter counter = meterRegistry.find(name).tags("result", result, "reason", reason).counter();
+		return counter == null ? 0 : counter.count();
+	}
 
 	@Test
 	@DisplayName("마지막 인원이 인증을 완료하면 DB 저장 및 완료 메시지가 전송된다")
@@ -112,6 +128,8 @@ class CertificationServiceImplTest {
 			eq("/certification/progress/" + sessionId),
 			argThat((CertificationProgressResponseDTO resp) -> "completed".equals(resp.type()))
 		);
+
+		assertEquals(1, count("certification.group.result", "completed", "none"));
 	}
 
 	@Test
@@ -155,6 +173,8 @@ class CertificationServiceImplTest {
 					resp.userIds().contains(participantId);
 			})
 		);
+
+		assertEquals(1, count("certification.group.result", "success", "none"));
 	}
 
 	@Test
@@ -211,5 +231,124 @@ class CertificationServiceImplTest {
 		assertTrue(savedEntity.getIsCertified()); // 인증 여부가 true인가?
 		assertEquals(targetPeople, savedEntity.getPeopleNumber()); // 정원 정보가 일치하는가?
 		assertEquals(mockStore, savedEntity.getStore()); // 연결된 상점 정보가 맞는가?
+	}
+
+	@Test
+	void certificatePersonal_whenStoreExists_thenSuccessCounted() {
+		// given
+		Long storeId = 500L;
+		Member member = mock(Member.class);
+		Store store = Store.builder().id(storeId).build();
+		when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+		CertificationPersonalRequestDTO dto = new CertificationPersonalRequestDTO(storeId, 77L, 3);
+
+		// when
+		certificationService.certificatePersonal(dto, member);
+
+		// then
+		assertEquals(1, count("certification.personal.result", "success", "none"));
+	}
+
+	@Test
+	void certificatePersonal_whenStoreNotFound_thenFailureCounted() {
+		// given
+		Long storeId = 999L;
+		Member member = mock(Member.class);
+		when(storeRepository.findById(storeId)).thenReturn(Optional.empty());
+		CertificationPersonalRequestDTO dto = new CertificationPersonalRequestDTO(storeId, 77L, 3);
+
+		// when
+		assertThrows(GeneralException.class, () -> certificationService.certificatePersonal(dto, member));
+
+		// then
+		assertEquals(1, count("certification.personal.result", "failure", "store_not_found"));
+		assertEquals(0, count("certification.personal.result", "success", "none"));
+	}
+
+	@Test
+	void handleCertification_whenSessionNotExists_thenNoSuchSessionCounted() {
+		// given
+		Long sessionId = 100L;
+		Member member = mock(Member.class);
+		when(sessionManager.exists(sessionId)).thenReturn(false);
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
+		assertEquals(1, count("certification.group.result", "failure", "no_such_session"));
+	}
+
+	@Test
+	void handleCertification_whenAdminMismatch_thenMismatchCounted() {
+		// given
+		Long sessionId = 100L;
+		Member member = mock(Member.class);
+		when(member.getStudentProfile()).thenReturn(mock(Student.class));
+		when(sessionManager.exists(sessionId)).thenReturn(true);
+		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn("500");
+		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
+		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of());
+		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of());
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		CertificationProgressResponseDTO response = certificationService.handleCertification(dto, member);
+
+		// then
+		assertEquals("mismatch", response.type());
+		assertEquals(1, count("certification.group.result", "failure", "mismatch"));
+	}
+
+	@Test
+	void handleCertification_whenDoubleCertified_thenDoubledCounted() {
+		// given
+		Long sessionId = 100L;
+		Long userId = 1L;
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(userId);
+		when(member.getStudentProfile()).thenReturn(mock(Student.class));
+		when(sessionManager.exists(sessionId)).thenReturn(true);
+		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn("500");
+		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
+		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
+		when(sessionManager.hasUser(sessionId, userId)).thenReturn(true);
+		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(userId));
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		assertThrows(GeneralException.class, () -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(1, count("certification.group.result", "failure", "doubled"));
+	}
+
+	@Test
+	void handleCertification_whenStoreNotFoundOnComplete_thenStoreNotFoundCounted() {
+		// given
+		Long sessionId = 100L;
+		Long storeId = 500L;
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+		when(member.getStudentProfile()).thenReturn(mock(Student.class));
+		when(sessionManager.exists(sessionId)).thenReturn(true);
+		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn(String.valueOf(storeId));
+		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
+		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
+		when(sessionManager.hasUser(sessionId, 1L)).thenReturn(false);
+		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(1L, 2L));
+		when(storeRepository.findById(storeId)).thenReturn(Optional.empty());
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		assertThrows(GeneralException.class, () -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(1, count("certification.group.result", "failure", "store_not_found"));
 	}
 }
