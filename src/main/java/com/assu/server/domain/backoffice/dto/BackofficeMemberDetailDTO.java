@@ -30,12 +30,12 @@ public record BackofficeMemberDetailDTO(
         );
     }
 
-    public static BackofficeMemberDetailDTO fromPartner(Member member) {
+    public static BackofficeMemberDetailDTO fromPartner(Member member, String profileImageUrl) {
         return new BackofficeMemberDetailDTO(
                 BackofficeMemberBaseDetailDTO.from(member),
                 null,
                 null,
-                BackofficePartnerProfileDetailDTO.from(member)
+                BackofficePartnerProfileDetailDTO.from(member, profileImageUrl)
         );
     }
 }

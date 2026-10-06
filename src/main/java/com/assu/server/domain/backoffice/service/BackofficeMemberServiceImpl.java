@@ -258,9 +258,17 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         return switch (member.getRole()) {
             case STUDENT -> BackofficeMemberDetailDTO.fromStudent(member);
             case ADMIN -> BackofficeMemberDetailDTO.fromAdmin(member);
-            case PARTNER -> BackofficeMemberDetailDTO.fromPartner(member);
+            case PARTNER -> BackofficeMemberDetailDTO.fromPartner(member, resolveProfileImageUrl(member));
             case BACKOFFICE -> throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         };
+    }
+
+    private String resolveProfileImageUrl(Member member) {
+        String key = member.getProfileUrl();
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        return amazonS3Manager.generatePresignedUrl(key);
     }
 
     private Partner findPartner(Long memberId) {
