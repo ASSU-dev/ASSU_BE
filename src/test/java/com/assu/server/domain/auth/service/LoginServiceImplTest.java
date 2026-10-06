@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.List;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,8 @@ class LoginServiceImplTest {
 	@BeforeEach
 	void setUp() {
 		loginService = new LoginServiceImpl(
-			authenticationManager, jwtUtil, ssuAuthService, studentRepository, List.of(commonAdapter));
+			authenticationManager, jwtUtil, ssuAuthService, studentRepository, new SimpleMeterRegistry(),
+			List.of(commonAdapter));
 	}
 
 	@Test
