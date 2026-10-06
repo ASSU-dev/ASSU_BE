@@ -55,6 +55,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 
 @ExtendWith(MockitoExtension.class)
@@ -102,6 +103,9 @@ class SignUpServiceImplTest {
 	private CommonAuthRepository commonAuthRepository;
 
 	@Mock
+	private DiscordNotifier discordNotifier;
+
+	@Mock
 	private CommonAuth commonAuth;
 
 	@Mock
@@ -116,7 +120,7 @@ class SignUpServiceImplTest {
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
 			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
-			studentService, phoneAuthService, commonAuthRepository);
+			studentService, phoneAuthService, commonAuthRepository, discordNotifier);
 	}
 
 	@Test

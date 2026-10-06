@@ -1,5 +1,6 @@
 package com.assu.server.domain.inquiry.service;
 
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.inquiry.dto.InquiryCreateRequestDTO;
 import com.assu.server.domain.inquiry.dto.InquiryResponseDTO;
@@ -11,18 +12,25 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class InquiryServiceImpl implements InquiryService {
+public class
+InquiryServiceImpl implements InquiryService {
 
     private final InquiryRepository inquiryRepository;
     private final MemberRepository memberRepository;
+    private final MeterRegistry meterRegistry;
+    private final DiscordNotifier discordNotifier;
 
     /** 문의 등록 */
     @Override
@@ -33,7 +41,35 @@ public class InquiryServiceImpl implements InquiryService {
         Inquiry inquiry = Inquiry.create(member, inquiryCreateRequestDTO);
 
         inquiryRepository.save(inquiry);
+        incrementAfterCommit(meterRegistry.counter("inquiry.created"));
+        runAfterCommit(() -> discordNotifier.send("📬 새 문의가 접수되었습니다. 백오피스에서 확인해 주세요."));
         return inquiry.getId();
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
+    }
+
+    private void incrementAfterCommit(Counter counter) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            counter.increment();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                counter.increment();
+            }
+        });
     }
 
     /** 문의 내역 조회 (status=all|waiting|answered) */

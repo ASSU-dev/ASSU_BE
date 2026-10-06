@@ -8,6 +8,7 @@ import com.assu.server.domain.inquiry.repository.InquiryRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.infra.discord.DiscordNotifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @Transactional
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BackofficeInquiryServiceImpl implements BackofficeInquiryService {
 
     private final InquiryRepository inquiryRepository;
+    private final DiscordNotifier discordNotifier;
 
     @Override
     @Transactional(readOnly = true)
@@ -67,5 +71,19 @@ public class BackofficeInquiryServiceImpl implements BackofficeInquiryService {
         }
 
         inquiry.answer(answerText);
+        runAfterCommit(() -> discordNotifier.send("💬 문의 답변이 등록되었습니다."));
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }
