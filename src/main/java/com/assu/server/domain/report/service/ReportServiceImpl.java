@@ -73,7 +73,7 @@ public class ReportServiceImpl implements ReportService {
                 savedReport.getTargetId(),
                 savedReport.getStatus()));
 
-        runAfterCommit(discordNotifier::sendReportAlert);
+        runAfterCommit(() -> discordNotifier.send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요."));
 
         return ReportResponseDTO.CreateReportResponse.of(savedReport.getId());
     }
@@ -118,7 +118,7 @@ public class ReportServiceImpl implements ReportService {
                 savedReport.getTargetId(),
                 savedReport.getStatus()));
 
-        runAfterCommit(discordNotifier::sendReportAlert);
+        runAfterCommit(() -> discordNotifier.send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요."));
 
         return ReportResponseDTO.CreateReportResponse.of(savedReport.getId());
     }

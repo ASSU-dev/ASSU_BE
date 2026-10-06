@@ -71,7 +71,7 @@ public class BackofficeInquiryServiceImpl implements BackofficeInquiryService {
         }
 
         inquiry.answer(answerText);
-        runAfterCommit(discordNotifier::sendInquiryAnsweredAlert);
+        runAfterCommit(() -> discordNotifier.send("💬 문의 답변이 등록되었습니다."));
     }
 
     private void runAfterCommit(Runnable task) {

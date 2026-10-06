@@ -77,7 +77,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
             case PROCESSED -> "처리 완료";
             case REJECTED -> "기각";
         };
-        runAfterCommit(() -> discordNotifier.sendReportStatusChangedAlert(statusLabel));
+        runAfterCommit(() -> discordNotifier.send("📋 신고 상태가 변경되었습니다: " + statusLabel));
 
         return BackofficeReportResponseDTO.from(report);
     }
@@ -92,7 +92,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         }
 
         processRelatedReports(ReportTargetType.REVIEW, reviewId);
-        runAfterCommit(discordNotifier::sendReportContentDeletedAlert);
+        runAfterCommit(() -> discordNotifier.send("🗑️ 신고된 콘텐츠가 삭제 처리되었습니다."));
 
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(reviewId);
     }
@@ -107,7 +107,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         }
 
         processRelatedReports(ReportTargetType.SUGGESTION, suggestionId);
-        runAfterCommit(discordNotifier::sendReportContentDeletedAlert);
+        runAfterCommit(() -> discordNotifier.send("🗑️ 신고된 콘텐츠가 삭제 처리되었습니다."));
 
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(suggestionId);
     }
@@ -124,7 +124,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         report.updateStatus(ReportStatus.REJECTED);
         eventPublisher.publishEvent(new ReportProcessedEvent(
                 report.getId(), report.getTargetType(), report.getTargetId(), ReportStatus.REJECTED));
-        runAfterCommit(discordNotifier::sendReportRejectedAlert);
+        runAfterCommit(() -> discordNotifier.send("✅ 신고가 기각되었습니다."));
 
         return BackofficeReportDTO.RejectReportResponseDTO.of(reportId);
     }

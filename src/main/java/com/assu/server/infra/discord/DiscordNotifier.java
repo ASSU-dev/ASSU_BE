@@ -21,43 +21,7 @@ public class DiscordNotifier {
         this.restClient = builder.build();
     }
 
-    public void sendInquiryAlert() {
-        send("📬 새 문의가 접수되었습니다. 백오피스에서 확인해 주세요.");
-    }
-
-    public void sendReportAlert() {
-        send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요.");
-    }
-
-    public void sendSignupPendingAlert(String role) {
-        send("🔔 새 " + role + " 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요.");
-    }
-
-    public void sendInquiryAnsweredAlert() {
-        send("💬 문의 답변이 등록되었습니다.");
-    }
-
-    public void sendReportStatusChangedAlert(String statusLabel) {
-        send("📋 신고 상태가 변경되었습니다: " + statusLabel);
-    }
-
-    public void sendReportContentDeletedAlert() {
-        send("🗑️ 신고된 콘텐츠가 삭제 처리되었습니다.");
-    }
-
-    public void sendReportRejectedAlert() {
-        send("✅ 신고가 기각되었습니다.");
-    }
-
-    public void sendMemberApprovedAlert(String role) {
-        send("✅ " + role + " 회원가입이 승인되었습니다.");
-    }
-
-    public void sendMemberRejectedAlert(String role) {
-        send("❌ " + role + " 회원가입이 거절되었습니다.");
-    }
-
-    private void send(String message) {
+    public void send(String message) {
         if (serviceAlertWebhookUrl.isBlank()) {
             return;
         }

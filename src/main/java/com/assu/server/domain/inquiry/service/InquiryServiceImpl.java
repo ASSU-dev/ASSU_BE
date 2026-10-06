@@ -42,7 +42,7 @@ InquiryServiceImpl implements InquiryService {
 
         inquiryRepository.save(inquiry);
         incrementAfterCommit(meterRegistry.counter("inquiry.created"));
-        runAfterCommit(discordNotifier::sendInquiryAlert);
+        runAfterCommit(() -> discordNotifier.send("📬 새 문의가 접수되었습니다. 백오피스에서 확인해 주세요."));
         return inquiry.getId();
     }
 

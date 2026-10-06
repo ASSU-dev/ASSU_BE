@@ -241,7 +241,7 @@ public class SignUpServiceImpl implements SignUpService {
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
 
-        runAfterCommit(() -> discordNotifier.sendSignupPendingAlert("제휴업체"));
+        runAfterCommit(() -> discordNotifier.send("🔔 새 제휴업체 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 
         return SignUpResponseDTO.from(member, null);
     }
@@ -427,7 +427,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
-        runAfterCommit(() -> discordNotifier.sendSignupPendingAlert("학생회"));
+        runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 
         return SignUpResponseDTO.from(member, null);
     }

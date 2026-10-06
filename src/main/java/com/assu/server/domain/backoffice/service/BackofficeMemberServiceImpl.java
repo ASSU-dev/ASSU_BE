@@ -98,7 +98,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         }
 
         String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
-        runAfterCommit(() -> discordNotifier.sendMemberApprovedAlert(roleLabel));
+        runAfterCommit(() -> discordNotifier.send("✅ " + roleLabel + " 회원가입이 승인되었습니다."));
 
         return BackofficeMemberSummaryDTO.from(member);
     }
@@ -112,7 +112,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         member.setIsActivated(ActivationStatus.INACTIVE);
 
         String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
-        runAfterCommit(() -> discordNotifier.sendMemberRejectedAlert(roleLabel));
+        runAfterCommit(() -> discordNotifier.send("❌ " + roleLabel + " 회원가입이 거절되었습니다."));
 
         return BackofficeMemberSummaryDTO.from(member);
     }
