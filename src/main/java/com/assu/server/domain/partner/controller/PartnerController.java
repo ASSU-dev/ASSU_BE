@@ -4,6 +4,8 @@ import com.assu.server.domain.partner.dto.PartnerResponseDTO;
 import com.assu.server.domain.partner.service.PartnerService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +35,7 @@ public class PartnerController {
                     "  - `adminName` (String): 관리자 상호명\n" +
                     "  - `adminUrl` (String): 관리자 프로필 이미지 URL (S3 주소)\n" +
                     "  - `adminPhone` (String): 관리자 전화번호\n")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNER_RANDOM_ADMIN_RECOMMEND)
     @GetMapping("/admin-recommend")
     public BaseResponse<PartnerResponseDTO> randomAdminRecommend(
             @AuthenticationPrincipal PrincipalDetails pd

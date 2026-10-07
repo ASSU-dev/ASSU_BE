@@ -10,6 +10,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeProfileImageResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,6 +56,7 @@ public class BackofficePartnerController {
                     "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
                     "- 404(NOT_FOUND): Partner가 아니거나 사업자등록증 없음"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PARTNER_GET_LICENSE)
     @GetMapping("/{memberId}/license")
     public BaseResponse<BackofficeDocumentUrlResponseDTO> getLicenseUrl(
             @Parameter(description = "Partner 회원 ID") @PathVariable Long memberId
@@ -65,6 +68,7 @@ public class BackofficePartnerController {
     }
 
     @BackofficeAudited(action = "PARTNER_LICENSE_VERIFY", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PARTNER_VERIFY_LICENSE)
     @Operation(
             summary = "사업자등록증 검증 API",
             description = "# [v1.0 (2026-07-03)]\n" +
@@ -85,6 +89,7 @@ public class BackofficePartnerController {
     }
 
     @BackofficeAudited(action = "PARTNER_PROFILE_IMAGE_UPDATE", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PARTNER_UPDATE_PROFILE_IMAGE)
     @Operation(
             summary = "제휴업체 프로필 이미지 업로드 API",
             description = "# [v1.0 (2026-10-04)]\n" +
@@ -115,6 +120,7 @@ public class BackofficePartnerController {
     }
 
     @BackofficeAudited(action = "PARTNER_PROFILE_IMAGE_DELETE", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PARTNER_DELETE_PROFILE_IMAGE)
     @Operation(
             summary = "제휴업체 프로필 이미지 삭제 API",
             description = "# [v1.0 (2026-10-04)]\n" +
@@ -137,6 +143,7 @@ public class BackofficePartnerController {
     }
 
     @BackofficeAudited(action = "PARTNER_BATCH_SIGNUP")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PARTNER_BATCH_SIGNUP)
     @Operation(
             summary = "제휴업체 단체 회원가입 API",
             description = "이메일, 비밀번호, 업체명, 도로명 주소, 위도, 경도 목록을 받아 제휴업체 계정들을 일괄 생성합니다."

@@ -6,6 +6,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeOperatorResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeOperatorService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ public class BackofficeOperatorController {
     private final BackofficeOperatorService backofficeOperatorService;
 
     @BackofficeAudited(action = "OPERATOR_CREATE")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_OPERATOR_CREATE)
     @Operation(
             summary = "백오피스 운영자 생성 API",
             description = "# [v1.0 (2026-06-23)]\n" +

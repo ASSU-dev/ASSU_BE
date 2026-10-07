@@ -16,6 +16,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeHomeCurationUpdateRequest
 import com.assu.server.domain.backoffice.service.BackofficeHomeCurationService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +46,7 @@ public class BackofficeHomeCurationController {
     }
 
     @BackofficeAudited(action = "HOME_CURATION_UPDATE")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_HOME_CURATION_UPDATE)
     @Operation(
             summary = "전체 큐레이션 및 추천 업체 직접 저장 API (백오피스용)",
             description = "상단 추천 업체 및 2개 그룹(각 그룹당 2개 매장)을 직접 지정하여 저장합니다.\n\n" +

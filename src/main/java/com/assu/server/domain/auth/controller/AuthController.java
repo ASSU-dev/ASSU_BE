@@ -25,6 +25,8 @@ import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -66,6 +68,7 @@ public class AuthController {
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 성공 메시지 반환"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_PHONE_SEND_CODE)
     @PostMapping("/phone-verification/check-and-send")
     public BaseResponse<Void> checkPhoneAvailabilityAndSendAuthNumber(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -95,6 +98,7 @@ public class AuthController {
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 성공 메시지 반환"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_PHONE_VERIFY_CODE)
     @PostMapping("/phone-verification/verify")
     public BaseResponse<Void> checkAuthNumber(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -128,6 +132,7 @@ public class AuthController {
                     "  - 성공 시 200(OK)과 사용 가능 메시지 반환\n" +
                     "  - 중복 시 404(NOT_FOUND)와 에러 메시지 반환"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_EMAIL_CHECK)
     @PostMapping("/email-verification/check")
     public BaseResponse<Void> checkEmailAvailability(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -175,6 +180,7 @@ public class AuthController {
                     "    - `department` (String): 단과대 (한글명)\n" +
                     "    - `major` (String): 전공/학과 (한글명)"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_SIGNUP_STUDENT)
     @PostMapping(value = "/students/signup", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<SignUpResponseDTO> signupStudent(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -245,6 +251,7 @@ public class AuthController {
                     "    - `department` (String): null (Partner는 해당 없음)\n" +
                     "    - `major` (String): null (Partner는 해당 없음)"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_SIGNUP_PARTNER)
     @PostMapping(value = "/partners/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<SignUpResponseDTO> signupPartner(
             @RequestPart("request")
@@ -319,6 +326,7 @@ public class AuthController {
                     "    - `department` (String): 단과대 (한글명)\n" +
                     "    - `major` (String): 전공/학과 (한글명)"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_SIGNUP_ADMIN)
     @PostMapping(value = "/admins/signup", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<SignUpResponseDTO> signupAdmin(
             @RequestPart("request")
@@ -373,6 +381,7 @@ public class AuthController {
                     "  - 403(FORBIDDEN): `BACKOFFICE4003` — BACKOFFICE 계정은 `/auth/backoffice/login` 사용\n" +
                     "  - 401(UNAUTHORIZED): 이메일/비밀번호 불일치"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_LOGIN_COMMON)
     @PostMapping(value = "/commons/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<LoginResponseDTO> loginCommon(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -414,6 +423,7 @@ public class AuthController {
                     "    - `department` (String): 단과대 (한글명)\n" +
                     "    - `major` (String): 전공/학과 (한글명)"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_LOGIN_STUDENT)
     @PostMapping(value = "/students/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<LoginResponseDTO> loginStudent(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -452,6 +462,7 @@ public class AuthController {
                     "  - `newAccess` (String): 새로운 액세스 토큰\n" +
                     "  - `newRefresh` (String): 새로운 리프레시 토큰"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_TOKEN_REFRESH)
     @PostMapping("/tokens/refresh")
     public BaseResponse<RefreshResponseDTO> refreshToken(
             @Parameter(
@@ -475,6 +486,7 @@ public class AuthController {
                     "- 처리: Refresh 무효화(선택), Access 블랙리스트 등록.\n" +
                     "- 성공 시 200(OK)."
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_LOGOUT)
     @PostMapping("/logout")
     public BaseResponse<Void> logout(
             @Parameter(
@@ -513,6 +525,7 @@ public class AuthController {
                     "  - `yearSemester` (String): 학년/학기\n" +
                     "  - `major` (Major enum): 전공/학과"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_SSU_VERIFY)
     @PostMapping(value = "/students/ssu-verify", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<USaintAuthResponseDTO> ssuAuth(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -545,6 +558,7 @@ public class AuthController {
                     "  - 성공 시 200(OK)과 성공 메시지 반환\n" +
                     "  - 유예기간 내 재로그인 및 재가입 시 계정 복구"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.AUTH_WITHDRAW)
     @PatchMapping("/withdraw")
     public BaseResponse<Void> withdrawMember(
             @Parameter(

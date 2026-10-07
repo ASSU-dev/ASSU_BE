@@ -22,6 +22,8 @@ import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -89,6 +91,7 @@ public class StudentController {
 			"\n**Response:**\n" +
 			"  - stamp 개수 반환 \n"
 	)
+        @ApiErrorCodeExamples(SwaggerErrorCodes.STUDENT_GET_STAMP)
         @GetMapping("/stamp")
         public BaseResponse<StudentResponseDTO.CheckStampResponseDTO> getStamp(
                 @AuthenticationPrincipal PrincipalDetails pd
@@ -101,6 +104,7 @@ public class StudentController {
 			description = "# [v1.0 (2026-02-23)](https://clumsy-seeder-416.notion.site/3101197c19ed80b5b47eceb202535469)\n" +
 					"- 스탬프가 10개가 되는 시점에 자동으로 응모및 알림"
 	)
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STUDENT_EARN_STAMP)
 	@PostMapping("/stamp")
 	public BaseResponse<String> earnStamp(
 			@AuthenticationPrincipal PrincipalDetails pd
@@ -159,6 +163,7 @@ public class StudentController {
 					"- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
 					"- 404(NOT_FOUND): 사용자 정보를 찾을 수 없음"
 	)
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STUDENT_GET_PROFILE)
 	@GetMapping("/info")
 	public BaseResponse<StudentProfileResponseDTO> getStudentProfile(
 			@AuthenticationPrincipal PrincipalDetails pd
@@ -175,6 +180,7 @@ public class StudentController {
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
                     "- 404(NOT_FOUND): 학생 정보를 찾을 수 없음"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.STUDENT_GET_HOME_CURATION)
     @GetMapping("/recommend/curation")
     public BaseResponse<StudentHomeResponseDTO> getRecommendCuration(
             @AuthenticationPrincipal PrincipalDetails pd
