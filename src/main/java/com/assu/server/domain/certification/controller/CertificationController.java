@@ -15,6 +15,8 @@ import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,6 +59,7 @@ public class CertificationController {
 	}
 
 	@DeleteMapping("/certification/session/{sessionId}")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.CERTIFICATION_EXPIRE_SESSION)
 	@Operation(
 		summary = "그룹 인증 세션 만료 API",
 		description = "세션 생성자만 인증 세션을 즉시 만료시킬 수 있습니다. 만료 후 해당 세션으로 들어오는 인증 요청은 거절됩니다."
@@ -71,6 +74,7 @@ public class CertificationController {
 	}
 
 	@PostMapping("/certification/personal")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.CERTIFICATION_PERSONAL)
 	@Operation(
 		summary = "개인 인증 요청 API",
 		description =

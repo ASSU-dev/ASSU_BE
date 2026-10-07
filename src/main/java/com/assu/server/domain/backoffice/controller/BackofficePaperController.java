@@ -21,6 +21,8 @@ import com.assu.server.domain.backoffice.service.BackofficePaperService;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -73,6 +75,7 @@ public class BackofficePaperController {
     }
 
     @BackofficeAudited(action = "PAPER_CREATE", targetId = "#req.adminId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_CREATE)
     @Operation(
             summary = "임의의 제휴 계약서 생성 API (백오피스용)",
             description = "운영자가 임의의 제휴 계약서를 생성(빈 제휴 계약서)합니다.\n\n" +
@@ -94,6 +97,7 @@ public class BackofficePaperController {
     }
 
     @BackofficeAudited(action = "PAPER_CONTENT_ADD", targetId = "#paperId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_CONTENT_ADD)
     @Operation(
             summary = "제휴 계약서 내용(옵션) 추가 API (백오피스용)",
             description = "생성되어 있는 빈 제휴 계약서에 구체적인 제휴 혜택/옵션 및 Goods를 추가합니다.\n\n" +
@@ -125,6 +129,7 @@ public class BackofficePaperController {
     }
 
     @BackofficeAudited(action = "PAPER_APPROVE", targetId = "#paperId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_APPROVE)
     @Operation(
             summary = "제휴 계약서 승인 API (백오피스용)",
             description = "제휴 계약서를 승인하여 제휴 상태를 ACTIVE로 변경합니다.\n\n" +
@@ -142,6 +147,7 @@ public class BackofficePaperController {
     }
 
     @BackofficeAudited(action = "PAPER_REJECT", targetId = "#paperId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_REJECT)
     @Operation(
             summary = "제휴 계약서 거부 API (백오피스용)",
             description = "제휴 계약서를 거부하여 제휴 상태를 INACTIVE로 변경합니다.\n\n" +
@@ -159,6 +165,7 @@ public class BackofficePaperController {
     }
 
     @BackofficeAudited(action = "PAPER_EXPIRE", targetId = "#paperId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_EXPIRE)
     @Operation(
             summary = "제휴 계약서 만료 API (백오피스용)",
             description = "제휴 계약서를 강제 만료하여 제휴 상태를 INACTIVE로 변경합니다.\n\n" +

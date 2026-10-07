@@ -7,6 +7,8 @@ import com.assu.server.domain.inquiry.entity.Inquiry;
 import com.assu.server.domain.inquiry.service.InquiryService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +45,7 @@ public class InquiryController {
                     "- 400(BAD_REQUEST): 필수 필드 누락 또는 잘못된 이메일 형식\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.INQUIRY_CREATE)
     @PostMapping
     public BaseResponse<Long> create(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -65,6 +68,7 @@ public class InquiryController {
                     "- 400(BAD_REQUEST): 잘못된 페이지 번호 또는 상태 값\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.INQUIRY_LIST)
     @GetMapping
     public BaseResponse<PageResponseDTO<InquiryResponseDTO>> list(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -88,6 +92,7 @@ public class InquiryController {
                     "- 403(FORBIDDEN): 다른 사용자의 문의 접근 시도\n" +
                     "- 404(NOT_FOUND): 존재하지 않는 문의 ID"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.INQUIRY_GET)
     @GetMapping("/{inquiryId}")
     public BaseResponse<InquiryResponseDTO> get(
             @AuthenticationPrincipal PrincipalDetails pd,

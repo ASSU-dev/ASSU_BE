@@ -5,6 +5,8 @@ import com.assu.server.domain.review.dto.ReviewResponseDTO;
 import com.assu.server.domain.review.service.ReviewService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +32,7 @@ import java.util.List;
 public class ReviewController {
     private final ReviewService reviewService;
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REVIEW_WRITE)
     @Operation(
             summary = "리뷰 작성 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/2241197c19ed8176ba4fcb49c0136f93)\n" +
@@ -59,6 +62,7 @@ public class ReviewController {
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkStudentReview(pd.getId(), pageable));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REVIEW_CHECK_PARTNER)
     @Operation(
             summary = "내 가게 리뷰 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/_-2241197c19ed8130b89ad5a77f3e8b2c)\n" +
@@ -72,6 +76,7 @@ public class ReviewController {
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkPartnerReview(pd.getId(), pageable));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REVIEW_CHECK_STORE)
     @Operation(
             summary = "가게 리뷰 조회 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/2681197c19ed80038db3f7dd357623ff)\n" +
@@ -84,6 +89,7 @@ public class ReviewController {
         return BaseResponse.onSuccess(SuccessStatus._OK, reviewService.checkStoreReview(storeId, pageable));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REVIEW_DELETE)
     @Operation(
             summary = "내가 쓴 리뷰 삭제 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/2241197c19ed81a58e93c9ba56f6cb9a)\n" +
@@ -108,6 +114,7 @@ public class ReviewController {
         return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, reviewService.standardScore(storeId)));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REVIEW_MY_STORE_AVERAGE)
     @Operation(
             summary = "내 가게 리뷰 평균 조회 API (파트너)",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/API-2681197c19ed80df9f2ac100812c7f44)\n" +

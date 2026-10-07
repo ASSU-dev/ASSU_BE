@@ -6,6 +6,8 @@ import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
 import com.assu.server.domain.auth.service.BackofficeAuthService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -51,6 +53,7 @@ public class BackofficeAuthController {
                     "  - 403(FORBIDDEN): BACKOFFICE 역할이 아닌 계정\n" +
                     "  - 401(UNAUTHORIZED): 이메일 또는 비밀번호 불일치"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_AUTH_LOGIN)
     @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<BackofficeLoginResponseDTO> login(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -85,6 +88,7 @@ public class BackofficeAuthController {
                     "  - `newRefresh` (String): 새로운 리프레시 토큰\n" +
                     "  - 401(UNAUTHORIZED): audience 불일치 또는 유효하지 않은 Refresh Token"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_AUTH_REFRESH)
     @PostMapping("/tokens/refresh")
     public BaseResponse<RefreshResponseDTO> refresh(
             @Parameter(

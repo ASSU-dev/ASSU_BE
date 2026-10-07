@@ -5,6 +5,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeDevSyncResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeDevSyncService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class BackofficeDevSyncController {
     private final BackofficeDevSyncService backofficeDevSyncService;
 
     @BackofficeAudited(action = "DEV_SYNC")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_DEV_SYNC)
     @Operation(
             summary = "Prod DB → Dev DB 동기화 API",
             description = "# [v1.0 (2026-10-04)]\n" +
