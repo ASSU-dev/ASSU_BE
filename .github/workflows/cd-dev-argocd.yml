@@ -1,13 +1,13 @@
 name: CD dev - ArgoCD GitOps (K3S)
 
 # dev 환경 K3S 배포 (ArgoCD GitOps).
-# 트리거 브랜치: develop
+# 트리거 브랜치: develop, develop-ios-reject (iOS 심사 리젝 대응 임시 브랜치)
 # 동작: 이미지 빌드/푸시 -> ASSU_BE_manifest 의 dev/deployment.yml 이미지 태그 갱신 커밋.
 #       ArgoCD 가 변경을 감지해 dev 클러스터에 자동 동기화.
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, develop-ios-reject ]
   workflow_dispatch:
 
 jobs:

@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, develop-ios-reject ]
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, develop-ios-reject ]
 
 jobs:
   ci:
