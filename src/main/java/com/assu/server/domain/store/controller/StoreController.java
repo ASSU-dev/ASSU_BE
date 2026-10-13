@@ -103,7 +103,8 @@ public class StoreController {
 			"    - `contentId` (Long): 컨텐츠 고유 ID\n" +
 			"    - `goods` (List<String>): 제공되는 상품/서비스 리스트\n" +
 			"    - `people` (Integer): 사용 가능 인원\n" +
-			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n\n" +
+			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n" +
+			"    - `partnershipPeriod` (String): 제휴기간 (예: \"제휴기간 2026.07.21 ~ 2026.12.31\", 기간 정보가 없으면 null)\n\n" +
 			"**Error Cases:**\n" +
 			"  - 성공: 200 OK, `isSuccess=true`, `result=PaperResponseDTO` (제휴 컨텐츠 상세 정보)\n" +
 			"  - 실패: \n" +
