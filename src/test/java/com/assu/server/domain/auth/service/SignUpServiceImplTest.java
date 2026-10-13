@@ -9,17 +9,19 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.dto.common.TokensDTO;
@@ -123,6 +125,13 @@ class SignUpServiceImplTest {
 			studentService, phoneAuthService, commonAuthRepository, discordNotifier);
 	}
 
+	@AfterEach
+	void tearDown() {
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
+	}
+
 	@Test
 	@DisplayName("이미 가입된 학번으로 학생 회원가입을 시도하면 EXISTED_STUDENT 예외가 발생한다")
 	void signupSsuStudent_ExistingStudent_ThrowsException() {
@@ -153,39 +162,59 @@ class SignUpServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("정상적인 학생 회원가입 시 저장된 학생 ID로 제휴 동기화를 호출한 뒤 JWT를 발급한다")
-	void signupSsuStudent_Success_SyncsUserPapersBeforeIssuingTokens() {
+	@DisplayName("정상적인 학생 회원가입 시 제휴 동기화는 커밋 전에 호출되지 않고 커밋 이후 저장된 학생 ID로 호출된다")
+	void signupSsuStudent_Success_SyncsUserPapersOnlyAfterCommit() {
 		// 1. Given
-		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
-			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
-
-		USaintAuthResponseDTO authResponse =
-			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
-		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
-		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
-		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
-
-		Member member = mock(Member.class);
-		when(member.getId()).thenReturn(1L);
-		when(member.getRole()).thenReturn(UserRole.STUDENT);
-		when(memberRepository.save(any())).thenReturn(member);
-
-		Student student = mock(Student.class);
-		when(student.getId()).thenReturn(99L);
-		when(studentRepository.save(any())).thenReturn(student);
-
-		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
-			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+		StudentTokenSignUpRequestDTO request = stubNewStudentSignUp();
+		TransactionSynchronizationManager.initSynchronization();
 
 		// 2. When
 		signUpService.signupSsuStudent(request);
 
 		// 3. Then
-		verify(studentService).syncUserPapersForStudent(99L);
+		verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
+		verify(studentService, never()).syncUserPapersForStudent(any());
 
-		InOrder inOrder = inOrder(studentService, jwtUtil);
-		inOrder.verify(studentService).syncUserPapersForStudent(99L);
-		inOrder.verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
+		triggerAfterCommit();
+
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
+	}
+
+	@Test
+	@DisplayName("커밋 이후 제휴 동기화가 실패해도 예외가 전파되지 않는다")
+	void signupSsuStudent_SyncFailsAfterCommit_DoesNotPropagateException() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = stubNewStudentSignUp();
+		doThrow(new RuntimeException("sync failed")).when(studentService).syncUserPapersForStudent(99L);
+		TransactionSynchronizationManager.initSynchronization();
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		assertDoesNotThrow(this::triggerAfterCommit);
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
+		assertEquals("access-token", response.tokens().accessToken());
+	}
+
+	@Test
+	@DisplayName("탈퇴한 학생 재가입 시 제휴 동기화는 커밋 이후 호출된다")
+	void signupSsuStudent_WithdrawnStudent_SyncsUserPapersOnlyAfterCommit() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+		stubWithdrawnStudentAccount();
+		TransactionSynchronizationManager.initSynchronization();
+
+		// 2. When
+		signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		verify(studentService, never()).syncUserPapersForStudent(any());
+
+		triggerAfterCommit();
+
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
 	}
 
 	@Test
@@ -420,6 +449,34 @@ class SignUpServiceImplTest {
 			PHONE, true, true,
 			new CommonAuthPayloadDTO(EMAIL, "P@ssw0rd!", null, null, null),
 			new CommonInfoPayloadDTO("숭실카페", "101호", place));
+	}
+
+	private StudentTokenSignUpRequestDTO stubNewStudentSignUp() {
+		USaintAuthResponseDTO authResponse =
+			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
+		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
+		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
+		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
+
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+		when(memberRepository.save(any())).thenReturn(member);
+
+		Student student = mock(Student.class);
+		when(student.getId()).thenReturn(99L);
+		when(studentRepository.save(any())).thenReturn(student);
+
+		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
+			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+
+		return new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+	}
+
+	private void triggerAfterCommit() {
+		TransactionSynchronizationManager.getSynchronizations()
+			.forEach(TransactionSynchronization::afterCommit);
 	}
 
 	private void stubCommonAuthLookup(Member member) {

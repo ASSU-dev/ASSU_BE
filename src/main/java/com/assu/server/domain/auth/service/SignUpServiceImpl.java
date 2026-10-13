@@ -128,11 +128,9 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(student);
 
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
-        try {
-            studentService.syncUserPapersForStudent(student.getId());
-        } catch (Exception e) {
-            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", student.getId(), e);
-        }
+        // 커밋 전 Student는 REQUIRES_NEW 트랜잭션에서 조회되지 않으므로 커밋 이후 실행
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -168,12 +166,9 @@ public class SignUpServiceImpl implements SignUpService {
         );
         studentRepository.save(student);
 
-        // 탈퇴 기간 중 변동된 제휴를 반영한다
-        try {
-            studentService.syncUserPapersForStudent(student.getId());
-        } catch (Exception e) {
-            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", student.getId(), e);
-        }
+        // 탈퇴 기간 중 변동된 제휴를 반영한다 (갱신된 학과 정보 기준으로 커밋 이후 실행)
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
@@ -502,6 +497,14 @@ public class SignUpServiceImpl implements SignUpService {
 
     private String pickDisplayAddress(String road, String jibun) {
         return (road != null && !road.isBlank()) ? road : jibun;
+    }
+
+    private void syncUserPapersSafely(Long studentId) {
+        try {
+            studentService.syncUserPapersForStudent(studentId);
+        } catch (Exception e) {
+            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", studentId, e);
+        }
     }
 
     private void runAfterCommit(Runnable task) {
