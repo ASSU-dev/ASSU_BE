@@ -16,11 +16,14 @@ import com.assu.server.domain.report.exception.ReportException;
 import com.assu.server.domain.report.event.ReportProcessedEvent;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -32,6 +35,7 @@ public class ReportServiceImpl implements ReportService {
     private final ReviewRepository reviewRepository;
     private final SuggestionRepository suggestionRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DiscordNotifier discordNotifier;
 
     @Override
     @Transactional
@@ -68,6 +72,8 @@ public class ReportServiceImpl implements ReportService {
                 savedReport.getTargetType(),
                 savedReport.getTargetId(),
                 savedReport.getStatus()));
+
+        runAfterCommit(() -> discordNotifier.send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요."));
 
         return ReportResponseDTO.CreateReportResponse.of(savedReport.getId());
     }
@@ -112,7 +118,22 @@ public class ReportServiceImpl implements ReportService {
                 savedReport.getTargetId(),
                 savedReport.getStatus()));
 
+        runAfterCommit(() -> discordNotifier.send("🚨 새 신고가 접수되었습니다. 백오피스에서 확인해 주세요."));
+
         return ReportResponseDTO.CreateReportResponse.of(savedReport.getId());
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 
     // 콘텐츠 신고 대상 검증 메서드

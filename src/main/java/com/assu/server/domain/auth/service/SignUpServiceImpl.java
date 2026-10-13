@@ -30,18 +30,23 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -64,6 +69,7 @@ public class SignUpServiceImpl implements SignUpService {
     private final StudentService studentService;
     private final PhoneAuthService phoneAuthService;
     private final CommonAuthRepository commonAuthRepository;
+    private final DiscordNotifier discordNotifier;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -122,7 +128,9 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(student);
 
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
-        studentService.syncUserPapersForStudent(student.getId());
+        // 커밋 전 Student는 REQUIRES_NEW 트랜잭션에서 조회되지 않으므로 커밋 이후 실행
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -158,8 +166,9 @@ public class SignUpServiceImpl implements SignUpService {
         );
         studentRepository.save(student);
 
-        // 탈퇴 기간 중 변동된 제휴를 반영한다
-        studentService.syncUserPapersForStudent(student.getId());
+        // 탈퇴 기간 중 변동된 제휴를 반영한다 (갱신된 학과 정보 기준으로 커밋 이후 실행)
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
@@ -227,6 +236,8 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(partner);
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
+
+        runAfterCommit(() -> discordNotifier.send("🔔 새 제휴업체 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 
         return SignUpResponseDTO.from(member, null);
     }
@@ -413,6 +424,8 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
+        runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
+
         return SignUpResponseDTO.from(member, null);
     }
 
@@ -492,5 +505,26 @@ public class SignUpServiceImpl implements SignUpService {
 
     private String pickDisplayAddress(String road, String jibun) {
         return (road != null && !road.isBlank()) ? road : jibun;
+    }
+
+    private void syncUserPapersSafely(Long studentId) {
+        try {
+            studentService.syncUserPapersForStudent(studentId);
+        } catch (Exception e) {
+            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", studentId, e);
+        }
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }

@@ -49,12 +49,15 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StudentServiceImpl implements StudentService {
@@ -245,7 +248,7 @@ public class StudentServiceImpl implements StudentService {
 		}).toList();
 	}
 
-	@Transactional
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	@Override
 	public void syncUserPapersForStudent(Long studentId) {
 		Student student = studentRepository.findById(studentId)
@@ -287,6 +290,7 @@ public class StudentServiceImpl implements StudentService {
 		if (!newUserPapers.isEmpty()) {
 			userPaperRepository.saveAll(newUserPapers);
 		}
+		log.info("[UserPaper] studentId={} synced={}", studentId, newUserPapers.size());
 	}
 	@Transactional
 	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {

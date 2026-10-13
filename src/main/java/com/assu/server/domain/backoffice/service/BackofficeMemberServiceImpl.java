@@ -17,6 +17,7 @@ import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -44,6 +47,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     private final WithdrawalService withdrawalService;
     private final AmazonS3Manager amazonS3Manager;
     private final ProfileImageService profileImageService;
+    private final DiscordNotifier discordNotifier;
 
     @Override
     @Transactional(readOnly = true)
@@ -93,6 +97,9 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             admin.setSignVerifiedAt(now);
         }
 
+        String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
+        runAfterCommit(() -> discordNotifier.send("✅ " + roleLabel + " 회원가입이 승인되었습니다."));
+
         return BackofficeMemberSummaryDTO.from(member);
     }
 
@@ -103,6 +110,10 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         assertPendingApproval(member);
 
         member.setIsActivated(ActivationStatus.INACTIVE);
+
+        String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
+        runAfterCommit(() -> discordNotifier.send("❌ " + roleLabel + " 회원가입이 거절되었습니다."));
+
         return BackofficeMemberSummaryDTO.from(member);
     }
 
@@ -308,6 +319,19 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         if (member.getIsActivated() == ActivationStatus.ACTIVE) {
             throw new CustomAuthException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
         }
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 
     private void activatePartnerStore(Partner partner) {

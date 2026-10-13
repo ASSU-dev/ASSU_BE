@@ -33,6 +33,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceImplTest {
@@ -54,6 +55,9 @@ class ReportServiceImplTest {
 
 	@Mock
 	private ApplicationEventPublisher eventPublisher;
+
+	@Mock
+	private DiscordNotifier discordNotifier;
 
 	private static final Long REPORTER_ID = 1L;
 	private static final Long REVIEW_ID = 100L;

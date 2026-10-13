@@ -5,6 +5,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import java.util.Set;
 public class ProfileImageServiceImpl implements ProfileImageService{
     private final MemberRepository memberRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final MeterRegistry meterRegistry;
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
@@ -39,7 +41,10 @@ public class ProfileImageServiceImpl implements ProfileImageService{
         String oldKey = member.getProfileUrl();
         if (oldKey != null && !oldKey.isBlank()) {
             try { amazonS3Manager.deleteFile(oldKey); }
-            catch (Exception e) { log.warn("이전 프로필 삭제 실패 key={}", oldKey, e); }
+            catch (Exception e) {
+                log.warn("이전 프로필 삭제 실패 key={}", oldKey, e);
+                meterRegistry.counter("member.profile.image.s3.delete.failure").increment();
+            }
         }
 
         member.setProfileUrl(uploadedKey);

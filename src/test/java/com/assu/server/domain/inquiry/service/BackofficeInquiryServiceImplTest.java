@@ -19,6 +19,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.infra.discord.DiscordNotifier;
 
 @ExtendWith(MockitoExtension.class)
 class BackofficeInquiryServiceImplTest {
@@ -28,6 +29,9 @@ class BackofficeInquiryServiceImplTest {
 
 	@Mock
 	private InquiryRepository inquiryRepository;
+
+	@Mock
+	private DiscordNotifier discordNotifier;
 
 	@Test
 	@DisplayName("페이지 번호가 1 미만이면 PAGE_UNDER_ONE 예외가 발생한다")
