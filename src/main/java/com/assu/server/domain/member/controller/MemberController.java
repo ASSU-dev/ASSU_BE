@@ -4,6 +4,8 @@ import com.assu.server.domain.member.dto.ProfileImageResponseDTO;
 import com.assu.server.domain.member.service.ProfileImageService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,6 +44,7 @@ public class MemberController {
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
                     "- 500(INTERNAL_SERVER_ERROR): S3 업로드 실패"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.MEMBER_UPLOAD_PROFILE_IMAGE)
     @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public BaseResponse<ProfileImageResponseDTO> uploadOrReplaceProfileImage(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -72,6 +75,7 @@ public class MemberController {
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
                     "- 500(INTERNAL_SERVER_ERROR): S3 presigned URL 생성 실패"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.MEMBER_GET_PROFILE_IMAGE)
     @GetMapping("/me/profile-image")
     public BaseResponse<ProfileImageResponseDTO> getProfileImage(
             @AuthenticationPrincipal PrincipalDetails pd
@@ -92,6 +96,7 @@ public class MemberController {
                     "- 404(NOT_FOUND): 삭제할 프로필 이미지가 없음\n" +
                     "- 500(INTERNAL_SERVER_ERROR): S3 삭제 실패"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.MEMBER_DELETE_PROFILE_IMAGE)
     @DeleteMapping("/me/profile-image")
     public BaseResponse<String> deleteProfileImage(
             @AuthenticationPrincipal PrincipalDetails pd

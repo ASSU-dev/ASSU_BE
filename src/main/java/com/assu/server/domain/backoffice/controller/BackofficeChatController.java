@@ -5,6 +5,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeChatBlockDTO;
 import com.assu.server.domain.backoffice.service.BackofficeChatBlockService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,6 +24,7 @@ public class BackofficeChatController {
     private final BackofficeChatBlockService backofficeChatBlockService;
 
     @BackofficeAudited(action = "CHAT_BLOCK_BETWEEN", targetId = "#request.blockerId() + '-' + #request.blockedId()")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_CHAT_BLOCK_BETWEEN)
     @Operation(
             summary = "두 멤버 간 채팅 차단 API",
             description = "- 특정 두 멤버 사이의 채팅을 차단합니다.\n" +
@@ -39,6 +42,7 @@ public class BackofficeChatController {
     }
 
     @BackofficeAudited(action = "CHAT_UNBLOCK_BETWEEN", targetId = "#memberAId + '-' + #memberBId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_CHAT_UNBLOCK_BETWEEN)
     @Operation(
             summary = "두 멤버 간 채팅 차단 해제 API",
             description = "- 특정 두 멤버 사이의 채팅 차단을 해제합니다.\n" +
@@ -57,6 +61,7 @@ public class BackofficeChatController {
     }
 
     @BackofficeAudited(action = "CHAT_BLOCK_MEMBER", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_CHAT_BLOCK_MEMBER)
     @Operation(
             summary = "멤버 채팅 전체 차단 API",
             description = "- 특정 멤버의 채팅 기능 자체를 차단합니다.\n" +
@@ -73,6 +78,7 @@ public class BackofficeChatController {
     }
 
     @BackofficeAudited(action = "CHAT_UNBLOCK_MEMBER", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_CHAT_UNBLOCK_MEMBER)
     @Operation(
             summary = "멤버 채팅 전체 차단 해제 API",
             description = "- 특정 멤버의 채팅 전체 차단을 해제합니다.\n" +

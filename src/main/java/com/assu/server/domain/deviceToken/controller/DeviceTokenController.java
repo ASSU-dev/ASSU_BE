@@ -3,6 +3,8 @@ package com.assu.server.domain.deviceToken.controller;
 import com.assu.server.domain.deviceToken.service.DeviceTokenService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +35,7 @@ public class DeviceTokenController {
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자\n" +
                     "- 409(CONFLICT): 이미 등록된 토큰"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.DEVICE_TOKEN_REGISTER)
     @PostMapping
     public BaseResponse<Long> register(@AuthenticationPrincipal PrincipalDetails pd,
                                        @RequestParam String token) {
@@ -52,6 +55,7 @@ public class DeviceTokenController {
                     "- 403(FORBIDDEN): 다른 사용자의 토큰 해제 시도\n" +
                     "- 404(NOT_FOUND): 존재하지 않는 토큰 ID"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.DEVICE_TOKEN_UNREGISTER)
     @DeleteMapping("/{tokenId}")
     public BaseResponse<String> unregister(@AuthenticationPrincipal PrincipalDetails pd,
                                            @PathVariable("tokenId") Long tokenId) {

@@ -4,6 +4,8 @@ import com.assu.server.domain.partnership.dto.*;
 import com.assu.server.domain.partnership.service.PartnershipService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +37,7 @@ public class PartnershipController {
     private final PartnershipService partnershipService;
 
     @PostMapping("/usage")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_RECORD_USAGE)
     @Operation(
     summary = "제휴 사용내역 기록 API",
     description = "# [v1.0 (2025-12-23)](https://clumsy-seeder-416.notion.site/2681197c19ed8052804eddd5a1f3ce96?source=copy_link)\n" +
@@ -63,6 +66,7 @@ public class PartnershipController {
         return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.USER_PAPER_REQUEST_SUCCESS, null));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_CREATE_DRAFT)
     @Operation(
             summary = "제휴 제안서 초안 생성 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8043a511cc8ea005d5b4)\n" +
@@ -83,6 +87,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createDraftPartnership(request, pd.getId()));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_CREATE_MANUAL)
     @Operation(
             summary = "제휴 제안서 수동 등록 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2591197c19ed804785d9f58f95223048)\n" +
@@ -164,6 +169,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.createManualPartnership(request, pd.getId(), contractImage));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_UPDATE)
     @Operation(
             summary = "제휴 제안서 내용 수정 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2371197c19ed80aa8468d2377ef8eac2)\n" +
@@ -219,6 +225,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId()));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_UPDATE_STATUS)
     @Operation(
             summary = "제휴 상태 업데이트 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/SUSPEND-ACTIVE-INACTIVE-2371197c19ed805ab509f552817e823a)\n" +
@@ -246,6 +253,7 @@ public class PartnershipController {
                 partnershipService.updatePartnershipStatus(partnershipId, request, pd.getId(), pd.getRole()));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_GET_DETAIL)
     @Operation(
             summary = "제휴 상세조회 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2371197c19ed80cdac8beb2ffddb2f61)\n" +
@@ -283,6 +291,7 @@ public class PartnershipController {
                 partnershipService.getPartnership(partnershipId, pd.getId(), pd.getRole()));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_DELETE)
     @Operation(
             summary = "제휴 제안서 삭제 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed80e58d30c469e4ba3146)\n" +
@@ -300,6 +309,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_DELETE_SUSPENDED)
     @Operation(
             summary = "대기 중인 제휴 계약서 삭제 API",
             description = "- 관리자 관점에서 대기 중(SUSPEND) 상태인 제휴 계약서를 삭제합니다.\n" +
@@ -411,6 +421,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.getSuspendedPapers(pd.getId()));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_CHECK_WITH_PARTNER)
     @Operation(
             summary = "채팅방 내 제휴 확인 API",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/_-31f1197c19ed8017bceced3b3d65c0d7?source=copy_link)\n" +
@@ -435,6 +446,7 @@ public class PartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.checkPartnershipWithPartner(pd.getId(), partnerId));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_CHECK_WITH_ADMIN)
     @Operation(
             summary = "채팅방 내 제휴 확인 API(제휴업체용)",
             description = "# [v1.3 (2026-01-04)](https://clumsy-seeder-416.notion.site/2fe1197c19ed8078af77d65bfcc09087)\n" +
