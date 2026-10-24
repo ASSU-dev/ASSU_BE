@@ -6,6 +6,8 @@ import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.notification.service.NotificationQueryService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,7 @@ public class NotificationController {
                     "- 400(BAD_REQUEST): 잘못된 상태 값 또는 페이지 번호\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_LIST)
     @GetMapping
     public BaseResponse<Map<String, Object>> list(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -65,6 +68,7 @@ public class NotificationController {
                     "- 404(NOT_FOUND): 존재하지 않는 알림 ID\n" +
                     "- 409(CONFLICT): 이미 읽음 처리된 알림"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_MARK_READ)
     @PostMapping("/{notificationId}/read")
     public BaseResponse<String> markRead(@AuthenticationPrincipal PrincipalDetails pd,
                                          @PathVariable("notificationId") Long notificationId) throws AccessDeniedException {
@@ -88,6 +92,7 @@ public class NotificationController {
                     "- 404(NOT_FOUND): 존재하지 않는 멤버 ID 또는 디바이스 토큰 없음\n" +
                     "- 500(INTERNAL_SERVER_ERROR): FCM 전송 실패"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_QUEUE)
     @PostMapping("/queue")
     public BaseResponse<String> queue(@Valid @RequestBody QueueNotificationRequestDTO req) {
         notificationCommandService.queue(req);
@@ -108,6 +113,7 @@ public class NotificationController {
                     "- 400(BAD_REQUEST): 지원하지 않는 알림 유형\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_TOGGLE)
     @PutMapping("/{type}")
     public BaseResponse<NotificationSettingsResponseDTO> toggle(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -127,6 +133,7 @@ public class NotificationController {
                     "- 각 알림 유형별 true/false 값 포함\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않은 사용자"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_GET_SETTINGS)
     @GetMapping("/settings")
     public BaseResponse<NotificationSettingsResponseDTO> getSettings(
             @AuthenticationPrincipal PrincipalDetails pd

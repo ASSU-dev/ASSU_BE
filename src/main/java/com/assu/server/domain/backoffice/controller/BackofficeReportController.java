@@ -16,6 +16,8 @@ import com.assu.server.domain.backoffice.dto.BackofficeReportStatusUpdateRequest
 import com.assu.server.domain.backoffice.service.BackofficeReportService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,6 +44,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "REPORT_DETAIL_READ", targetId = "#reportId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_REPORT_DETAIL)
     @Operation(summary = "신고 상세 조회 API (백오피스용)", description = "특정 신고 ID 기준 상세 내용을 조회합니다.")
     @GetMapping("/reports/{reportId}")
     public BaseResponse<BackofficeReportResponseDTO> getReportDetail(
@@ -51,6 +54,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "REPORT_STATUS_UPDATE", targetId = "#reportId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_REPORT_STATUS_UPDATE)
     @Operation(summary = "신고 상태 변경 및 기본 처리 API (백오피스용)", description = "신고의 처리 상태를 변경합니다.")
     @PatchMapping("/reports/{reportId}/status")
     public BaseResponse<BackofficeReportResponseDTO> updateReportStatus(
@@ -62,6 +66,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "REVIEW_DELETE", targetId = "#reviewId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_REVIEW_DELETE)
     @Operation(
             summary = "리뷰 소프트 삭제 API",
             description = "- 리뷰를 삭제 처리합니다 (status → DELETED).\n" +
@@ -78,6 +83,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "SUGGESTION_DELETE", targetId = "#suggestionId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_SUGGESTION_DELETE)
     @Operation(
             summary = "건의글 소프트 삭제 API",
             description = "- 건의글을 삭제 처리합니다 (status → DELETED).\n" +
@@ -94,6 +100,7 @@ public class BackofficeReportController {
     }
 
     @BackofficeAudited(action = "REPORT_REJECT", targetId = "#reportId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_REPORT_REJECT)
     @Operation(
             summary = "신고 기각 API",
             description = "- 신고를 기각 처리합니다 (ReportStatus → REJECTED).\n" +
