@@ -67,7 +67,7 @@ public class ChatServiceImpl implements ChatService {
 
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-        Partner partner = partnerRepository.findById(partnerId)
+        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartnerId(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));

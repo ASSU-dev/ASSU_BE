@@ -360,7 +360,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     public PartnershipDraftResponseDTO createDraftPartnership(PartnershipDraftRequestDTO request, Long adminId) {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-        Partner partner = partnerRepository.findById(request.partnerId())
+        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.partnerId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));

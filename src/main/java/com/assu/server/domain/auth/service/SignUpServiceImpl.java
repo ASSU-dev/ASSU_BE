@@ -70,6 +70,7 @@ public class SignUpServiceImpl implements SignUpService {
     private final PhoneAuthService phoneAuthService;
     private final CommonAuthRepository commonAuthRepository;
     private final DiscordNotifier discordNotifier;
+    private final WithdrawalService withdrawalService;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -276,7 +277,7 @@ public class SignUpServiceImpl implements SignUpService {
         }
 
         // isActivated는 유지한다 — 승인받았던 업체는 재승인 없이 바로 로그인 가능
-        member.restore();
+        withdrawalService.restoreMember(member);
         member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
         memberRepository.save(member);
 

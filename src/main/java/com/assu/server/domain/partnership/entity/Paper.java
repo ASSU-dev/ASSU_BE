@@ -45,5 +45,9 @@ public class Paper extends BaseEntity {
 	@Column(name = "contract_image_key", length = 512)
 	private String contractImageKey;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "status_before_partner_withdrawal")
+	private ActivationStatus statusBeforePartnerWithdrawal;
+
 	public void updateContractImageKey(String key) { this.contractImageKey = key; }
 }

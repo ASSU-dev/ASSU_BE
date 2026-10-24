@@ -109,4 +109,26 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
                           @Param("inactiveStatus") ActivationStatus inactiveStatus,
                           @Param("activeStatus") ActivationStatus activeStatus);
 
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        UPDATE Paper p
+        SET p.statusBeforePartnerWithdrawal = p.isActivated,
+            p.isActivated = :inactiveStatus
+        WHERE p.partner.id = :partnerId
+          AND p.isActivated IN :targetStatuses
+    """)
+    void deactivateByPartnerWithdrawal(@Param("partnerId") Long partnerId,
+                                       @Param("targetStatuses") List<ActivationStatus> targetStatuses,
+                                       @Param("inactiveStatus") ActivationStatus inactiveStatus);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        UPDATE Paper p
+        SET p.isActivated = p.statusBeforePartnerWithdrawal,
+            p.statusBeforePartnerWithdrawal = null
+        WHERE p.partner.id = :partnerId
+          AND p.statusBeforePartnerWithdrawal IS NOT NULL
+    """)
+    void restoreByPartnerRestoration(@Param("partnerId") Long partnerId);
+
 }
