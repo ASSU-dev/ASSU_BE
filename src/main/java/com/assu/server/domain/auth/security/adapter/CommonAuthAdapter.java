@@ -10,6 +10,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CommonAuthAdapter implements RealmAuthAdapter {
@@ -33,8 +35,14 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
 
     @Override
     public UserDetails loadUserDetails(String email) {
+        // 이메일·학번은 개인정보라 로그에 남기지 않는다. 요청 단위 추적은 reqId로 한다
         CommonAuth ca = commonAuthRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> {
+                    log.debug("[AUTH_CHAIN] stage=adapter-load realm=COMMON result=not-found");
+                    return new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+                });
+        log.debug("[AUTH_CHAIN] stage=adapter-load realm=COMMON result=found status={}",
+                ca.getMember().getIsActivated());
         var m = ca.getMember();
         // SUSPEND는 비밀번호 검증 이후에 차단해야 하므로(이메일 열거 방지) enabled로 둔다
         boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE

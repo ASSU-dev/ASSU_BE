@@ -4,6 +4,7 @@ import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.AbstractUserDetailsAuthenticationProvider;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RoutingAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
@@ -51,8 +53,10 @@ public class RoutingAuthenticationProvider extends AbstractUserDetailsAuthentica
                 : null;
 
         if (presented == null || !adapter.passwordEncoder().matches(presented, userDetails.getPassword())) {
+            log.debug("[AUTH_CHAIN] stage=provider-credentials realm={} result=mismatch", realm);
             throw new BadCredentialsException("Bad credentials");
         }
+        log.debug("[AUTH_CHAIN] stage=provider-credentials realm={} result=matched", realm);
     }
 
     @Override
@@ -63,6 +67,7 @@ public class RoutingAuthenticationProvider extends AbstractUserDetailsAuthentica
 
         AuthRealm realm = resolveRealm(authentication);
         RealmAuthAdapter adapter = pickAdapter(realm);
+        log.debug("[AUTH_CHAIN] stage=provider-route realm={} adapter={}", realm, adapter.getClass().getSimpleName());
         return adapter.loadUserDetails(username);
     }
 }

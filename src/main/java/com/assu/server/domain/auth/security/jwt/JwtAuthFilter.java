@@ -105,6 +105,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             Authentication authentication = jwtUtil.getAuthentication(accessToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug("[AUTH_CHAIN] stage=jwt-filter result=validated uri={}", requestUri);
             chain.doFilter(request, response);
         } catch (CustomAuthException exception) {
             SecurityErrorResponseWriter.write(response, objectMapper, exception.getErrorReasonHttpStatus());
@@ -153,6 +154,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             Authentication authentication = jwtUtil.getAuthenticationFromExpiredAccessToken(accessToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug("[AUTH_CHAIN] stage=jwt-refresh result=validated uri={}", requestUri);
             chain.doFilter(request, response);
         } catch (CustomAuthException exception) {
             meterRegistry.counter("auth.refresh.rotate", "result", "failure", "stage", "filter",
