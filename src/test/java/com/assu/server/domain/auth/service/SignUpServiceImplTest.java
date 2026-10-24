@@ -114,6 +114,9 @@ class SignUpServiceImplTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private WithdrawalService withdrawalService;
+
 	private static final String PHONE = "01012345678";
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String EMAIL = "partner@assu.site";
@@ -124,7 +127,7 @@ class SignUpServiceImplTest {
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
 			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
-			studentService, phoneAuthService, commonAuthRepository, discordNotifier);
+			studentService, phoneAuthService, commonAuthRepository, discordNotifier, withdrawalService);
 	}
 
 	@AfterEach
@@ -478,7 +481,7 @@ class SignUpServiceImplTest {
 		SignUpResponseDTO response = signUpService.signupPartner(request, licenseImage);
 
 		// 3. Then
-		verify(member, times(1)).restore();
+		verify(withdrawalService, times(1)).restoreMember(member);
 		verify(member, never()).setIsActivated(any());
 		verify(commonAuth, times(1)).updatePassword("hashed");
 		verify(partner, times(1)).updateBusinessInfo(

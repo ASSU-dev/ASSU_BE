@@ -10,10 +10,13 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.partnership.entity.Paper;
+import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.support.CommonMockConfig;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +24,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,6 +50,12 @@ class BackofficeMemberServiceTest {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private PaperRepository paperRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("SUSPEND Partner 회원을 승인하면 ACTIVE 및 license verified 처리")
@@ -116,6 +127,53 @@ class BackofficeMemberServiceTest {
                 .isInstanceOf(CustomAuthException.class)
                 .extracting(ex -> ((CustomAuthException) ex).getCode())
                 .isEqualTo(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
+    }
+
+    @Test
+    @DisplayName("제휴업체를 강제 탈퇴시키면 ACTIVE/SUSPEND 제휴만 INACTIVE가 되고, 복구하면 원래 상태로 돌아온다")
+    void forceWithdrawAndRestorePartner_TogglesPartnerPapers() {
+        Member member = createPartnerMember(ActivationStatus.ACTIVE);
+        Partner partner = member.getPartnerProfile();
+        Store store = storeRepository.findByPartner(partner).orElseThrow();
+
+        Long activeId = createPaper(partner, store, ActivationStatus.ACTIVE).getId();
+        Long suspendId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
+        Long inactiveId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
+        Long manualId = createPaper(null, store, ActivationStatus.ACTIVE).getId();
+
+        backofficeMemberService.forceWithdrawMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(activeId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(inactiveId).getStatusBeforePartnerWithdrawal()).isNull();
+        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+
+        backofficeMemberService.restoreMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(activeId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.SUSPEND);
+        assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(activeId).getStatusBeforePartnerWithdrawal()).isNull();
+        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+    }
+
+    private Paper createPaper(Partner partner, Store store, ActivationStatus status) {
+        return paperRepository.save(Paper.builder()
+                .partner(partner)
+                .store(store)
+                .isActivated(status)
+                .partnershipPeriodStart(LocalDate.now().minusDays(1))
+                .partnershipPeriodEnd(LocalDate.now().plusDays(30))
+                .build());
+    }
+
+    private Paper findPaper(Long paperId) {
+        return paperRepository.findById(paperId).orElseThrow();
     }
 
     private Member createPartnerMember(ActivationStatus status) {

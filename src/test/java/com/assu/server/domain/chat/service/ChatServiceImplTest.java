@@ -135,7 +135,7 @@ class ChatServiceImplTest {
 		Store store = Store.builder().id(500L).partner(otherPartner).build();
 
 		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 
 		// 2. When
@@ -161,7 +161,7 @@ class ChatServiceImplTest {
 			.id(ROOM_ID).admin(admin).partner(partner).build();
 
 		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(existingRoom);
 
@@ -186,7 +186,7 @@ class ChatServiceImplTest {
 		Store store = Store.builder().id(500L).partner(partner).build();
 
 		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(null);
 
