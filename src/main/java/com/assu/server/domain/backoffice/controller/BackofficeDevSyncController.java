@@ -38,6 +38,7 @@ public class BackofficeDevSyncController {
                     "  - `copiedTables` (List<String>): 복사한 테이블 목록\n" +
                     "- 401(UNAUTHORIZED): 인증되지 않았거나 audience 불일치\n" +
                     "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
+                    "- 409(CONFLICT): 이미 동기화가 진행 중\n" +
                     "- 500(INTERNAL_SERVER_ERROR): 대상 스키마 미설정 또는 원본과 동일"
     )
     @PostMapping

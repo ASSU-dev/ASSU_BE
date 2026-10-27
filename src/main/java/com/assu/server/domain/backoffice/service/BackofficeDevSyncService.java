@@ -9,11 +9,13 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 // DDL은 암묵적 커밋이 발생해 트랜잭션으로 묶을 수 없으므로 @Transactional을 적용하지 않는다.
 @Service
@@ -23,6 +25,7 @@ public class BackofficeDevSyncService {
     private static final List<String> TABLES_TO_CLEAR = List.of("device_token", "notification_outbox");
 
     private final JdbcTemplate jdbcTemplate;
+    private final AtomicBoolean syncing = new AtomicBoolean(false);
 
     @Value("${dev-sync.target-schema:}")
     private String targetSchema;
@@ -33,12 +36,26 @@ public class BackofficeDevSyncService {
             throw new GeneralException(ErrorStatus.INVALID_DEV_SYNC_TARGET);
         }
 
+        if (!syncing.compareAndSet(false, true)) {
+            throw new GeneralException(ErrorStatus.DEV_SYNC_IN_PROGRESS);
+        }
+        try {
+            return copySchema(sourceSchema);
+        } finally {
+            syncing.set(false);
+        }
+    }
+
+    private BackofficeDevSyncResponseDTO copySchema(String sourceSchema) {
         List<String> sourceTables = findObjects(sourceSchema, "BASE TABLE");
         List<String> sourceSequences = findObjects(sourceSchema, "SEQUENCE");
         List<String> targetObjects = new ArrayList<>(findObjects(targetSchema, "BASE TABLE"));
         targetObjects.addAll(findObjects(targetSchema, "SEQUENCE"));
 
         jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
+            int originalIsolation = connection.getTransactionIsolation();
+            // REPEATABLE READ에서는 INSERT ... SELECT가 원본 행에 공유 락을 걸어 prod 쓰기를 막는다.
+            connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             try (Statement statement = connection.createStatement()) {
                 statement.execute("SET FOREIGN_KEY_CHECKS = 0");
                 try {
@@ -61,6 +78,8 @@ public class BackofficeDevSyncService {
                 } finally {
                     statement.execute("SET FOREIGN_KEY_CHECKS = 1");
                 }
+            } finally {
+                connection.setTransactionIsolation(originalIsolation);
             }
             return null;
         });
