@@ -50,6 +50,7 @@ public enum ErrorStatus implements BaseErrorCode {
     BACKOFFICE_BOOTSTRAP_DISABLED(HttpStatus.BAD_REQUEST, "BACKOFFICE4001", "백오피스 bootstrap이 비활성화되어 있습니다."),
     LAST_BACKOFFICE_OPERATOR(HttpStatus.BAD_REQUEST, "BACKOFFICE4002", "마지막 백오피스 운영자는 비활성화할 수 없습니다."),
     BACKOFFICE_USE_DEDICATED_LOGIN(HttpStatus.FORBIDDEN, "BACKOFFICE4003", "백오피스 계정은 /auth/backoffice/login을 사용해야 합니다."),
+    DEV_SYNC_IN_PROGRESS(HttpStatus.CONFLICT, "BACKOFFICE4004", "dev 동기화가 이미 진행 중입니다."),
     INVALID_DEV_SYNC_TARGET(HttpStatus.INTERNAL_SERVER_ERROR, "BACKOFFICE5001", "dev 동기화 대상 스키마가 설정되지 않았거나 현재 스키마와 같습니다."),
     RECEIVER_ID_REQUIRED(HttpStatus.BAD_REQUEST, "PUSH_4001", "INDIVIDUAL 타입일 경우 receiverId는 필수입니다."),
 
