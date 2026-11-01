@@ -4,6 +4,7 @@ import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
+import com.assu.server.domain.backoffice.service.BackofficePaperService;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
@@ -15,6 +16,7 @@ import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.support.CommonMockConfig;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
@@ -53,6 +55,9 @@ class BackofficeMemberServiceTest {
 
     @Autowired
     private PaperRepository paperRepository;
+
+    @Autowired
+    private BackofficePaperService backofficePaperService;
 
     @Autowired
     private EntityManager entityManager;
@@ -160,6 +165,40 @@ class BackofficeMemberServiceTest {
         assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(activeId).getStatusBeforePartnerWithdrawal()).isNull();
         assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("탈퇴 기간 중 종료한 제휴는 복구 후에도 INACTIVE로 남고, 승인은 거부된다")
+    void expireDuringWithdrawal_StaysInactiveAfterRestore() {
+        Member member = createPartnerMember(ActivationStatus.ACTIVE);
+        Partner partner = member.getPartnerProfile();
+        Store store = storeRepository.findByPartner(partner).orElseThrow();
+
+        Long expiredId = createPaper(partner, store, ActivationStatus.ACTIVE).getId();
+        Long approveTriedId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
+        Long blankId = createPaper(partner, store, ActivationStatus.BLANK).getId();
+
+        backofficeMemberService.forceWithdrawMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(blankId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+
+        backofficePaperService.expirePaper(expiredId);
+        assertThatThrownBy(() -> backofficePaperService.approvePaper(approveTriedId))
+                .isInstanceOf(DatabaseException.class)
+                .extracting(ex -> ((DatabaseException) ex).getCode())
+                .isEqualTo(ErrorStatus.WITHDRAWN_PARTNER_PAPER);
+        entityManager.flush();
+        entityManager.clear();
+
+        backofficeMemberService.restoreMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(expiredId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(approveTriedId).getIsActivated()).isEqualTo(ActivationStatus.SUSPEND);
+        assertThat(findPaper(blankId).getIsActivated()).isEqualTo(ActivationStatus.BLANK);
     }
 
     private Paper createPaper(Partner partner, Store store, ActivationStatus status) {

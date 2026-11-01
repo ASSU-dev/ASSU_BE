@@ -6,6 +6,8 @@ import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.DatabaseException;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -26,7 +28,6 @@ public class Paper extends BaseEntity {
 	@Setter
 	private LocalDate partnershipPeriodEnd;
 
-	@Setter
     @Enumerated(EnumType.STRING)
 	private ActivationStatus isActivated;
 
@@ -50,4 +51,13 @@ public class Paper extends BaseEntity {
 	private ActivationStatus statusBeforePartnerWithdrawal;
 
 	public void updateContractImageKey(String key) { this.contractImageKey = key; }
+
+	// 탈퇴 업체 제휴는 종료만 허용하고, 수동 종료가 복구보다 우선하도록 기록을 지운다
+	public void changeStatus(ActivationStatus nextStatus) {
+		if (statusBeforePartnerWithdrawal != null && nextStatus != ActivationStatus.INACTIVE) {
+			throw new DatabaseException(ErrorStatus.WITHDRAWN_PARTNER_PAPER);
+		}
+		this.isActivated = nextStatus;
+		this.statusBeforePartnerWithdrawal = null;
+	}
 }

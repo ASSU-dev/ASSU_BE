@@ -231,7 +231,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         ActivationStatus prev = paper.getIsActivated();
         ActivationStatus next = parseStatus(request.status());
 
-        paper.setIsActivated(next);
+        paper.changeStatus(next);
 
         Long adminId = paper.getAdmin().getId();
         Admin admin = adminRepository.findById(adminId)

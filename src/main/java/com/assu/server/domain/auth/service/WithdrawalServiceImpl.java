@@ -59,7 +59,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         if (member.getRole() == UserRole.PARTNER) {
             paperRepository.deactivateByPartnerWithdrawal(
                     member.getId(),
-                    List.of(ActivationStatus.ACTIVE, ActivationStatus.SUSPEND),
+                    List.of(ActivationStatus.ACTIVE, ActivationStatus.SUSPEND, ActivationStatus.BLANK),
                     ActivationStatus.INACTIVE
             );
         }

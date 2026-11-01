@@ -165,7 +165,7 @@ class WithdrawalServiceImplTest {
 		// 3. Then
 		verify(paperRepository, times(1)).deactivateByPartnerWithdrawal(
 			MEMBER_ID,
-			List.of(ActivationStatus.ACTIVE, ActivationStatus.SUSPEND),
+			List.of(ActivationStatus.ACTIVE, ActivationStatus.SUSPEND, ActivationStatus.BLANK),
 			ActivationStatus.INACTIVE);
 	}
 
