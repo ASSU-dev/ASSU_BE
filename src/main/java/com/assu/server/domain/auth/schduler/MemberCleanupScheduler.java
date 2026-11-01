@@ -19,7 +19,7 @@ public class MemberCleanupScheduler {
     private final MemberRepository memberRepository;
     private final MemberHardDeleteService memberHardDeleteService;
 
-    @Scheduled(cron = "0 0 2 * * ?") // 매일 오전 2시
+    @Scheduled(cron = "0 0 2 * * ?", zone = "Asia/Seoul")
     public void cleanupDeletedMembers() {
         log.info("탈퇴 회원 완전 삭제 작업 시작");
 
@@ -40,7 +40,7 @@ public class MemberCleanupScheduler {
         for (Member member : membersToDelete) {
             Long memberId = member.getId();
             try {
-                if (memberHardDeleteService.hardDeleteMember(memberId)) {
+                if (memberHardDeleteService.hardDeleteMember(memberId, oneMonthAgo)) {
                     successCount++;
                 } else {
                     skipCount++;

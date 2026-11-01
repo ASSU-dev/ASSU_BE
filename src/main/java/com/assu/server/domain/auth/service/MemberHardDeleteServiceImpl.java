@@ -29,6 +29,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -58,9 +60,15 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean hardDeleteMember(Long memberId) {
-        Member member = memberRepository.findById(memberId)
+    public boolean hardDeleteMember(Long memberId, LocalDateTime deletedBefore) {
+        Member member = memberRepository.findWithLockById(memberId)
                 .orElseThrow(() -> new IllegalStateException("삭제 대상 회원을 찾을 수 없습니다. memberId=" + memberId));
+
+        // 대상 목록 조회 후 로그인·재가입으로 복구됐을 수 있으므로 락을 잡은 상태에서 다시 확인한다
+        if (!member.isWithdrawn() || !member.getDeletedAt().isBefore(deletedBefore)) {
+            log.info("탈퇴 회원 하드 삭제 스킵: 삭제 대상 조회 이후 복구됨. memberId={}", memberId);
+            return false;
+        }
 
         if (hasUndeletableCoreResource(member)) {
             log.warn("탈퇴 회원 하드 삭제 스킵: 핵심 리소스(Store/Paper/ChattingRoom) 보유. memberId={}, role={}",
