@@ -80,6 +80,7 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_PAPER(HttpStatus.NOT_FOUND, "PAPER_9001", "제휴를 찾을 수 없습니다."),
     NO_SUCH_CONTENT(HttpStatus.NOT_FOUND, "PAPER_4002", "제휴 내용을 찾을 수 없습니다."),
     ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "PAPER_4003", "이미 승인된 제휴 입니다."),
+    WITHDRAWN_PARTNER_PAPER(HttpStatus.BAD_REQUEST, "PAPER_4004", "탈퇴한 제휴업체의 제휴는 종료만 가능합니다."),
 
     // session 에러
     NO_SUCH_SESSION(HttpStatus.NOT_FOUND, "SESSION4001", "존재하지 않는 session ID입니다."),

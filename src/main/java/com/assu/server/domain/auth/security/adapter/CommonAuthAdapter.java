@@ -5,9 +5,9 @@ import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.userdetails.CommonUserDetails;
+import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import java.util.List;
 public class CommonAuthAdapter implements RealmAuthAdapter {
 
     private final CommonAuthRepository commonAuthRepository;
-    private final MemberRepository memberRepository;
+    private final WithdrawalService withdrawalService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -70,8 +70,7 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
         commonAuthRepository.save(commonAuth);
 
         if (member.isWithdrawn()) {
-            member.restore();
-            memberRepository.save(member);
+            withdrawalService.restoreMember(member);
         }
 
         return member;

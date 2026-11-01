@@ -60,7 +60,7 @@ BackofficePaperService {
         if(paper.getIsActivated() == ActivationStatus.ACTIVE){
             throw new DatabaseException(ErrorStatus.ALREADY_APPROVED);
         }
-        paper.setIsActivated(ActivationStatus.ACTIVE);
+        paper.changeStatus(ActivationStatus.ACTIVE);
         paperRepository.save(paper);
     }
 
@@ -68,7 +68,7 @@ BackofficePaperService {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
-        paper.setIsActivated(ActivationStatus.INACTIVE);
+        paper.changeStatus(ActivationStatus.INACTIVE);
         paperRepository.save(paper);
     }
 
@@ -76,7 +76,7 @@ BackofficePaperService {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
-        paper.setIsActivated(ActivationStatus.INACTIVE);
+        paper.changeStatus(ActivationStatus.INACTIVE);
         paperRepository.save(paper);
     }
 
