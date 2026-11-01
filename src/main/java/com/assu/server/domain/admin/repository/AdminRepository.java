@@ -1,6 +1,7 @@
 package com.assu.server.domain.admin.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.assu.server.domain.admin.entity.Admin;
 import org.springframework.data.domain.Pageable;
@@ -18,9 +19,12 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 
     boolean existsByPhoneNumAndMember_DeletedAtIsNull(String phoneNum);
 
+    Optional<Admin> findByIdAndMember_DeletedAtIsNull(Long id);
+
 	@Query("""
 		SELECT a FROM Admin a
 		WHERE a.university = :university
+		  AND a.member.deletedAt IS NULL
 		  AND (
 		    (a.department IS NULL AND a.major IS NULL) OR
 		    (a.department = :department AND a.major IS NULL) OR
@@ -35,7 +39,8 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 	@Query("""
         SELECT COUNT(a)
         FROM Admin a
-        WHERE NOT EXISTS (
+        WHERE a.member.deletedAt IS NULL
+          AND NOT EXISTS (
             SELECT 1 FROM Paper pa
             WHERE pa.admin = a
               AND pa.partner.id = :partnerId
@@ -48,7 +53,8 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 	@Query("""
         SELECT a
         FROM Admin a
-        WHERE NOT EXISTS (
+        WHERE a.member.deletedAt IS NULL
+          AND NOT EXISTS (
             SELECT 1 FROM Paper pa
             WHERE pa.admin = a
               AND pa.partner.id = :partnerId
@@ -60,8 +66,9 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     @Query("""
         SELECT DISTINCT a
         FROM Admin a
-        LEFT JOIN FETCH a.member
-        WHERE a.point IS NOT NULL
+        LEFT JOIN FETCH a.member m
+        WHERE m.deletedAt IS NULL
+          AND a.point IS NOT NULL
       AND ST_Contains(ST_GeomFromText(:wkt, 4326), a.point) = true
     """)
     List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt, Pageable pageable);
@@ -69,8 +76,9 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     @Query("""
         SELECT DISTINCT a
         FROM Admin a
-        LEFT JOIN FETCH a.member
-        WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        LEFT JOIN FETCH a.member m
+        WHERE m.deletedAt IS NULL
+          AND LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
         """)
     List<Admin> searchAdminByKeywordWithMember(
             @Param("keyword") String keyword,

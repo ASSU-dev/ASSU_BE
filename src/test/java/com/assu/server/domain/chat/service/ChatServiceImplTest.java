@@ -111,7 +111,7 @@ class ChatServiceImplTest {
 		// 1. Given
 		ChatRequestDTO.CreateChatRoomRequestDTO request =
 			new ChatRequestDTO.CreateChatRoomRequestDTO(ADMIN_ID, PARTNER_ID);
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.empty());
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.empty());
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
@@ -134,7 +134,7 @@ class ChatServiceImplTest {
 		Partner otherPartner = givenPartner(99L);
 		Store store = Store.builder().id(500L).partner(otherPartner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 
@@ -160,7 +160,7 @@ class ChatServiceImplTest {
 		ChattingRoom existingRoom = ChattingRoom.builder()
 			.id(ROOM_ID).admin(admin).partner(partner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(existingRoom);
@@ -185,7 +185,7 @@ class ChatServiceImplTest {
 		Partner partner = givenPartner(PARTNER_ID);
 		Store store = Store.builder().id(500L).partner(partner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(null);
