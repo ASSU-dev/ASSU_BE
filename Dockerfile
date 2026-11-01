@@ -22,6 +22,7 @@ RUN ./gradlew bootJar -x test --no-daemon \
 FROM eclipse-temurin:17-jre
 
 ENV TZ=Asia/Seoul
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 RUN ln -sf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ >/etc/timezone \
     && useradd --system --uid 10001 app
 
