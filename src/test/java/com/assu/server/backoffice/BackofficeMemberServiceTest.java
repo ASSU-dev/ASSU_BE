@@ -28,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -171,7 +172,7 @@ class BackofficeMemberServiceTest {
     }
 
     @Test
-    @DisplayName("탈퇴 기간 중 종료한 제휴는 복구 후에도 INACTIVE로 남고, 승인은 거부된다")
+    @DisplayName("탈퇴 기간 중 종료한 제휴는 복구 후에도 INACTIVE로 남고, 탈퇴 업체 제휴 승인은 기록 유무와 무관하게 거부된다")
     void expireDuringWithdrawal_StaysInactiveAfterRestore() {
         Member member = createPartnerMember(ActivationStatus.ACTIVE);
         Partner partner = member.getPartnerProfile();
@@ -180,6 +181,8 @@ class BackofficeMemberServiceTest {
         Long expiredId = createPaper(partner, store, ActivationStatus.ACTIVE).getId();
         Long approveTriedId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
         Long blankId = createPaper(partner, store, ActivationStatus.BLANK).getId();
+        Long inactiveAtWithdrawalId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
+        Long manualInactiveId = createPaper(null, store, ActivationStatus.INACTIVE).getId();
 
         backofficeMemberService.forceWithdrawMember(member.getId());
         entityManager.flush();
@@ -188,10 +191,12 @@ class BackofficeMemberServiceTest {
         assertThat(findPaper(blankId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
 
         backofficePaperService.expirePaper(expiredId);
-        assertThatThrownBy(() -> backofficePaperService.approvePaper(approveTriedId))
-                .isInstanceOf(DatabaseException.class)
-                .extracting(ex -> ((DatabaseException) ex).getCode())
-                .isEqualTo(ErrorStatus.WITHDRAWN_PARTNER_PAPER);
+        for (Long paperId : List.of(approveTriedId, expiredId, inactiveAtWithdrawalId, manualInactiveId)) {
+            assertThatThrownBy(() -> backofficePaperService.approvePaper(paperId))
+                    .isInstanceOf(DatabaseException.class)
+                    .extracting(ex -> ((DatabaseException) ex).getCode())
+                    .isEqualTo(ErrorStatus.WITHDRAWN_PARTNER_PAPER);
+        }
         entityManager.flush();
         entityManager.clear();
 
