@@ -147,11 +147,13 @@ class BackofficeMemberServiceTest {
         Long inactiveId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
         Long manualId = createPaper(null, store, ActivationStatus.ACTIVE).getId();
         Long otherStoreManualId = createPaper(null, createStore(null), ActivationStatus.ACTIVE).getId();
+        Long partnerOnlyId = createPaper(partner, null, ActivationStatus.ACTIVE).getId();
 
         backofficeMemberService.forceWithdrawMember(member.getId());
         entityManager.flush();
         entityManager.clear();
 
+        assertThat(findPaper(partnerOnlyId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(activeId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
@@ -169,6 +171,30 @@ class BackofficeMemberServiceTest {
         assertThat(findPaper(activeId).getStatusBeforePartnerWithdrawal()).isNull();
         assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
         assertThat(findPaper(otherStoreManualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(partnerOnlyId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("가게 소유 업체만 복구되면, 아직 탈퇴 상태인 다른 업체 명의의 제휴는 되살리지 않는다")
+    void restoreStoreOwner_KeepsPaperOfStillWithdrawnPartnerInactive() {
+        Member storeOwnerMember = createPartnerMember(ActivationStatus.ACTIVE);
+        Store store = storeRepository.findByPartner(storeOwnerMember.getPartnerProfile()).orElseThrow();
+        Member otherMember = createPartnerMember(ActivationStatus.ACTIVE);
+        Long otherPartnerPaperId = createPaper(otherMember.getPartnerProfile(), store, ActivationStatus.ACTIVE).getId();
+
+        backofficeMemberService.forceWithdrawMember(otherMember.getId());
+        backofficeMemberService.forceWithdrawMember(storeOwnerMember.getId());
+        backofficeMemberService.restoreMember(storeOwnerMember.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(otherPartnerPaperId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+
+        backofficeMemberService.restoreMember(otherMember.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(otherPartnerPaperId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
     }
 
     @Test

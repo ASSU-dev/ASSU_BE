@@ -130,6 +130,11 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
         WHERE (p.partner.id = :partnerId
                OR p.store.id IN (SELECT s.id FROM Store s WHERE s.partner.id = :partnerId))
           AND p.statusBeforePartnerWithdrawal IS NOT NULL
+          AND (p.partner IS NULL
+               OR p.partner.id NOT IN (SELECT m.id FROM Member m WHERE m.deletedAt IS NOT NULL))
+          AND (p.store IS NULL
+               OR p.store.id NOT IN (SELECT ws.id FROM Store ws JOIN ws.partner wp JOIN wp.member wm
+                                     WHERE wm.deletedAt IS NOT NULL))
     """)
     void restoreByPartnerRestoration(@Param("partnerId") Long partnerId);
 
