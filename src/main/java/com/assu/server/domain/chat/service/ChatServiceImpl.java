@@ -96,14 +96,21 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request) {
+    public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request, Long authenticatedMemberId) {
         // 1. 유효성 검사 (기존 로직)
         ChattingRoom room = chatRepository.findById(request.roomId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
+        if (!request.senderId().equals(authenticatedMemberId)
+                || !isRoomParticipants(room, request.senderId(), request.receiverId())) {
+            throw new DatabaseException(ErrorStatus.NO_MEMBER_IN_THE_ROOM);
+        }
         Member sender = memberRepository.findById(request.senderId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
         Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
+        if (sender.isWithdrawn() || receiver.isWithdrawn()) {
+            throw new DatabaseException(ErrorStatus.NO_SUCH_MEMBER);
+        }
 
         // 차단 검증 — 운영자가 개인 차단하거나 두 멤버 사이를 차단한 경우 메시지 전송 불가
         if (Boolean.TRUE.equals(sender.getChatBlocked())) {
@@ -260,6 +267,16 @@ public class ChatServiceImpl implements ChatService {
             throw new DatabaseException(ErrorStatus.NO_MEMBER);
         }
         return new  ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, isLeftSuccessfully,isRoomDeleted);
+    }
+
+    private boolean isRoomParticipants(ChattingRoom room, Long senderId, Long receiverId) {
+        if (room.getAdmin() == null || room.getPartner() == null) {
+            return false;
+        }
+        Long adminId = room.getAdmin().getId();
+        Long partnerId = room.getPartner().getId();
+        return (adminId.equals(senderId) && partnerId.equals(receiverId))
+                || (partnerId.equals(senderId) && adminId.equals(receiverId));
     }
 
     private void incrementAfterCommit(Counter counter) {
