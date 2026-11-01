@@ -63,6 +63,8 @@ class BackofficeMemberServiceTest {
     @Autowired
     private EntityManager entityManager;
 
+    private int phoneSeq;
+
     @Test
     @DisplayName("SUSPEND Partner 회원을 승인하면 ACTIVE 및 license verified 처리")
     void approvePartnerMember() {
@@ -260,7 +262,7 @@ class BackofficeMemberServiceTest {
         Partner partner = partnerRepository.save(Partner.builder()
                 .member(member)
                 .name("Test Partner")
-                .phoneNum("01012345678")
+                .phoneNum(String.format("010%08d", ++phoneSeq))
                 .isPhoneVerified(true)
                 .address("Seoul")
                 .detailAddress("Detail")
