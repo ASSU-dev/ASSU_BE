@@ -43,14 +43,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         if (isMasterPhoneNumber(phoneNumber)) {
             return;
         }
-
-        // 탈퇴 회원의 번호는 재가입 대상이므로 중복으로 보지 않는다
-        boolean exists = partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber)
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber);
-
-        if (exists) {
-            throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
-        }
+        assertPhoneNotInUse(phoneNumber);
 
         String authNumber = RandomNumberUtil.generateSixDigit();
         redisTemplate.opsForValue().set(phoneNumber, authNumber, AUTH_CODE_TTL);
@@ -102,6 +95,18 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         if (!Boolean.TRUE.equals(verified)) {
             throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+        }
+    }
+
+    @Override
+    public void assertPhoneNotInUse(String phoneNumber) {
+        if (isMasterPhoneNumber(phoneNumber)) {
+            return;
+        }
+        // 탈퇴 회원의 번호는 재가입 대상이므로 중복으로 보지 않는다
+        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber)
+                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(phoneNumber)) {
+            throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
     }
 
