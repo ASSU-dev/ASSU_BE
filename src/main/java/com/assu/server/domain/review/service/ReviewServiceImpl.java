@@ -69,7 +69,7 @@ public class ReviewServiceImpl implements ReviewService {
     private Review createReview(Long memberId, Long storeId, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
-        Partner partner = partnerRepository.findById(request.getPartnerId())
+        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.getPartnerId())
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STUDENT));

@@ -356,7 +356,7 @@ public class StudentServiceImpl implements StudentService {
 		String studentName = (student.getName() != null && !student.getName().isBlank()) ? student.getName() : "학생";
 
 		if (curation == null) {
-			List<Store> activeStores = storeRepository.findAll().stream()
+			List<Store> activeStores = storeRepository.findAllExcludingWithdrawnPartner().stream()
 					.sorted(Comparator.comparing(Store::getRate, Comparator.nullsLast(Comparator.reverseOrder())))
 					.limit(5)
 					.toList();

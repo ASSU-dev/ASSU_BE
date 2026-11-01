@@ -12,6 +12,14 @@ import java.util.List;
 
 public interface StoreRepository extends JpaRepository<Store,Long> {
 
+    @Query("""
+        SELECT s FROM Store s
+        LEFT JOIN s.partner p
+        LEFT JOIN p.member m
+        WHERE m.deletedAt IS NULL
+    """)
+    List<Store> findAllExcludingWithdrawnPartner();
+
     Optional<Store> findByPartner(Partner partner);
 
     Optional<Store> findByNameAndAddressAndDetailAddress(String name, String address, String detailAddress);
