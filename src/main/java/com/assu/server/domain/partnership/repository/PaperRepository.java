@@ -114,7 +114,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
         UPDATE Paper p
         SET p.statusBeforePartnerWithdrawal = p.isActivated,
             p.isActivated = :inactiveStatus
-        WHERE p.partner.id = :partnerId
+        WHERE (p.partner.id = :partnerId
+               OR p.store.id IN (SELECT s.id FROM Store s WHERE s.partner.id = :partnerId))
           AND p.isActivated IN :targetStatuses
     """)
     void deactivateByPartnerWithdrawal(@Param("partnerId") Long partnerId,
@@ -126,7 +127,8 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
         UPDATE Paper p
         SET p.isActivated = p.statusBeforePartnerWithdrawal,
             p.statusBeforePartnerWithdrawal = null
-        WHERE p.partner.id = :partnerId
+        WHERE (p.partner.id = :partnerId
+               OR p.store.id IN (SELECT s.id FROM Store s WHERE s.partner.id = :partnerId))
           AND p.statusBeforePartnerWithdrawal IS NOT NULL
     """)
     void restoreByPartnerRestoration(@Param("partnerId") Long partnerId);

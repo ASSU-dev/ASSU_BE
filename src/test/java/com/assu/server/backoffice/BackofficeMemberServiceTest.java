@@ -135,7 +135,7 @@ class BackofficeMemberServiceTest {
     }
 
     @Test
-    @DisplayName("제휴업체를 강제 탈퇴시키면 ACTIVE/SUSPEND 제휴만 INACTIVE가 되고, 복구하면 원래 상태로 돌아온다")
+    @DisplayName("제휴업체를 강제 탈퇴시키면 본인 제휴와 소유 가게의 수동 제휴가 INACTIVE가 되고, 복구하면 원래 상태로 돌아온다")
     void forceWithdrawAndRestorePartner_TogglesPartnerPapers() {
         Member member = createPartnerMember(ActivationStatus.ACTIVE);
         Partner partner = member.getPartnerProfile();
@@ -145,6 +145,7 @@ class BackofficeMemberServiceTest {
         Long suspendId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
         Long inactiveId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
         Long manualId = createPaper(null, store, ActivationStatus.ACTIVE).getId();
+        Long otherStoreManualId = createPaper(null, createStore(null), ActivationStatus.ACTIVE).getId();
 
         backofficeMemberService.forceWithdrawMember(member.getId());
         entityManager.flush();
@@ -154,7 +155,8 @@ class BackofficeMemberServiceTest {
         assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(inactiveId).getStatusBeforePartnerWithdrawal()).isNull();
-        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(otherStoreManualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
 
         backofficeMemberService.restoreMember(member.getId());
         entityManager.flush();
@@ -165,6 +167,7 @@ class BackofficeMemberServiceTest {
         assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
         assertThat(findPaper(activeId).getStatusBeforePartnerWithdrawal()).isNull();
         assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(otherStoreManualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
     }
 
     @Test
@@ -236,7 +239,13 @@ class BackofficeMemberServiceTest {
                 .build());
         member.setPartnerProfile(partner);
 
-        storeRepository.save(Store.builder()
+        createStore(partner);
+
+        return memberRepository.save(member);
+    }
+
+    private Store createStore(Partner partner) {
+        return storeRepository.save(Store.builder()
                 .partner(partner)
                 .rate(0)
                 .isActivate(ActivationStatus.SUSPEND)
@@ -246,7 +255,5 @@ class BackofficeMemberServiceTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-
-        return memberRepository.save(member);
     }
 }
