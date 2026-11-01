@@ -75,6 +75,7 @@ public enum ErrorStatus implements BaseErrorCode {
     SIGN_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4015", "인감 이미지 파일이 없습니다."),
     MEMBER_APPROVAL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "MEMBER_4016", "승인/거절 대상이 아닌 회원 역할입니다."),
     MEMBER_PENDING_APPROVAL(HttpStatus.FORBIDDEN, "MEMBER_4017", "가입 승인 대기 중입니다. 백오피스 승인 후 로그인할 수 있습니다."),
+    RESTORE_PHONE_MISMATCH(HttpStatus.FORBIDDEN, "MEMBER_4018", "탈퇴 계정에 등록된 전화번호로 인증해야 복구할 수 있습니다."),
 
     // 제휴 에러
     NO_SUCH_PAPER(HttpStatus.NOT_FOUND, "PAPER_9001", "제휴를 찾을 수 없습니다."),

@@ -465,6 +465,7 @@ class SignUpServiceImplTest {
 
 		Partner partner = mock(Partner.class);
 		when(partner.getName()).thenReturn("숭실카페");
+		when(partner.getPhoneNum()).thenReturn(PHONE);
 		Member member = stubWithdrawnCommonAccount(UserRole.PARTNER);
 		when(member.getPartnerProfile()).thenReturn(partner);
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
@@ -491,6 +492,33 @@ class SignUpServiceImplTest {
 
 		assertEquals(1L, response.memberId());
 		assertEquals(ActivationStatus.ACTIVE, response.status());
+	}
+
+	@Test
+	@DisplayName("탈퇴 파트너 재가입 시 인증 번호가 기존 번호와 다르면 복구하지 않는다")
+	void signupPartner_WithdrawnPartnerWithDifferentPhone_ThrowsRestorePhoneMismatch() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn("01099999999");
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(member.isWithdrawn()).thenReturn(true);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		stubCommonAuthLookup(member);
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> signUpService.signupPartner(request, licenseImage));
+
+		// 3. Then
+		assertEquals(ErrorStatus.RESTORE_PHONE_MISMATCH, exception.getCode());
+		verify(withdrawalService, never()).restoreMember(any());
+		verify(commonAuth, never()).updatePassword(anyString());
 	}
 
 	@Test

@@ -262,6 +262,13 @@ public class SignUpServiceImpl implements SignUpService {
         return member;
     }
 
+    // 이메일만으로는 소유를 증명할 수 없으므로, SMS 인증한 번호가 기존 번호와 같아야 복구한다
+    private void assertRegisteredPhone(String registeredPhone, String verifiedPhone) {
+        if (!verifiedPhone.equals(registeredPhone)) {
+            throw new CustomAuthException(ErrorStatus.RESTORE_PHONE_MISMATCH);
+        }
+    }
+
     private SignUpResponseDTO restoreWithdrawnPartner(
             Member member,
             PartnerSignUpRequestDTO req,
@@ -275,6 +282,7 @@ public class SignUpServiceImpl implements SignUpService {
         if (partner == null) {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
+        assertRegisteredPhone(partner.getPhoneNum(), req.phoneNumber());
 
         // isActivated는 유지한다 — 승인받았던 업체는 재승인 없이 바로 로그인 가능
         withdrawalService.restoreMember(member);
@@ -439,6 +447,7 @@ public class SignUpServiceImpl implements SignUpService {
         if (admin == null) {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
+        assertRegisteredPhone(admin.getPhoneNum(), req.phoneNumber());
 
         CommonInfoPayloadDTO info = req.commonInfo();
         var sp = Optional.ofNullable(info.selectedPlace())
