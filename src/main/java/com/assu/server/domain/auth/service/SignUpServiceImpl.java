@@ -312,12 +312,18 @@ public class SignUpServiceImpl implements SignUpService {
 
     private void linkStore(Partner partner, String name, String address, String detailAddress,
                            Double lat, Double lng, Point point) {
-        Optional<Store> storeOpt = storeRepository.findBySameAddress(address, detailAddress);
+        Optional<Store> sameAddressStore = storeRepository.findBySameAddress(address, detailAddress);
+        if (sameAddressStore.isPresent() && isLinkedToOtherPartner(sameAddressStore.get(), partner)) {
+            throw new CustomAuthException(ErrorStatus.STORE_ALREADY_LINKED);
+        }
+
+        // 재가입 복구 업체는 이미 가게가 있으므로 새로 만들지 않고 그 가게를 옮긴다
+        Optional<Store> storeOpt = storeRepository.findByPartner(partner).or(() -> sameAddressStore);
         if (storeOpt.isPresent()) {
             Store store = storeOpt.get();
             store.linkPartner(partner);
             store.setName(name);
-            store.setGeo(lat, lng, point);
+            store.relocate(address, detailAddress, lat, lng, point);
             storeRepository.save(store);
         } else {
             Store newly = Store.builder()
@@ -333,6 +339,10 @@ public class SignUpServiceImpl implements SignUpService {
                     .build();
             storeRepository.save(newly);
         }
+    }
+
+    private boolean isLinkedToOtherPartner(Store store, Partner partner) {
+        return store.getPartner() != null && !store.getPartner().getId().equals(partner.getId());
     }
 
     @Override

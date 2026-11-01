@@ -59,6 +59,7 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_STUDENT(HttpStatus.NOT_FOUND,"MEMBER_4004","존재하지 않는 student ID 입니다."),
     NO_SUCH_STORE(HttpStatus.NOT_FOUND, "STORE_4006", "존재하지 않는 스토어 ID입니다."),
     PARTNER_STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "STORE_4007", "파트너에 연결된 스토어가 없습니다."),
+    STORE_ALREADY_LINKED(HttpStatus.CONFLICT, "STORE_4008", "이미 다른 제휴업체에 연결된 가게 주소입니다."),
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
