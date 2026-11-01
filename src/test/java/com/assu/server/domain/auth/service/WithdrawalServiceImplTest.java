@@ -23,6 +23,7 @@ import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.deviceToken.repository.DeviceTokenRepository;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 
@@ -45,6 +46,9 @@ class WithdrawalServiceImplTest {
 
 	@Mock
 	private JwtUtil jwtUtil;
+
+	@Mock
+	private PhoneAuthService phoneAuthService;
 
 	private static final String AUTHORIZATION = "Bearer access-token";
 	private static final String RAW_TOKEN = "access-token";
@@ -200,6 +204,28 @@ class WithdrawalServiceImplTest {
 		verify(member, times(1)).restore();
 		verify(memberRepository, times(1)).save(member);
 		verify(paperRepository, times(1)).restoreByPartnerRestoration(MEMBER_ID);
+	}
+
+	@Test
+	@DisplayName("탈퇴 기간 중 다른 회원이 같은 번호로 가입했다면 복구하지 않는다")
+	void restoreMember_PhoneTakenByActiveMember_ThrowsExistedPhone() {
+		// 1. Given
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn("01012345678");
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		doThrow(new CustomAuthException(ErrorStatus.EXISTED_PHONE))
+			.when(phoneAuthService).assertPhoneNotInUse("01012345678");
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> withdrawalService.restoreMember(member));
+
+		// 3. Then
+		assertEquals(ErrorStatus.EXISTED_PHONE, exception.getCode());
+		verify(member, never()).restore();
+		verify(paperRepository, never()).restoreByPartnerRestoration(anyLong());
 	}
 
 	@Test

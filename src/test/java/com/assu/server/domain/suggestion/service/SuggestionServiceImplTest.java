@@ -59,7 +59,7 @@ class SuggestionServiceImplTest {
 		// 1. Given
 		WriteSuggestionRequestDTO request =
 			new WriteSuggestionRequestDTO(ADMIN_ID, "스타벅스 숭실대점", "아메리카노 10% 할인");
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.empty());
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.empty());
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
@@ -79,7 +79,7 @@ class SuggestionServiceImplTest {
 
 		Admin admin = Admin.builder().id(ADMIN_ID).name("총학생회").isPhoneVerified(false).build();
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).build();
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When

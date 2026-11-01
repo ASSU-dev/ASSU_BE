@@ -60,5 +60,10 @@ public class Store extends BaseEntity {
 		this.longitude = lng;
 		this.point = point;
 	}
+	public void relocate(String address, String detailAddress, Double lat, Double lng, Point point) {
+		this.address = address;
+		this.detailAddress = detailAddress;
+		setGeo(lat, lng, point);
+	}
 
 }

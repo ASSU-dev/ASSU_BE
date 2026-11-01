@@ -237,6 +237,12 @@ public class JwtUtil {
         return AUD_BACKOFFICE.equals(resolveAudience(claims));
     }
 
+    private void assertNotWithdrawn(Member member) {
+        if (member.isWithdrawn()) {
+            throw new CustomAuthException(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED);
+        }
+    }
+
     private Authentication buildAuthentication(Claims claims) {
         Long memberId = ((Number) claims.get("userId")).longValue();
         String roleName = (String) claims.get("role");
@@ -245,6 +251,7 @@ public class JwtUtil {
         // DB 조회
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+        assertNotWithdrawn(member);
 
         // PrincipalDetails 빌드
         PrincipalDetails principal = PrincipalDetails.builder()
@@ -384,6 +391,10 @@ public class JwtUtil {
         if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
             throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
         }
+
+        // 탈퇴와 동시에 로그인해 남은 RT로 탈퇴 회원이 토큰을 계속 갱신하지 못하게 한다
+        assertNotWithdrawn(memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER)));
 
         // 4) 기존 RT 삭제 후 새 토큰 발급
         redisTemplate.delete(refreshKey);

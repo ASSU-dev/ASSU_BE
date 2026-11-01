@@ -14,9 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @Slf4j
@@ -71,10 +73,11 @@ public class ChatController {
                     "- message (String, required): 메시지\n"
     )
     @MessageMapping("/send")
-    public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
+    public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request, Principal principal) {
         log.info("[STOMP SEND] roomId={}, senderId={}, receiverId={}", request.roomId(), request.senderId(), request.receiverId());
+        Long authenticatedMemberId = ((PrincipalDetails) ((Authentication) principal).getPrincipal()).getId();
         // 1. 서비스 호출
-        MessageHandlingResult result = chatService.handleMessage(request);
+        MessageHandlingResult result = chatService.handleMessage(request, authenticatedMemberId);
         // 2. [항상 전송] 채팅방 메시지 전송
         chattingRedisPublisher.publishChatMessage(request.roomId(), result.sendMessageResponseDTO());
         // 3. [조건부 전송] 채팅방 목록 업데이트 전송
