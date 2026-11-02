@@ -249,7 +249,7 @@ public class JwtUtil {
         String authRealmName = (String) claims.get("authRealm");
 
         // DB 조회
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findWithProfilesById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
         assertNotWithdrawn(member);
 
@@ -280,7 +280,7 @@ public class JwtUtil {
         Claims claims = validateTokenOnlySignature(expiredAccessToken);
 
         Long userId = ((Number) claims.get("userId")).longValue();
-        Member member = memberRepository.findById(userId)
+        Member member = memberRepository.findWithProfilesById(userId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_MEMBER));
 
         UserRole role = UserRole.valueOf((String) claims.get("role"));
