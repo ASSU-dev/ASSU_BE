@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "shedlock")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SchedulerLock {
+public class ShedLockTable {
 
     @Id
     @Column(name = "name", length = 64)
