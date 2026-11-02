@@ -17,7 +17,7 @@ spring:
 jwt:
   header: Authorization
   prefix: Bearer
-  secret: S3csfifR3TrgwiKeyM2023WClokeyAppWIFNEGIBKWMGJ
+  secret: test-only-jwt-secret-not-used-in-any-environment-000000
   access-valid-seconds: 3600
   backoffice-access-valid-seconds: 1800
   refresh-valid-seconds: 1209600
