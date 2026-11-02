@@ -56,6 +56,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
@@ -75,6 +76,7 @@ public class StudentServiceImpl implements StudentService {
 	private final HomeCurationItemRepository homeCurationItemRepository;
 	private final StoreRepository storeRepository;
 	private final AmazonS3Manager amazonS3Manager;
+	private final TransactionTemplate transactionTemplate;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -323,17 +325,19 @@ public class StudentServiceImpl implements StudentService {
 				.build();
 	}
 
-	/**
-	 * 전체 학생에 대해 일괄로 user_paper 채워 넣는 메서드
-	 * (스케줄러에서 이거만 호출하면 됨)
-	 */
-	@Transactional
 	@Override
 	public void syncUserPapersForAllStudents() {
-		List<Student> students = studentRepository.findAll();
-		for (Student s : students) {
-			syncUserPapersForStudent(s.getId());
+		List<Long> studentIds = studentRepository.findAll().stream().map(Student::getId).toList();
+		int failCount = 0;
+		for (Long studentId : studentIds) {
+			try {
+				transactionTemplate.executeWithoutResult(status -> syncUserPapersForStudent(studentId));
+			} catch (Exception e) {
+				failCount++;
+				log.error("[UserPaper] 동기화 실패 studentId={}", studentId, e);
+			}
 		}
+		log.info("[UserPaper] 전체 동기화 완료 total={} failed={}", studentIds.size(), failCount);
 	}
 
 	@Override
