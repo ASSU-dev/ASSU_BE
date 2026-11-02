@@ -17,6 +17,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
     @Query("""
         SELECT up FROM UserPaper up
         JOIN FETCH up.paper p
+        JOIN FETCH up.paperContent pc
         LEFT JOIN FETCH p.store s
         LEFT JOIN FETCH p.admin a
         LEFT JOIN FETCH p.partner pt
