@@ -2,6 +2,8 @@ package com.assu.server.domain.map.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -93,7 +95,7 @@ class MapServiceImplTest {
 
 		// 3. Then
 		assertTrue(result.isEmpty());
-		verify(userPaperRepository, never()).findActivePartnershipsByStudentId(any(), any(), any());
+		verify(userPaperRepository, never()).findActivePartnershipsByStudentIdAndStoreIds(any(), any(), any(), anyCollection());
 	}
 
 	@Test
@@ -101,7 +103,7 @@ class MapServiceImplTest {
 	void getStores_NoActivePartnership_ReturnsEmptyList() {
 		// 1. Given
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store(500L, "숭실카페")));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of());
+		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(null), anyCollection())).thenReturn(List.of());
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
@@ -123,7 +125,7 @@ class MapServiceImplTest {
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1, store2));
 		// DB가 adminId=10으로 필터링해서 paperA만 반환
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, 10L))
+		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(10L), anyCollection()))
 			.thenReturn(List.of(userPaper(paperA)));
 
 		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A학생회 혜택").build();
@@ -136,7 +138,7 @@ class MapServiceImplTest {
 		assertEquals(1, result.size());
 		assertEquals(1L, result.get(0).storeId());
 		assertEquals("A학생회", result.get(0).partnerships().get(0).adminName());
-		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, null, 10L);
+		verify(userPaperRepository).findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(10L), anyCollection());
 	}
 
 	@Test
@@ -150,7 +152,7 @@ class MapServiceImplTest {
 		Paper paperB = Paper.builder().id(200L).store(store1).admin(adminB).build();
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store1));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
+		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(null), anyCollection()))
 			.thenReturn(List.of(userPaper(paperA), userPaper(paperB)));
 
 		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A혜택").build();
@@ -178,7 +180,7 @@ class MapServiceImplTest {
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString()))
 				.thenReturn(List.of(cafeStore, restaurantStore));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.CAFE, null))
+		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(StoreCategory.CAFE), eq(null), anyCollection()))
 				.thenReturn(List.of(userPaper(cafeP)));
 		PaperContent content = PaperContent.builder().id(1000L).paper(cafeP).note("아메리카노 할인").build();
 		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(content));
@@ -190,7 +192,7 @@ class MapServiceImplTest {
 		assertEquals(1, result.size());
 		assertEquals(1L, result.get(0).storeId());
 		assertEquals(StoreCategory.CAFE, result.get(0).storeCategory());
-		verify(userPaperRepository).findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.CAFE, null);
+		verify(userPaperRepository).findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(StoreCategory.CAFE), eq(null), anyCollection());
 		result.forEach(r -> System.out.println("[storeCategory 필터] " + r));
 	}
 
@@ -203,7 +205,7 @@ class MapServiceImplTest {
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
 
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
+		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(null), anyCollection()))
 				.thenReturn(List.of(userPaper(paper)));
 		when(paperContentRepository.findByPaperIdIn(anyList()))
 				.thenReturn(List.of(PaperContent.builder().id(1000L).paper(paper).note("혜택").build()));

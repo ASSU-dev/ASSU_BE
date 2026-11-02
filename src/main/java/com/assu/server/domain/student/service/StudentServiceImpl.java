@@ -161,6 +161,7 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId) {
 		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
 
@@ -174,7 +175,9 @@ public class StudentServiceImpl implements StudentService {
 						(a, b) -> a,
 						LinkedHashMap::new
 				))
-				.values().stream().toList();
+				.values().stream()
+				.limit(Boolean.FALSE.equals(all) ? 2 : Long.MAX_VALUE)
+				.toList();
 
 		List<Long> contentIds = representatives.stream()
 				.map(up -> up.getPaperContent().getId())
@@ -182,7 +185,7 @@ public class StudentServiceImpl implements StudentService {
 		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
 				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
 
-		List<StudentResponseDTO.UsablePartnershipDTO> result = representatives.stream().map(up -> {
+		return representatives.stream().map(up -> {
 			Paper paper = up.getPaper();
 			PaperContent content = up.getPaperContent();
 			Store store = paper.getStore();
@@ -213,8 +216,6 @@ public class StudentServiceImpl implements StudentService {
 					.partnerProfileUrl(getStoreProfileImageUrl(store))
 					.build();
 		}).toList();
-
-		return Boolean.FALSE.equals(all) ? result.stream().limit(2).toList() : result;
 	}
 
 	@Override
