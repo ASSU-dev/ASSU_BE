@@ -5,6 +5,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.redis.connection.StringRedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,8 +31,8 @@ import java.util.concurrent.TimeUnit;
 public class PresenceTracker {
 
     private static final String KEY_PREFIX = "chat:presence:";
-    private static final Duration ENTRY_TTL = Duration.ofSeconds(90);
-    private static final Duration KEY_TTL = Duration.ofSeconds(120);
+    private static final Duration ENTRY_TTL = Duration.ofSeconds(30);
+    private static final Duration KEY_TTL = Duration.ofSeconds(60);
     private static final long REDIS_READ_TIMEOUT_MS = 300;
 
     private record Subscription(Long memberId, Long roomId) {}
@@ -70,8 +72,11 @@ public class PresenceTracker {
 
         String subKey = acc.getSessionId() + ":" + acc.getSubscriptionId();
         Subscription sub = new Subscription(memberId, roomId);
-        subscriptions.put(subKey, sub);
-        runOnRedis(() -> addToRedis(subKey, sub));
+        Subscription previous = subscriptions.put(subKey, sub);
+        runOnRedis(() -> {
+            if (previous != null && !previous.equals(sub)) removeFromRedis(subKey, previous);
+            addToRedis(subKey, sub);
+        });
 
         log.debug("SUB: member {} -> room {}", memberId, roomId);
     }
@@ -108,11 +113,28 @@ public class PresenceTracker {
         return isInRoomOnOtherInstance(target);
     }
 
-    @Scheduled(fixedDelay = 30_000)
+    @Scheduled(fixedDelay = 10_000)
     public void refreshRedisEntries() {
+        if (subscriptions.isEmpty()) return;
+        // 대상 목록을 Redis 스레드 안에서 만들어야 그 사이 나간 구독을 다시 등록하지 않는다.
+        runOnRedis(this::refreshAllInPipeline);
+    }
+
+    private void refreshAllInPipeline() {
         Map<String, Subscription> snapshot = Map.copyOf(subscriptions);
         if (snapshot.isEmpty()) return;
-        runOnRedis(() -> snapshot.forEach(this::addToRedis));
+        long now = System.currentTimeMillis();
+        double score = now + ENTRY_TTL.toMillis();
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            StringRedisConnection redis = (StringRedisConnection) connection;
+            snapshot.forEach((subKey, sub) -> {
+                String key = redisKey(sub);
+                redis.zAdd(key, score, redisMember(subKey));
+                redis.zRemRangeByScore(key, Double.NEGATIVE_INFINITY, now);
+                redis.expire(key, KEY_TTL.toSeconds());
+            });
+            return null;
+        });
     }
 
     @PreDestroy
