@@ -56,7 +56,7 @@ public class CommonMockConfig {
         Mockito.when(stringRedisTemplate.getConnectionFactory()).thenReturn(redisConnectionFactory);
 
         JwtUtil jwtUtil = new JwtUtil(memberRepository, stringRedisTemplate, meterRegistry);
-        ReflectionTestUtils.setField(jwtUtil, "secretKey", "S3csfifR3TrgwiKeyM2023WClokeyAppWIFNEGIBKWMGJ");
+        ReflectionTestUtils.setField(jwtUtil, "secretKey", "test-only-jwt-secret-not-used-in-any-environment-000000");
         ReflectionTestUtils.setField(jwtUtil, "accessValidSeconds", 3600);
         ReflectionTestUtils.setField(jwtUtil, "backofficeAccessValidSeconds", 1800);
         ReflectionTestUtils.setField(jwtUtil, "refreshValidSeconds", 1209600);
