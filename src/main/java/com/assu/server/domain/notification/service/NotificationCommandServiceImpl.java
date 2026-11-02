@@ -37,11 +37,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         notificationRepository.save(notification);
 
         // Outbox 생성
-        NotificationOutbox outbox = NotificationOutbox.builder()
-                .notification(notification)
-                .status(NotificationOutbox.Status.PENDING)
-                .retryCount(0)
-                .build();
+        NotificationOutbox outbox = NotificationOutbox.pending(notification);
         outboxRepository.save(outbox);
 
         // 이벤트 발행

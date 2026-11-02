@@ -1,6 +1,5 @@
 package com.assu.server.domain.notification.service;
 
-import com.assu.server.domain.notification.event.NotificationFailedEvent;
 import com.assu.server.infra.firebase.ConditionalOnFirebaseEnabled;
 import com.assu.server.infra.firebase.FcmClient;
 import com.assu.server.infra.messaging.AmqpConfig;
@@ -13,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
@@ -28,7 +26,6 @@ public class NotificationListener {
 
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
-    private final ApplicationEventPublisher eventPublisher;
     private final MeterRegistry meterRegistry;
 
     @RabbitListener(queues = AmqpConfig.QUEUE, ackMode = "MANUAL")
@@ -39,7 +36,7 @@ public class NotificationListener {
         final Long outboxId = safeParseLong(notificationMessageDTO.idempotencyKey());
 
         try {
-            if (isDuplicateMessage(outboxId)) {
+            if (!claimForSending(outboxId)) {
                 ch.basicAck(tag, false);
                 return;
             }
@@ -53,11 +50,15 @@ public class NotificationListener {
         }
     }
 
-    private boolean isDuplicateMessage(Long outboxId) {
-        if (outboxId != null && outboxStatus.isAlreadySent(outboxId)) {
-            log.debug("[Notify] already-sent outboxId={}, ACK", outboxId);
+    private boolean claimForSending(Long outboxId) {
+        if (outboxId == null) return true;
+        try {
+            if (outboxStatus.claimForSending(outboxId)) return true;
+        } catch (Exception e) {
+            log.error("[Notify] claim error, sending anyway outboxId={}", outboxId, e);
             return true;
         }
+        log.info("[Notify] already sending or sent outboxId={}, ACK", outboxId);
         return false;
     }
 
@@ -81,12 +82,10 @@ public class NotificationListener {
     private void handleException(Exception e, Long outboxId, Long memberId) {
         meterRegistry.counter("notification.fcm.send", "result", "exception").increment();
         if (outboxId != null) {
-            outboxStatus.markFailed(outboxId);
-            
-            // 일시적 실패인 경우에만 재시도 이벤트 발행
             if (isRetryable(e)) {
-                eventPublisher.publishEvent(new NotificationFailedEvent(outboxId, 0));
-                log.info("[Notify] Scheduled retry for outboxId={}", outboxId);
+                outboxStatus.scheduleRetry(outboxId);
+            } else {
+                outboxStatus.markFailed(outboxId);
             }
         }
 

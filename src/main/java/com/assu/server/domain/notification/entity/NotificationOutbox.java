@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.AbstractAggregateRoot;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -27,7 +29,7 @@ public class NotificationOutbox {
     @JoinColumn(name="notification_id", nullable=false, unique=true)
     private Notification notification;
 
-    // 알림 전송 상태 (PENDING → SENDING → DISPATCHED → SENT/FAILED)
+    // 알림 전송 상태 (PENDING → DISPATCHED → SENDING → SENT/FAILED). 재시도 대기는 PENDING + nextAttemptAt
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable=false)
@@ -37,8 +39,17 @@ public class NotificationOutbox {
     @Column(nullable=false)
     private int retryCount;
 
-    public void incrementRetryCount() {
-        this.retryCount++;
+    private LocalDateTime nextAttemptAt;
+
+    public static final Duration PUBLISH_GRACE = Duration.ofMinutes(1);
+
+    public static NotificationOutbox pending(Notification notification) {
+        return NotificationOutbox.builder()
+                .notification(notification)
+                .status(Status.PENDING)
+                .retryCount(0)
+                .nextAttemptAt(LocalDateTime.now().plus(PUBLISH_GRACE))
+                .build();
     }
 
     public enum Status { PENDING, SENDING, DISPATCHED, SENT, FAILED }
