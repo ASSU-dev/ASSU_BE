@@ -43,6 +43,7 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import org.springframework.transaction.support.TransactionTemplate;
+import jakarta.persistence.EntityManager;
 
 import java.util.function.Consumer;
 
@@ -84,6 +85,9 @@ class StudentServiceImplTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private EntityManager entityManager;
 
 	private static final Long STUDENT_ID = 1L;
 
@@ -482,5 +486,6 @@ class StudentServiceImplTest {
 		// then
 		verify(transactionTemplate, times(2)).executeWithoutResult(any());
 		verify(adminRepository).findMatchingAdmins(next.getUniversity(), next.getDepartment(), next.getMajor());
+		verify(entityManager, times(2)).clear();
 	}
 }
