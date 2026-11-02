@@ -106,7 +106,7 @@ class JwtUtilTest {
 		// 1. Given
 		String accessToken = buildAccessToken(UUID.randomUUID().toString());
 		Member member = withdrawnMember();
-		when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+		when(memberRepository.findWithProfilesById(1L)).thenReturn(Optional.of(member));
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
