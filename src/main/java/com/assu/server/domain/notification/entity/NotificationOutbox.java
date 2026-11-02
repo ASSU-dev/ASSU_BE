@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Table(indexes = @Index(name = "idx_outbox_status_next_attempt", columnList = "status, next_attempt_at"))
 @Getter
 @Builder
 @NoArgsConstructor

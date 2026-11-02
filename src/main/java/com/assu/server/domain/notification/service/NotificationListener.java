@@ -68,7 +68,14 @@ public class NotificationListener {
         FcmClient.FcmResult result = fcmClient.sendToMemberId(
                 dto.receiverId(), dto.title(), dto.body(), dto.data());
 
-        if (outboxId != null) outboxStatus.markSent(outboxId);
+        if (outboxId != null) {
+            if (result.shouldRetry()) {
+                log.warn("[Notify] all tokens failed with retryable errors, retry outboxId={} memberId={}", outboxId, dto.receiverId());
+                outboxStatus.scheduleRetry(outboxId);
+            } else {
+                outboxStatus.markSent(outboxId);
+            }
+        }
 
         meterRegistry.counter("notification.fcm.send", "result", "success").increment(result.successCount());
         if (result.failureCount() > 0) {
