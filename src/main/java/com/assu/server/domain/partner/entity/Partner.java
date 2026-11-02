@@ -22,7 +22,7 @@ public class Partner {
     @Id
     private Long id;  // member_id와 동일
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @MapsId
     @JoinColumn(name = "id")
     private Member member;

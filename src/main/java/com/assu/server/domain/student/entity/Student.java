@@ -20,7 +20,7 @@ public class Student {
     private Long id;
 
     @Setter
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id") // member_id와 공유
     @MapsId
     private Member member;
