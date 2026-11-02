@@ -21,7 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -73,7 +73,7 @@ class ChatServiceImplTest {
 	private StoreRepository storeRepository;
 
 	@Mock
-	private SimpMessagingTemplate simpMessagingTemplate;
+	private WebSocketBroadcaster webSocketBroadcaster;
 
 	@Mock
 	private NotificationCommandService notificationCommandService;
@@ -400,7 +400,7 @@ class ChatServiceImplTest {
 		// 3. Then
 		assertTrue(response.readMessagesId().isEmpty());
 		assertEquals(0, response.readCount());
-		verify(simpMessagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+		verify(webSocketBroadcaster, never()).send(anyString(), any(Object.class));
 	}
 
 	@Test
@@ -424,7 +424,7 @@ class ChatServiceImplTest {
 		assertEquals(0, message1.getUnreadCount());
 		assertTrue(message2.isRead());
 
-		verify(simpMessagingTemplate).convertAndSend(
+		verify(webSocketBroadcaster).send(
 			eq("/sub/chat/" + ROOM_ID),
 			argThat((ChatResponseDTO.ReadMessageResponseDTO receipt) ->
 				receipt.readMessagesId().equals(List.of(100L, 101L)) && receipt.readerId().equals(ADMIN_ID))

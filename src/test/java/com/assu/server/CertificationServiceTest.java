@@ -16,7 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.service.AdminService;
@@ -54,7 +54,7 @@ class CertificationServiceImplTest {
 	private AdminService adminService;
 
 	@Mock
-	private SimpMessagingTemplate messagingTemplate;
+	private WebSocketBroadcaster webSocketBroadcaster;
 
 	@Test
 	@DisplayName("마지막 인원이 인증을 완료하면 DB 저장 및 완료 메시지가 전송된다")
@@ -108,7 +108,7 @@ class CertificationServiceImplTest {
 		verify(sessionManager, times(1)).removeSession(sessionId);
 
 		// - 메시지 전송 확인 (DTO 필드명 type과 status 혼동 주의, 현재 DTO상 type이 'completed'여야 함)
-		verify(messagingTemplate).convertAndSend(
+		verify(webSocketBroadcaster).send(
 			eq("/certification/progress/" + sessionId),
 			argThat((CertificationProgressResponseDTO resp) -> "completed".equals(resp.type()))
 		);
@@ -147,7 +147,7 @@ class CertificationServiceImplTest {
 		// 3. Then (구독 경로 및 데이터 검증)
 		// - 첫 번째 인자: 구독 경로가 "/certification/progress/100"인지 확인
 		// - 두 번째 인자: 전달된 DTO의 내용이 'progress'이고 인원수가 2명인지 확인
-		verify(messagingTemplate).convertAndSend(
+		verify(webSocketBroadcaster).send(
 			eq("/certification/progress/" + sessionId),
 			argThat((CertificationProgressResponseDTO resp) -> {
 				return resp.type().equals("progress") &&
