@@ -20,7 +20,9 @@ public record CertificationGroupRequestDTO(
 	Long adminId,
 	@Schema(description = "00~99 사이의 tableNumber를 입력해주세요")
 	@NotNull(message = "00~99 사이의 tableNumber를 입력해주세요")
-	Integer tableNumber
+	Integer tableNumber,
+	@Schema(description = "인증하려는 제휴 내용(contentId). 미전달 시 세션 조회에서 혜택 정보가 비어 내려갑니다.", example = "3")
+	Long contentId
 ) {
 	public AssociateCertification toAssociateCertification(Store store, Member member) {
 		return AssociateCertification.builder()
