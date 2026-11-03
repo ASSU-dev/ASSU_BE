@@ -24,8 +24,11 @@ import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.infra.discord.DiscordNotifier;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
     private final SuggestionRepository suggestionRepository;
     private final ReportRepository reportRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DiscordNotifier discordNotifier;
 
     @Override
     @Transactional(readOnly = true)
@@ -68,6 +72,13 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
 
         reportRepository.save(report);
 
+        String statusLabel = switch (nextStatus) {
+            case PENDING -> "대기";
+            case PROCESSED -> "처리 완료";
+            case REJECTED -> "기각";
+        };
+        runAfterCommit(() -> discordNotifier.send("📋 신고 상태가 변경되었습니다: " + statusLabel));
+
         return BackofficeReportResponseDTO.from(report);
     }
 
@@ -81,6 +92,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         }
 
         processRelatedReports(ReportTargetType.REVIEW, reviewId);
+        runAfterCommit(() -> discordNotifier.send("🗑️ 신고된 콘텐츠가 삭제 처리되었습니다."));
 
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(reviewId);
     }
@@ -95,6 +107,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         }
 
         processRelatedReports(ReportTargetType.SUGGESTION, suggestionId);
+        runAfterCommit(() -> discordNotifier.send("🗑️ 신고된 콘텐츠가 삭제 처리되었습니다."));
 
         return BackofficeReportDTO.SoftDeleteResponseDTO.of(suggestionId);
     }
@@ -111,6 +124,7 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         report.updateStatus(ReportStatus.REJECTED);
         eventPublisher.publishEvent(new ReportProcessedEvent(
                 report.getId(), report.getTargetType(), report.getTargetId(), ReportStatus.REJECTED));
+        runAfterCommit(() -> discordNotifier.send("✅ 신고가 기각되었습니다."));
 
         return BackofficeReportDTO.RejectReportResponseDTO.of(reportId);
     }
@@ -131,6 +145,19 @@ public class BackofficeReportServiceImpl implements BackofficeReportService {
         return BackofficeReportDTO.ReportListItemDTO.fromList(
                 reportRepository.findAllByStatusIn(statuses)
         );
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 
     private void processRelatedReports(ReportTargetType targetType, Long targetId) {

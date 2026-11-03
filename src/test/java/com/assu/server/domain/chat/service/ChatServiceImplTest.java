@@ -21,7 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -73,7 +73,7 @@ class ChatServiceImplTest {
 	private StoreRepository storeRepository;
 
 	@Mock
-	private SimpMessagingTemplate simpMessagingTemplate;
+	private WebSocketBroadcaster webSocketBroadcaster;
 
 	@Mock
 	private NotificationCommandService notificationCommandService;
@@ -111,7 +111,7 @@ class ChatServiceImplTest {
 		// 1. Given
 		ChatRequestDTO.CreateChatRoomRequestDTO request =
 			new ChatRequestDTO.CreateChatRoomRequestDTO(ADMIN_ID, PARTNER_ID);
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.empty());
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.empty());
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
@@ -134,8 +134,8 @@ class ChatServiceImplTest {
 		Partner otherPartner = givenPartner(99L);
 		Store store = Store.builder().id(500L).partner(otherPartner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 
 		// 2. When
@@ -160,8 +160,8 @@ class ChatServiceImplTest {
 		ChattingRoom existingRoom = ChattingRoom.builder()
 			.id(ROOM_ID).admin(admin).partner(partner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(existingRoom);
 
@@ -185,8 +185,8 @@ class ChatServiceImplTest {
 		Partner partner = givenPartner(PARTNER_ID);
 		Store store = Store.builder().id(500L).partner(partner).build();
 
-		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
-		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
 		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(null);
 
@@ -220,6 +220,51 @@ class ChatServiceImplTest {
 		return member;
 	}
 
+	private ChattingRoom participantRoom() {
+		return ChattingRoom.builder()
+			.id(ROOM_ID)
+			.admin(Admin.builder().id(ADMIN_ID).build())
+			.partner(Partner.builder().id(PARTNER_ID).build())
+			.build();
+	}
+
+	@Test
+	@DisplayName("인증된 회원과 다른 senderId로 메시지를 보내면 NO_MEMBER_IN_THE_ROOM 예외가 발생한다")
+	void handleMessage_SenderNotAuthenticatedMember_ThrowsException() {
+		// 1. Given
+		ChatRequestDTO.ChatMessageRequestDTO request =
+			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
+		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(participantRoom()));
+
+		// 2. When
+		DatabaseException exception = assertThrows(DatabaseException.class,
+			() -> chatService.handleMessage(request, 999L));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NO_MEMBER_IN_THE_ROOM, exception.getCode());
+		verify(messageRepository, never()).saveAndFlush(any());
+	}
+
+	@Test
+	@DisplayName("탈퇴한 회원에게 메시지를 보내면 NO_SUCH_MEMBER 예외가 발생한다")
+	void handleMessage_WithdrawnReceiver_ThrowsException() {
+		// 1. Given
+		ChatRequestDTO.ChatMessageRequestDTO request =
+			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
+		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(participantRoom()));
+		givenMember(PARTNER_ID);
+		Member receiver = givenMember(ADMIN_ID);
+		when(receiver.isWithdrawn()).thenReturn(true);
+
+		// 2. When
+		DatabaseException exception = assertThrows(DatabaseException.class,
+			() -> chatService.handleMessage(request, PARTNER_ID));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NO_SUCH_MEMBER, exception.getCode());
+		verify(messageRepository, never()).saveAndFlush(any());
+	}
+
 	@Test
 	@DisplayName("존재하지 않는 채팅방으로 메시지를 보내면 NO_SUCH_ROOM 예외가 발생한다")
 	void handleMessage_RoomNotFound_ThrowsException() {
@@ -230,7 +275,7 @@ class ChatServiceImplTest {
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
-			() -> chatService.handleMessage(request));
+			() -> chatService.handleMessage(request, PARTNER_ID));
 
 		// 3. Then
 		assertEquals(ErrorStatus.NO_SUCH_ROOM, exception.getCode());
@@ -244,7 +289,7 @@ class ChatServiceImplTest {
 		ChatRequestDTO.ChatMessageRequestDTO request =
 			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
 
-		ChattingRoom room = ChattingRoom.builder().id(ROOM_ID).build();
+		ChattingRoom room = participantRoom();
 		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
 		Member sender = givenMember(PARTNER_ID);
 		Member receiver = givenMember(ADMIN_ID);
@@ -257,7 +302,7 @@ class ChatServiceImplTest {
 		when(messageRepository.saveAndFlush(any(Message.class))).thenReturn(saved);
 
 		// 2. When
-		MessageHandlingResult result = chatService.handleMessage(request);
+		MessageHandlingResult result = chatService.handleMessage(request, PARTNER_ID);
 
 		// 3. Then
 		assertFalse(result.hasRoomUpdates());
@@ -279,7 +324,7 @@ class ChatServiceImplTest {
 		ChatRequestDTO.ChatMessageRequestDTO request =
 			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
 
-		ChattingRoom room = ChattingRoom.builder().id(ROOM_ID).build();
+		ChattingRoom room = participantRoom();
 		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
 		Member sender = givenMember(PARTNER_ID);
 		Member receiver = givenMember(ADMIN_ID);
@@ -294,7 +339,7 @@ class ChatServiceImplTest {
 		TransactionSynchronizationManager.initSynchronization();
 		try {
 			// 2. When
-			chatService.handleMessage(request);
+			chatService.handleMessage(request, PARTNER_ID);
 
 			// 3. Then
 			assertEquals(0.0, meterRegistry.counter("chat.message.sent").count());
@@ -312,7 +357,7 @@ class ChatServiceImplTest {
 		ChatRequestDTO.ChatMessageRequestDTO request =
 			new ChatRequestDTO.ChatMessageRequestDTO(ROOM_ID, PARTNER_ID, ADMIN_ID, "안녕하세요");
 
-		ChattingRoom room = ChattingRoom.builder().id(ROOM_ID).build();
+		ChattingRoom room = participantRoom();
 		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
 
 		Member sender = givenMember(PARTNER_ID);
@@ -329,7 +374,7 @@ class ChatServiceImplTest {
 		when(messageRepository.countUnreadMessagesByRoomAndReceiver(ROOM_ID, ADMIN_ID)).thenReturn(3L);
 
 		// 2. When
-		MessageHandlingResult result = chatService.handleMessage(request);
+		MessageHandlingResult result = chatService.handleMessage(request, PARTNER_ID);
 
 		// 3. Then
 		assertTrue(result.hasRoomUpdates());
@@ -355,7 +400,7 @@ class ChatServiceImplTest {
 		// 3. Then
 		assertTrue(response.readMessagesId().isEmpty());
 		assertEquals(0, response.readCount());
-		verify(simpMessagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+		verify(webSocketBroadcaster, never()).send(anyString(), any(Object.class));
 	}
 
 	@Test
@@ -379,7 +424,7 @@ class ChatServiceImplTest {
 		assertEquals(0, message1.getUnreadCount());
 		assertTrue(message2.isRead());
 
-		verify(simpMessagingTemplate).convertAndSend(
+		verify(webSocketBroadcaster).send(
 			eq("/sub/chat/" + ROOM_ID),
 			argThat((ChatResponseDTO.ReadMessageResponseDTO receipt) ->
 				receipt.readMessagesId().equals(List.of(100L, 101L)) && receipt.readerId().equals(ADMIN_ID))

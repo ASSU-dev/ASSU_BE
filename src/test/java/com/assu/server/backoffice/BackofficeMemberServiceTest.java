@@ -4,16 +4,21 @@ import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
+import com.assu.server.domain.backoffice.service.BackofficePaperService;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.partnership.entity.Paper;
+import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.support.CommonMockConfig;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +26,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,6 +53,17 @@ class BackofficeMemberServiceTest {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private PaperRepository paperRepository;
+
+    @Autowired
+    private BackofficePaperService backofficePaperService;
+
+    @Autowired
+    private EntityManager entityManager;
+
+    private int phoneSeq;
 
     @Test
     @DisplayName("SUSPEND Partner 회원을 승인하면 ACTIVE 및 license verified 처리")
@@ -118,6 +137,120 @@ class BackofficeMemberServiceTest {
                 .isEqualTo(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
     }
 
+    @Test
+    @DisplayName("제휴업체를 강제 탈퇴시키면 본인 제휴와 소유 가게의 수동 제휴가 INACTIVE가 되고, 복구하면 원래 상태로 돌아온다")
+    void forceWithdrawAndRestorePartner_TogglesPartnerPapers() {
+        Member member = createPartnerMember(ActivationStatus.ACTIVE);
+        Partner partner = member.getPartnerProfile();
+        Store store = storeRepository.findByPartner(partner).orElseThrow();
+
+        Long activeId = createPaper(partner, store, ActivationStatus.ACTIVE).getId();
+        Long suspendId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
+        Long inactiveId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
+        Long manualId = createPaper(null, store, ActivationStatus.ACTIVE).getId();
+        Long otherStoreManualId = createPaper(null, createStore(null), ActivationStatus.ACTIVE).getId();
+        Long partnerOnlyId = createPaper(partner, null, ActivationStatus.ACTIVE).getId();
+
+        backofficeMemberService.forceWithdrawMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(partnerOnlyId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(activeId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(inactiveId).getStatusBeforePartnerWithdrawal()).isNull();
+        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(otherStoreManualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+
+        backofficeMemberService.restoreMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(activeId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(suspendId).getIsActivated()).isEqualTo(ActivationStatus.SUSPEND);
+        assertThat(findPaper(inactiveId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(activeId).getStatusBeforePartnerWithdrawal()).isNull();
+        assertThat(findPaper(manualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(otherStoreManualId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+        assertThat(findPaper(partnerOnlyId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("가게 소유 업체만 복구되면, 아직 탈퇴 상태인 다른 업체 명의의 제휴는 되살리지 않는다")
+    void restoreStoreOwner_KeepsPaperOfStillWithdrawnPartnerInactive() {
+        Member storeOwnerMember = createPartnerMember(ActivationStatus.ACTIVE);
+        Store store = storeRepository.findByPartner(storeOwnerMember.getPartnerProfile()).orElseThrow();
+        Member otherMember = createPartnerMember(ActivationStatus.ACTIVE);
+        Long otherPartnerPaperId = createPaper(otherMember.getPartnerProfile(), store, ActivationStatus.ACTIVE).getId();
+
+        backofficeMemberService.forceWithdrawMember(otherMember.getId());
+        backofficeMemberService.forceWithdrawMember(storeOwnerMember.getId());
+        backofficeMemberService.restoreMember(storeOwnerMember.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(otherPartnerPaperId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+
+        backofficeMemberService.restoreMember(otherMember.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(otherPartnerPaperId).getIsActivated()).isEqualTo(ActivationStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("탈퇴 기간 중 종료한 제휴는 복구 후에도 INACTIVE로 남고, 탈퇴 업체 제휴 승인은 기록 유무와 무관하게 거부된다")
+    void expireDuringWithdrawal_StaysInactiveAfterRestore() {
+        Member member = createPartnerMember(ActivationStatus.ACTIVE);
+        Partner partner = member.getPartnerProfile();
+        Store store = storeRepository.findByPartner(partner).orElseThrow();
+
+        Long expiredId = createPaper(partner, store, ActivationStatus.ACTIVE).getId();
+        Long approveTriedId = createPaper(partner, store, ActivationStatus.SUSPEND).getId();
+        Long blankId = createPaper(partner, store, ActivationStatus.BLANK).getId();
+        Long inactiveAtWithdrawalId = createPaper(partner, store, ActivationStatus.INACTIVE).getId();
+        Long manualInactiveId = createPaper(null, store, ActivationStatus.INACTIVE).getId();
+
+        backofficeMemberService.forceWithdrawMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(blankId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+
+        backofficePaperService.expirePaper(expiredId);
+        for (Long paperId : List.of(approveTriedId, expiredId, inactiveAtWithdrawalId, manualInactiveId)) {
+            assertThatThrownBy(() -> backofficePaperService.approvePaper(paperId))
+                    .isInstanceOf(DatabaseException.class)
+                    .extracting(ex -> ((DatabaseException) ex).getCode())
+                    .isEqualTo(ErrorStatus.WITHDRAWN_PARTNER_PAPER);
+        }
+        entityManager.flush();
+        entityManager.clear();
+
+        backofficeMemberService.restoreMember(member.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(findPaper(expiredId).getIsActivated()).isEqualTo(ActivationStatus.INACTIVE);
+        assertThat(findPaper(approveTriedId).getIsActivated()).isEqualTo(ActivationStatus.SUSPEND);
+        assertThat(findPaper(blankId).getIsActivated()).isEqualTo(ActivationStatus.BLANK);
+    }
+
+    private Paper createPaper(Partner partner, Store store, ActivationStatus status) {
+        return paperRepository.save(Paper.builder()
+                .partner(partner)
+                .store(store)
+                .isActivated(status)
+                .partnershipPeriodStart(LocalDate.now().minusDays(1))
+                .partnershipPeriodEnd(LocalDate.now().plusDays(30))
+                .build());
+    }
+
+    private Paper findPaper(Long paperId) {
+        return paperRepository.findById(paperId).orElseThrow();
+    }
+
     private Member createPartnerMember(ActivationStatus status) {
         Member member = memberRepository.save(Member.builder()
                 .role(UserRole.PARTNER)
@@ -129,7 +262,7 @@ class BackofficeMemberServiceTest {
         Partner partner = partnerRepository.save(Partner.builder()
                 .member(member)
                 .name("Test Partner")
-                .phoneNum("01012345678")
+                .phoneNum(String.format("010%08d", ++phoneSeq))
                 .isPhoneVerified(true)
                 .address("Seoul")
                 .detailAddress("Detail")
@@ -139,7 +272,13 @@ class BackofficeMemberServiceTest {
                 .build());
         member.setPartnerProfile(partner);
 
-        storeRepository.save(Store.builder()
+        createStore(partner);
+
+        return memberRepository.save(member);
+    }
+
+    private Store createStore(Partner partner) {
+        return storeRepository.save(Store.builder()
                 .partner(partner)
                 .rate(0)
                 .isActivate(ActivationStatus.SUSPEND)
@@ -149,7 +288,5 @@ class BackofficeMemberServiceTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-
-        return memberRepository.save(member);
     }
 }

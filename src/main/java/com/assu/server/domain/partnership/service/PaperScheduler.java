@@ -1,6 +1,7 @@
 package com.assu.server.domain.partnership.service;
 
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ public class PaperScheduler {
      * "0 0 0 * * *" → 매일 00:00:00
      */
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "paper-expire", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     public void updateExpiredPapers() {
         paperQueryService.updatePaperStatus();
     }

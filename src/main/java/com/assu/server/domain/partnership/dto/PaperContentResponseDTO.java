@@ -1,8 +1,10 @@
 package com.assu.server.domain.partnership.dto;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import com.assu.server.domain.partnership.entity.Goods;
+import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.entity.enums.CriterionType;
 import com.assu.server.domain.partnership.entity.enums.OptionType;
@@ -14,8 +16,11 @@ public record PaperContentResponseDTO(
 	Long contentId,
 	List<String> goods,
 	Integer people,
-	Long cost
+	Long cost,
+	String partnershipPeriod
 ) {
+	private static final DateTimeFormatter PERIOD_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+
 	public static List<PaperContentResponseDTO> toContentResponseList(List<PaperContent> contents) {
 		return contents.stream()
 			.map(PaperContentResponseDTO::toContentResponse)
@@ -41,11 +46,20 @@ public record PaperContentResponseDTO(
 			content.getId(),
 			goodsList,
 			peopleValue,
-			content.getCost()
+			content.getCost(),
+			buildPartnershipPeriod(content.getPaper())
 		);
 
 	}
 
+
+	private static String buildPartnershipPeriod(Paper paper) {
+		if (paper.getPartnershipPeriodStart() == null || paper.getPartnershipPeriodEnd() == null) {
+			return null;
+		}
+		return "제휴기간 " + paper.getPartnershipPeriodStart().format(PERIOD_DATE_FORMAT)
+			+ " ~ " + paper.getPartnershipPeriodEnd().format(PERIOD_DATE_FORMAT);
+	}
 
 	private static List<String> extractGoods(PaperContent content) {
 		if (content.getOptionType() == OptionType.SERVICE ) {

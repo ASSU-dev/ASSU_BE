@@ -17,6 +17,8 @@ import com.assu.server.domain.qr.dto.TemporaryQrResponseDTO;
 import com.assu.server.domain.qr.service.TemporaryQrService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +36,7 @@ public class TemporaryQrController {
 	private final TemporaryQrService temporaryQrService;
 
 	@PostMapping("/data")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.TEMPORARY_QR_INSERT_DATA)
 	@Operation(
 		summary = "QR 데이터 삽입 API",
 		description =
@@ -53,6 +56,7 @@ public class TemporaryQrController {
 	}
 
 	@GetMapping("/mydata")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.TEMPORARY_QR_GET_MY_DATA)
 	@Operation(
 		summary = "내 QR 적립 데이터 조회 API",
 		description =

@@ -6,6 +6,8 @@ import com.assu.server.domain.backoffice.service.BackofficeAdminService;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +40,7 @@ public class BackofficeAdminController {
 					"- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
 					"- 404(NOT_FOUND): Admin이 아니거나 인감 이미지 없음"
 	)
+	@ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_ADMIN_GET_SIGN_IMAGE)
 	@GetMapping("/{memberId}/sign-image")
 	public BaseResponse<BackofficeDocumentUrlResponseDTO> getSignImageUrl(
 			@Parameter(description = "Admin 회원 ID") @PathVariable Long memberId
@@ -72,6 +75,7 @@ public class BackofficeAdminController {
 	}
 
 	@BackofficeAudited(action = "ADMIN_CREATE", targetId = "#req.email")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_ADMIN_CREATE)
 	@Operation(
 			summary = "학생회 계정 임의 추가 API",
 			description = "인감 정보나 전화번호 없이 백오피스에서 임의로 학생회 계정을 추가합니다.\n\n" +
@@ -103,6 +107,7 @@ public class BackofficeAdminController {
 	}
 
 	@BackofficeAudited(action = "ADMIN_UPDATE", targetId = "#adminId")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_ADMIN_UPDATE)
 	@Operation(
 			summary = "학생회 계정 임의 수정 API",
 			description = "학생회(Admin) 계정 정보를 수정합니다. 입력된 필드만 반영됩니다.\n\n" +
@@ -143,6 +148,7 @@ public class BackofficeAdminController {
 	}
 
 	@BackofficeAudited(action = "ADMIN_DELETE", targetId = "#adminId")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_ADMIN_DELETE)
 	@Operation(
 			summary = "학생회 계정 임의 삭제 API",
 			description = "학생회(Admin) 계정과 이에 연관된 모든 데이터(Member, CommonAuth)를 영구 삭제합니다.\n\n" +

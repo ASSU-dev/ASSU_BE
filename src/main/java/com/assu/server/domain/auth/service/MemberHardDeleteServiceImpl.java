@@ -23,11 +23,18 @@ import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
+import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -55,12 +62,19 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
     private final StudentAdminRepository studentAdminRepository;
     private final SuggestionRepository suggestionRepository;
     private final StampEventApplicantRepository stampEventApplicantRepository;
+    private final AmazonS3Manager amazonS3Manager;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean hardDeleteMember(Long memberId) {
-        Member member = memberRepository.findById(memberId)
+    public boolean hardDeleteMember(Long memberId, LocalDateTime deletedBefore) {
+        Member member = memberRepository.findWithLockById(memberId)
                 .orElseThrow(() -> new IllegalStateException("삭제 대상 회원을 찾을 수 없습니다. memberId=" + memberId));
+
+        // 대상 목록 조회 후 로그인·재가입으로 복구됐을 수 있으므로 락을 잡은 상태에서 다시 확인한다
+        if (!member.isWithdrawn() || !member.getDeletedAt().isBefore(deletedBefore)) {
+            log.info("탈퇴 회원 하드 삭제 스킵: 삭제 대상 조회 이후 복구됨. memberId={}", memberId);
+            return false;
+        }
 
         if (hasUndeletableCoreResource(member)) {
             log.warn("탈퇴 회원 하드 삭제 스킵: 핵심 리소스(Store/Paper/ChattingRoom) 보유. memberId={}, role={}",
@@ -76,9 +90,43 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
             deleteAdminScopedRecords(memberId);
         }
 
+        List<String> s3Keys = collectS3Keys(member);
         memberRepository.delete(member);
+        deleteS3FilesAfterCommit(memberId, s3Keys);
         log.info("탈퇴 회원 하드 삭제 완료: memberId={}, role={}", memberId, member.getRole());
         return true;
+    }
+
+    private List<String> collectS3Keys(Member member) {
+        List<String> keys = new ArrayList<>();
+        keys.add(member.getProfileUrl());
+        if (member.getAdminProfile() != null) {
+            keys.add(member.getAdminProfile().getSignImageUrl());
+        }
+        if (member.getPartnerProfile() != null) {
+            keys.add(member.getPartnerProfile().getLicenseUrl());
+        }
+        keys.removeIf(key -> key == null || key.isBlank());
+        return keys;
+    }
+
+    // 롤백되면 DB에는 남는데 파일만 사라지므로 커밋 후에 지운다
+    private void deleteS3FilesAfterCommit(Long memberId, List<String> s3Keys) {
+        if (s3Keys.isEmpty()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (String key : s3Keys) {
+                    try {
+                        amazonS3Manager.deleteFile(key);
+                    } catch (RuntimeException e) {
+                        log.warn("하드 삭제 후 S3 파일 삭제 실패: memberId={}, key={}", memberId, key, e);
+                    }
+                }
+            }
+        });
     }
 
     private boolean hasUndeletableCoreResource(Member member) {

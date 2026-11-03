@@ -5,6 +5,7 @@ import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -15,7 +16,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
+import reactor.util.retry.Retry;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -24,12 +28,38 @@ import java.util.List;
 public class SSUAuthServiceImpl implements SSUAuthService {
 
     private final WebClient webClient;
+    private final MeterRegistry meterRegistry;
 
     private static final String USaintSSOUrl = "https://saint.ssu.ac.kr/webSSO/sso.jsp";
     private static final String USaintPortalUrl = "https://saint.ssu.ac.kr/webSSUMain/main_student.jsp";
 
+    // 조회(GET)라 멱등이므로 연결 실패/타임아웃 같은 일시적 오류에만 1회 재시도한다
+    private static final Retry TRANSIENT_RETRY = Retry.backoff(1, Duration.ofMillis(500))
+            .filter(throwable -> throwable instanceof WebClientRequestException);
+
     @Override
     public USaintAuthResponseDTO uSaintAuth(USaintAuthRequestDTO uSaintAuthRequest) {
+        try {
+            USaintAuthResponseDTO response = authenticate(uSaintAuthRequest);
+            meterRegistry.counter("auth.ssu.sso", "result", "success").increment();
+            return response;
+        } catch (CustomAuthException e) {
+            meterRegistry.counter("auth.ssu.sso", "result", resolveFailureResult(e)).increment();
+            throw e;
+        }
+    }
+
+    private String resolveFailureResult(CustomAuthException e) {
+        return switch (e.getErrorReasonHttpStatus().getCode()) {
+            case "SSU4000" -> "sso_failed";
+            case "SSU4001" -> "portal_failed";
+            case "SSU4002" -> "parse_failed";
+            case "SSU4003" -> "unsupported_major";
+            default -> "other";
+        };
+    }
+
+    private USaintAuthResponseDTO authenticate(USaintAuthRequestDTO uSaintAuthRequest) {
 
         String sToken = uSaintAuthRequest.sToken();
         String sIdno = uSaintAuthRequest.sIdno();
@@ -159,6 +189,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 .header("Cookie", "sToken=" + sToken + "; sIdno=" + sIdno)
                 .retrieve()
                 .toEntity(String.class) // ResponseEntity<String> 전체 반환 (body + header 포함)
+                .retryWhen(TRANSIENT_RETRY)
                 .block();
     }
 
@@ -168,6 +199,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                 .header(HttpHeaders.COOKIE, cookie.toString())
                 .retrieve()
                 .toEntity(String.class)
+                .retryWhen(TRANSIENT_RETRY)
                 .block();
     }
 }

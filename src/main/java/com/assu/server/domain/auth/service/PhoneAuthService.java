@@ -6,4 +6,8 @@ public interface PhoneAuthService {
     void verifyAuthNumber(String phoneNumber, String authNumber);
 
     void consumeVerification(String phoneNumber);
+
+    void assertPhoneNotInUse(String phoneNumber);
+
+    boolean isMasterPhoneNumber(String phoneNumber);
 }

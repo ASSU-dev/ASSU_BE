@@ -38,11 +38,7 @@ public class NotificationBackofficeServiceImpl implements NotificationBackoffice
                 .build();
         notificationRepository.save(notification);
 
-        NotificationOutbox outbox = NotificationOutbox.builder()
-                .notification(notification)
-                .status(NotificationOutbox.Status.PENDING)
-                .retryCount(0)
-                .build();
+        NotificationOutbox outbox = NotificationOutbox.pending(notification);
         outboxRepository.save(outbox);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(

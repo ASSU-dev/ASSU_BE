@@ -27,7 +27,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -45,7 +45,7 @@ public class ChatServiceImpl implements ChatService {
     private final AdminRepository adminRepository;
     private final MessageRepository messageRepository;
     private final StoreRepository storeRepository;
-    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final WebSocketBroadcaster webSocketBroadcaster;
     private final NotificationCommandService notificationCommandService;
     private final PresenceTracker presenceTracker;
     private final BlockRepository blockRepository;
@@ -65,9 +65,9 @@ public class ChatServiceImpl implements ChatService {
         Long adminId = request.adminId();
         Long partnerId = request.partnerId();
 
-        Admin admin = adminRepository.findById(adminId)
+        Admin admin = adminRepository.findByIdAndMember_DeletedAtIsNull(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-        Partner partner = partnerRepository.findById(partnerId)
+        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
         Store store = storeRepository.findByPartnerId(partnerId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
@@ -96,14 +96,21 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request) {
+    public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request, Long authenticatedMemberId) {
         // 1. 유효성 검사 (기존 로직)
         ChattingRoom room = chatRepository.findById(request.roomId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
+        if (!request.senderId().equals(authenticatedMemberId)
+                || !isRoomParticipants(room, request.senderId(), request.receiverId())) {
+            throw new DatabaseException(ErrorStatus.NO_MEMBER_IN_THE_ROOM);
+        }
         Member sender = memberRepository.findById(request.senderId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
         Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
+        if (sender.isWithdrawn() || receiver.isWithdrawn()) {
+            throw new DatabaseException(ErrorStatus.NO_SUCH_MEMBER);
+        }
 
         // 차단 검증 — 운영자가 개인 차단하거나 두 멤버 사이를 차단한 경우 메시지 전송 불가
         if (Boolean.TRUE.equals(sender.getChatBlocked())) {
@@ -172,7 +179,7 @@ public class ChatServiceImpl implements ChatService {
         Message saved = messageRepository.saveAndFlush(message);
 
         ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
-        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.roomId(), responseDTO);
+        webSocketBroadcaster.send("/sub/chat/" + request.roomId(), responseDTO);
 
         return responseDTO;
     }
@@ -192,7 +199,7 @@ public class ChatServiceImpl implements ChatService {
         if (!readMessagesIdList.isEmpty()) {
             ChatResponseDTO.ReadMessageResponseDTO receipt =
                     new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
-            simpMessagingTemplate.convertAndSend("/sub/chat/" + roomId, receipt);
+            webSocketBroadcaster.send("/sub/chat/" + roomId, receipt);
         }
 
         return new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
@@ -260,6 +267,16 @@ public class ChatServiceImpl implements ChatService {
             throw new DatabaseException(ErrorStatus.NO_MEMBER);
         }
         return new  ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, isLeftSuccessfully,isRoomDeleted);
+    }
+
+    private boolean isRoomParticipants(ChattingRoom room, Long senderId, Long receiverId) {
+        if (room.getAdmin() == null || room.getPartner() == null) {
+            return false;
+        }
+        Long adminId = room.getAdmin().getId();
+        Long partnerId = room.getPartner().getId();
+        return (adminId.equals(senderId) && partnerId.equals(receiverId))
+                || (partnerId.equals(senderId) && adminId.equals(receiverId));
     }
 
     private void incrementAfterCommit(Counter counter) {

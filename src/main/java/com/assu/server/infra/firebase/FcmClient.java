@@ -14,6 +14,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.EnumSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -29,6 +31,8 @@ public class FcmClient {
     private final DeviceTokenService deviceTokenService;
 
     private static final Duration SEND_TIMEOUT = Duration.ofSeconds(5);
+    private static final Set<MessagingErrorCode> RETRYABLE_CODES = EnumSet.of(
+            MessagingErrorCode.UNAVAILABLE, MessagingErrorCode.INTERNAL, MessagingErrorCode.QUOTA_EXCEEDED);
 
     /**
      * 멤버의 활성 토큰 전체에 멀티캐스트 전송.
@@ -74,7 +78,7 @@ public class FcmClient {
             ApiFuture<BatchResponse> future = messaging.sendEachForMulticastAsync(msg);
             BatchResponse br = future.get(SEND_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
-            int success = 0, fail = 0;
+            int success = 0, fail = 0, retryableFail = 0;
             List<String> invalidTokens = new ArrayList<>();
 
             List<SendResponse> responses = br.getResponses();
@@ -85,6 +89,9 @@ public class FcmClient {
                 } else {
                     fail++;
                     FirebaseMessagingException fme = r.getException(); // per-token 예외
+                    if (fme != null && RETRYABLE_CODES.contains(fme.getMessagingErrorCode())) {
+                        retryableFail++;
+                    }
                     if (fme != null && (
                             fme.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED ||
                                     fme.getMessagingErrorCode() == MessagingErrorCode.INVALID_ARGUMENT)) {
@@ -106,7 +113,7 @@ public class FcmClient {
                 }
             }
 
-            return new FcmResult(success, fail, invalidTokens);
+            return new FcmResult(success, fail, retryableFail, invalidTokens);
 
         } catch (TimeoutException te) {
             log.warn("[FCM] timeout ({} ms) memberId={}", SEND_TIMEOUT.toMillis(), memberId);
@@ -141,7 +148,12 @@ public class FcmClient {
         return r.getClass().getName() + ": " + r.getMessage();
     }
 
-    public record FcmResult(int successCount, int failureCount, List<String> invalidTokens) {
-        static FcmResult empty() { return new FcmResult(0, 0, java.util.List.of()); }
+    public record FcmResult(int successCount, int failureCount, int retryableFailureCount, List<String> invalidTokens) {
+        static FcmResult empty() { return new FcmResult(0, 0, 0, java.util.List.of()); }
+
+        // 일부라도 성공했으면 이미 받은 기기에 중복 발송하지 않도록 재시도하지 않는다.
+        public boolean shouldRetry() {
+            return successCount == 0 && retryableFailureCount > 0;
+        }
     }
 }

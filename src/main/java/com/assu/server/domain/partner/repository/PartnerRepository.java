@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
@@ -14,10 +15,13 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     boolean existsByPhoneNumAndMember_DeletedAtIsNull(String phoneNum);
 
+    Optional<Partner> findByIdAndMember_DeletedAtIsNull(Long id);
+
     @Query("""
         SELECT COUNT(p)
         FROM Partner p
-        WHERE NOT EXISTS (
+        WHERE p.member.deletedAt IS NULL
+          AND NOT EXISTS (
             SELECT 1 FROM Paper pa
             WHERE pa.partner = p
               AND pa.admin.id = :adminId
@@ -29,7 +33,8 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
     @Query("""
         SELECT p
         FROM Partner p
-        WHERE NOT EXISTS (
+        WHERE p.member.deletedAt IS NULL
+          AND NOT EXISTS (
             SELECT 1 FROM Paper pa
             WHERE pa.partner = p
               AND pa.admin.id = :adminId
@@ -42,8 +47,9 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
     @Query("""
         SELECT DISTINCT p
         FROM Partner p
-        LEFT JOIN FETCH p.member
-        WHERE p.point IS NOT NULL
+        LEFT JOIN FETCH p.member m
+        WHERE m.deletedAt IS NULL
+          AND p.point IS NOT NULL
           AND ST_Contains(ST_GeomFromText(:wkt, 4326), p.point) = true
         """)
     List<Partner> findAllWithinViewportWithMember(@Param("wkt") String wkt);
@@ -52,8 +58,9 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
     @Query("""
         SELECT DISTINCT p
         FROM Partner p
-        LEFT JOIN FETCH p.member
-        WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        LEFT JOIN FETCH p.member m
+        WHERE m.deletedAt IS NULL
+          AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
         """)
     List<Partner> searchPartnerByKeywordWithMember(
             @Param("keyword") String keyword

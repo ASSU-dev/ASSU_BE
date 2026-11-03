@@ -22,6 +22,7 @@ import com.assu.server.domain.common.entity.enums.EnrollmentStatus;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -40,6 +41,7 @@ public class LoginServiceImpl implements LoginService {
     private final JwtUtil jwtUtil;
     private final SSUAuthService ssuAuthService;
     private final StudentRepository studentRepository;
+    private final MeterRegistry meterRegistry;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
 
@@ -85,6 +87,8 @@ public class LoginServiceImpl implements LoginService {
                 member.getRole(),
                 adapter.authRealmValue()
         );
+
+        meterRegistry.counter("auth.login.result", "result", "success").increment();
 
         return LoginResponseDTO.from(member, tokens);
     }
@@ -139,6 +143,8 @@ public class LoginServiceImpl implements LoginService {
                 adapter.authRealmValue()
         );
 
+        meterRegistry.counter("auth.login.result", "result", "success").increment();
+
         return LoginResponseDTO.from(member, tokens);
     }
 
@@ -160,7 +166,14 @@ public class LoginServiceImpl implements LoginService {
             throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
         }
 
-        TokensDTO rotated = jwtUtil.rotateRefreshToken(refreshToken);
+        TokensDTO rotated;
+        try {
+            rotated = jwtUtil.rotateRefreshToken(refreshToken);
+        } catch (RuntimeException e) {
+            meterRegistry.counter("auth.refresh.rotate", "result", "failure", "stage", "service").increment();
+            throw e;
+        }
+        meterRegistry.counter("auth.refresh.rotate", "result", "success", "stage", "service").increment();
 
         Long memberId = ((Number) jwtUtil.validateTokenOnlySignature(rotated.accessToken()).get("userId")).longValue();
 

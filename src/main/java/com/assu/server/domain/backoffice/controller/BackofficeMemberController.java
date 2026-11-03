@@ -9,6 +9,8 @@ import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -100,6 +102,7 @@ public class BackofficeMemberController {
                     "- 403(FORBIDDEN): BACKOFFICE 권한 없음\n" +
                     "- 404(NOT_FOUND): 존재하지 않는 회원 ID"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_MEMBER_GET_DETAIL)
     @GetMapping("/{memberId}")
     public BaseResponse<BackofficeMemberDetailDTO> getMemberDetail(
             @Parameter(description = "회원 ID") @PathVariable Long memberId
@@ -111,6 +114,7 @@ public class BackofficeMemberController {
     }
 
     @BackofficeAudited(action = "MEMBER_APPROVE", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_MEMBER_APPROVE)
     @Operation(
             summary = "회원 가입 승인 API",
             description = "# [v1.0 (2026-07-03)]\n" +
@@ -134,6 +138,7 @@ public class BackofficeMemberController {
     }
 
     @BackofficeAudited(action = "MEMBER_REJECT", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_MEMBER_REJECT)
     @Operation(
             summary = "회원 가입 거절 API",
             description = "# [v1.0 (2026-07-03)]\n" +
@@ -154,6 +159,7 @@ public class BackofficeMemberController {
     }
 
     @BackofficeAudited(action = "MEMBER_FORCE_WITHDRAW", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_MEMBER_FORCE_WITHDRAW)
     @Operation(
             summary = "회원 강제 탈퇴 API",
             description = "# [v1.1 (2026-09-25)]\n" +
@@ -177,6 +183,7 @@ public class BackofficeMemberController {
     }
 
     @BackofficeAudited(action = "MEMBER_RESTORE", targetId = "#memberId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_MEMBER_RESTORE)
     @Operation(
             summary = "탈퇴 회원 복구 API",
             description = "# [v1.0 (2026-07-03)]\n" +

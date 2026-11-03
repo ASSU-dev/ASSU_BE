@@ -14,6 +14,8 @@ import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 import com.assu.server.domain.store.service.StoreService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -35,6 +37,7 @@ public class StoreController {
 	private final PaperQueryService paperQueryService;
 
 	@GetMapping("/{storeId}")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STORE_GET_DETAIL)
 	@Operation(
 		summary = "가게 상세 조회 API",
 		description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed806eb1abce6ab4c5f4fb?source=copy_link)\n" +
@@ -83,6 +86,7 @@ public class StoreController {
 	}
 
 	@GetMapping("/{storeId}/papers")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STORE_GET_PAPER_CONTENT)
 	@Operation(
 		summary = "제휴 컨텐츠 조회 API",
 		description = "# [v1.0 (2026-02-14)](https://clumsy-seeder-416.notion.site/2361197c19ed8019b8b8cb054cd3135b?source=copy_link)\n" +
@@ -103,7 +107,8 @@ public class StoreController {
 			"    - `contentId` (Long): 컨텐츠 고유 ID\n" +
 			"    - `goods` (List<String>): 제공되는 상품/서비스 리스트\n" +
 			"    - `people` (Integer): 사용 가능 인원\n" +
-			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n\n" +
+			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n" +
+			"    - `partnershipPeriod` (String): 제휴기간 (예: \"제휴기간 2026.07.21 ~ 2026.12.31\", 기간 정보가 없으면 null)\n\n" +
 			"**Error Cases:**\n" +
 			"  - 성공: 200 OK, `isSuccess=true`, `result=PaperResponseDTO` (제휴 컨텐츠 상세 정보)\n" +
 			"  - 실패: \n" +
@@ -153,6 +158,7 @@ public class StoreController {
 	)
         @GetMapping("/ranking")
 	@PreAuthorize("hasRole('PARTNER')")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STORE_GET_WEEKLY_RANK)
         public ResponseEntity<BaseResponse<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRank(
                 @AuthenticationPrincipal PrincipalDetails pd) {
             return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, storeService.getWeeklyRank(pd.getId())));
@@ -164,6 +170,7 @@ public class StoreController {
         )
         @GetMapping("/ranking/weekly")
 	@PreAuthorize("hasRole('PARTNER')")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.STORE_GET_WEEKLY_RANK_LIST)
         public BaseResponse<List<StoreResponseDTO.WeeklyRankResponseDTO>> getWeeklyRankByPartnerId(
                 @AuthenticationPrincipal PrincipalDetails pd
         ){

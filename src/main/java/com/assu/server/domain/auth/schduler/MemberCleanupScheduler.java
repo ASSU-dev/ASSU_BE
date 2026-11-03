@@ -5,6 +5,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,8 @@ public class MemberCleanupScheduler {
     private final MemberRepository memberRepository;
     private final MemberHardDeleteService memberHardDeleteService;
 
-    @Scheduled(cron = "0 0 2 * * ?") // 매일 오전 2시
+    @Scheduled(cron = "0 0 2 * * ?", zone = "Asia/Seoul")
+    @SchedulerLock(name = "member-hard-delete", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
     public void cleanupDeletedMembers() {
         log.info("탈퇴 회원 완전 삭제 작업 시작");
 
@@ -40,7 +42,7 @@ public class MemberCleanupScheduler {
         for (Member member : membersToDelete) {
             Long memberId = member.getId();
             try {
-                if (memberHardDeleteService.hardDeleteMember(memberId)) {
+                if (memberHardDeleteService.hardDeleteMember(memberId, oneMonthAgo)) {
                     successCount++;
                 } else {
                     skipCount++;

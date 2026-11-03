@@ -9,17 +9,20 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.mockito.InOrder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.dto.common.TokensDTO;
@@ -49,12 +52,14 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 
 @ExtendWith(MockitoExtension.class)
@@ -102,12 +107,19 @@ class SignUpServiceImplTest {
 	private CommonAuthRepository commonAuthRepository;
 
 	@Mock
+	private DiscordNotifier discordNotifier;
+
+	@Mock
 	private CommonAuth commonAuth;
 
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private WithdrawalService withdrawalService;
+
 	private static final String PHONE = "01012345678";
+	private static final String MASTER_PHONE = "01000000000";
 	private static final String EMAIL = "partner@assu.site";
 
 	@BeforeEach
@@ -116,7 +128,14 @@ class SignUpServiceImplTest {
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
 			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
-			studentService, phoneAuthService, commonAuthRepository);
+			studentService, phoneAuthService, commonAuthRepository, discordNotifier, withdrawalService);
+	}
+
+	@AfterEach
+	void tearDown() {
+		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
 	}
 
 	@Test
@@ -149,39 +168,59 @@ class SignUpServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("정상적인 학생 회원가입 시 저장된 학생 ID로 제휴 동기화를 호출한 뒤 JWT를 발급한다")
-	void signupSsuStudent_Success_SyncsUserPapersBeforeIssuingTokens() {
+	@DisplayName("정상적인 학생 회원가입 시 제휴 동기화는 커밋 전에 호출되지 않고 커밋 이후 저장된 학생 ID로 호출된다")
+	void signupSsuStudent_Success_SyncsUserPapersOnlyAfterCommit() {
 		// 1. Given
-		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
-			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
-
-		USaintAuthResponseDTO authResponse =
-			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
-		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
-		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
-		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
-
-		Member member = mock(Member.class);
-		when(member.getId()).thenReturn(1L);
-		when(member.getRole()).thenReturn(UserRole.STUDENT);
-		when(memberRepository.save(any())).thenReturn(member);
-
-		Student student = mock(Student.class);
-		when(student.getId()).thenReturn(99L);
-		when(studentRepository.save(any())).thenReturn(student);
-
-		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
-			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+		StudentTokenSignUpRequestDTO request = stubNewStudentSignUp();
+		TransactionSynchronizationManager.initSynchronization();
 
 		// 2. When
 		signUpService.signupSsuStudent(request);
 
 		// 3. Then
-		verify(studentService).syncUserPapersForStudent(99L);
+		verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
+		verify(studentService, never()).syncUserPapersForStudent(any());
 
-		InOrder inOrder = inOrder(studentService, jwtUtil);
-		inOrder.verify(studentService).syncUserPapersForStudent(99L);
-		inOrder.verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
+		triggerAfterCommit();
+
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
+	}
+
+	@Test
+	@DisplayName("커밋 이후 제휴 동기화가 실패해도 예외가 전파되지 않는다")
+	void signupSsuStudent_SyncFailsAfterCommit_DoesNotPropagateException() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = stubNewStudentSignUp();
+		doThrow(new RuntimeException("sync failed")).when(studentService).syncUserPapersForStudent(99L);
+		TransactionSynchronizationManager.initSynchronization();
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		assertDoesNotThrow(this::triggerAfterCommit);
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
+		assertEquals("access-token", response.tokens().accessToken());
+	}
+
+	@Test
+	@DisplayName("탈퇴한 학생 재가입 시 제휴 동기화는 커밋 이후 호출된다")
+	void signupSsuStudent_WithdrawnStudent_SyncsUserPapersOnlyAfterCommit() {
+		// 1. Given
+		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+		stubWithdrawnStudentAccount();
+		TransactionSynchronizationManager.initSynchronization();
+
+		// 2. When
+		signUpService.signupSsuStudent(request);
+
+		// 3. Then
+		verify(studentService, never()).syncUserPapersForStudent(any());
+
+		triggerAfterCommit();
+
+		verify(studentService, times(1)).syncUserPapersForStudent(99L);
 	}
 
 	@Test
@@ -312,6 +351,96 @@ class SignUpServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("마스터 번호로 파트너 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
+	void signupPartner_MasterPhoneNumber_ActivatesImmediately() {
+		// 1. Given
+		SelectedPlacePayload place = SelectedPlacePayload.builder()
+			.address("서울특별시 동작구 상도로 369")
+			.roadAddress("서울특별시 동작구 상도로 369")
+			.latitude(37.5)
+			.longitude(126.96)
+			.build();
+		PartnerSignUpRequestDTO request = new PartnerSignUpRequestDTO(
+			MASTER_PHONE, true, true,
+			new CommonAuthPayloadDTO(EMAIL, "P@ssw0rd!", null, null, null),
+			new CommonInfoPayloadDTO("숭실카페", "101호", place));
+
+		when(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE)).thenReturn(true);
+		when(commonAuthRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+		Member savedMember = mock(Member.class);
+		when(savedMember.getId()).thenReturn(1L);
+		when(savedMember.getRole()).thenReturn(UserRole.PARTNER);
+		when(savedMember.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+
+		ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
+
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+
+		Partner partner = mock(Partner.class);
+		when(partnerRepository.save(any(Partner.class))).thenReturn(partner);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.empty());
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupPartner(request, licenseImage);
+
+		// 3. Then
+		assertEquals(ActivationStatus.ACTIVE, memberCaptor.getValue().getIsActivated());
+		assertEquals(ActivationStatus.ACTIVE, response.status());
+		verify(partnerRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(adminRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+	}
+
+	@Test
+	@DisplayName("마스터 번호로 관리자 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
+	void signupAdmin_MasterPhoneNumber_ActivatesImmediately() {
+		// 1. Given
+		SelectedPlacePayload place = SelectedPlacePayload.builder()
+			.address("서울특별시 동작구 상도로 369")
+			.roadAddress("서울특별시 동작구 상도로 369")
+			.latitude(37.5)
+			.longitude(126.96)
+			.build();
+		AdminSignUpRequestDTO request = new AdminSignUpRequestDTO(
+			MASTER_PHONE, true, true,
+			new CommonAuthPayloadDTO(EMAIL, "P@ssw0rd!", null, null, null),
+			new CommonInfoPayloadDTO("숭실대 학생회", "101호", place));
+
+		when(phoneAuthService.isMasterPhoneNumber(MASTER_PHONE)).thenReturn(true);
+		when(commonAuthRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+		Member savedMember = mock(Member.class);
+		when(savedMember.getId()).thenReturn(1L);
+		when(savedMember.getRole()).thenReturn(UserRole.ADMIN);
+		when(savedMember.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+
+		ArgumentCaptor<Member> memberCaptor = ArgumentCaptor.forClass(Member.class);
+		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
+
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+
+		MockMultipartFile signImage =
+			new MockMultipartFile("signImage", "sign.png", "image/png", new byte[] {1});
+
+		// 2. When
+		SignUpResponseDTO response = signUpService.signupAdmin(request, signImage);
+
+		// 3. Then
+		assertEquals(ActivationStatus.ACTIVE, memberCaptor.getValue().getIsActivated());
+		assertEquals(ActivationStatus.ACTIVE, response.status());
+		verify(partnerRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+		verify(adminRepository, never()).existsByPhoneNumAndMember_DeletedAtIsNull(anyString());
+	}
+
+	@Test
 	@DisplayName("휴대폰 인증을 거치지 않은 번호로 파트너 회원가입을 시도하면 예외가 발생한다")
 	void signupPartner_PhoneNotVerified_ThrowsException() {
 		// 1. Given
@@ -337,6 +466,7 @@ class SignUpServiceImplTest {
 
 		Partner partner = mock(Partner.class);
 		when(partner.getName()).thenReturn("숭실카페");
+		when(partner.getPhoneNum()).thenReturn(PHONE);
 		Member member = stubWithdrawnCommonAccount(UserRole.PARTNER);
 		when(member.getPartnerProfile()).thenReturn(partner);
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
@@ -353,7 +483,7 @@ class SignUpServiceImplTest {
 		SignUpResponseDTO response = signUpService.signupPartner(request, licenseImage);
 
 		// 3. Then
-		verify(member, times(1)).restore();
+		verify(withdrawalService, times(1)).restoreMember(member);
 		verify(member, never()).setIsActivated(any());
 		verify(commonAuth, times(1)).updatePassword("hashed");
 		verify(partner, times(1)).updateBusinessInfo(
@@ -363,6 +493,94 @@ class SignUpServiceImplTest {
 
 		assertEquals(1L, response.memberId());
 		assertEquals(ActivationStatus.ACTIVE, response.status());
+	}
+
+	private Partner stubRestorablePartner() {
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn(PHONE);
+		Member member = stubWithdrawnCommonAccount(UserRole.PARTNER);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(realmAuthAdapter.passwordEncoder()).thenReturn(passwordEncoder);
+		when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("hashed");
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+		return partner;
+	}
+
+	@Test
+	@DisplayName("탈퇴 파트너가 재가입하면 기존 가게를 새 주소로 옮기고 새 가게를 만들지 않는다")
+	void signupPartner_WithdrawnPartnerOwningStore_RelocatesExistingStore() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+		Partner partner = stubRestorablePartner();
+		Store ownedStore = mock(Store.class);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.empty());
+		when(storeRepository.findByPartner(partner)).thenReturn(Optional.of(ownedStore));
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		signUpService.signupPartner(request, licenseImage);
+
+		// 3. Then
+		verify(ownedStore).relocate(eq("서울특별시 동작구 상도로 369"), eq("101호"), eq(37.5), eq(126.96), any(Point.class));
+		verify(storeRepository, times(1)).save(any(Store.class));
+		verify(storeRepository).save(ownedStore);
+	}
+
+	@Test
+	@DisplayName("다른 업체에 연결된 가게 주소로 가입하면 STORE_ALREADY_LINKED 예외가 발생한다")
+	void signupPartner_AddressLinkedToOtherPartner_ThrowsStoreAlreadyLinked() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+		Partner partner = stubRestorablePartner();
+		when(partner.getId()).thenReturn(1L);
+		Partner otherPartner = mock(Partner.class);
+		when(otherPartner.getId()).thenReturn(2L);
+		Store otherStore = mock(Store.class);
+		when(otherStore.getPartner()).thenReturn(otherPartner);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.of(otherStore));
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> signUpService.signupPartner(request, licenseImage));
+
+		// 3. Then
+		assertEquals(ErrorStatus.STORE_ALREADY_LINKED, exception.getCode());
+		verify(otherStore, never()).linkPartner(any());
+		verify(storeRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("탈퇴 파트너 재가입 시 인증 번호가 기존 번호와 다르면 복구하지 않는다")
+	void signupPartner_WithdrawnPartnerWithDifferentPhone_ThrowsRestorePhoneMismatch() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn("01099999999");
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(member.isWithdrawn()).thenReturn(true);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		stubCommonAuthLookup(member);
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> signUpService.signupPartner(request, licenseImage));
+
+		// 3. Then
+		assertEquals(ErrorStatus.RESTORE_PHONE_MISMATCH, exception.getCode());
+		verify(withdrawalService, never()).restoreMember(any());
+		verify(commonAuth, never()).updatePassword(anyString());
 	}
 
 	@Test
@@ -418,6 +636,34 @@ class SignUpServiceImplTest {
 			new CommonInfoPayloadDTO("숭실카페", "101호", place));
 	}
 
+	private StudentTokenSignUpRequestDTO stubNewStudentSignUp() {
+		USaintAuthResponseDTO authResponse =
+			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
+		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
+		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
+		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
+
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+		when(memberRepository.save(any())).thenReturn(member);
+
+		Student student = mock(Student.class);
+		when(student.getId()).thenReturn(99L);
+		when(studentRepository.save(any())).thenReturn(student);
+
+		when(jwtUtil.issueTokens(1L, "20211438", UserRole.STUDENT, "SSU"))
+			.thenReturn(TokensDTO.of("access-token", "refresh-token"));
+
+		return new StudentTokenSignUpRequestDTO(
+			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
+	}
+
+	private void triggerAfterCommit() {
+		TransactionSynchronizationManager.getSynchronizations()
+			.forEach(TransactionSynchronization::afterCommit);
+	}
+
 	private void stubCommonAuthLookup(Member member) {
 		when(commonAuth.getMember()).thenReturn(member);
 		when(commonAuthRepository.findByEmail(EMAIL)).thenReturn(Optional.of(commonAuth));
@@ -430,7 +676,7 @@ class SignUpServiceImplTest {
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(1L);
 		when(member.getRole()).thenReturn(role);
-		when(member.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+		lenient().when(member.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
 		when(member.isWithdrawn()).thenReturn(true);
 		when(member.getCommonAuth()).thenReturn(commonAuth);
 		stubCommonAuthLookup(member);

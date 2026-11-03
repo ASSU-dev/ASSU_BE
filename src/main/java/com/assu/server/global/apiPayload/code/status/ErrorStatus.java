@@ -24,6 +24,7 @@ public enum ErrorStatus implements BaseErrorCode {
     JWT_TOKEN_OUT_OF_FORM(HttpStatus.UNAUTHORIZED, "AUTH4006", "JWT 토큰의 형식이 올바르지 않습니다."),
     REFRESH_TOKEN_NOT_EQUAL(HttpStatus.UNAUTHORIZED, "AUTH4007", "Refreash 토큰이 일치하지 않습니다."),
     JWT_ACCESS_TOKEN_REVOKED(HttpStatus.UNAUTHORIZED, "AUTH4009", "탈퇴 등의 이유로 무효화된 AccessToken입니다."),
+    LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH4010", "이메일 또는 비밀번호가 올바르지 않습니다."),
 
     // 숭실대 관련 에러
     SSU_SAINT_SSO_FAILED(HttpStatus.UNAUTHORIZED, "SSU4000", "숭실대학교 유세인트 SSO 로그인에 실패했습니다."),
@@ -50,6 +51,7 @@ public enum ErrorStatus implements BaseErrorCode {
     BACKOFFICE_BOOTSTRAP_DISABLED(HttpStatus.BAD_REQUEST, "BACKOFFICE4001", "백오피스 bootstrap이 비활성화되어 있습니다."),
     LAST_BACKOFFICE_OPERATOR(HttpStatus.BAD_REQUEST, "BACKOFFICE4002", "마지막 백오피스 운영자는 비활성화할 수 없습니다."),
     BACKOFFICE_USE_DEDICATED_LOGIN(HttpStatus.FORBIDDEN, "BACKOFFICE4003", "백오피스 계정은 /auth/backoffice/login을 사용해야 합니다."),
+    DEV_SYNC_IN_PROGRESS(HttpStatus.CONFLICT, "BACKOFFICE4004", "dev 동기화가 이미 진행 중입니다."),
     INVALID_DEV_SYNC_TARGET(HttpStatus.INTERNAL_SERVER_ERROR, "BACKOFFICE5001", "dev 동기화 대상 스키마가 설정되지 않았거나 현재 스키마와 같습니다."),
     RECEIVER_ID_REQUIRED(HttpStatus.BAD_REQUEST, "PUSH_4001", "INDIVIDUAL 타입일 경우 receiverId는 필수입니다."),
 
@@ -58,6 +60,7 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_STUDENT(HttpStatus.NOT_FOUND,"MEMBER_4004","존재하지 않는 student ID 입니다."),
     NO_SUCH_STORE(HttpStatus.NOT_FOUND, "STORE_4006", "존재하지 않는 스토어 ID입니다."),
     PARTNER_STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "STORE_4007", "파트너에 연결된 스토어가 없습니다."),
+    STORE_ALREADY_LINKED(HttpStatus.CONFLICT, "STORE_4008", "이미 다른 제휴업체에 연결된 가게 주소입니다."),
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
@@ -74,11 +77,13 @@ public enum ErrorStatus implements BaseErrorCode {
     SIGN_IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4015", "인감 이미지 파일이 없습니다."),
     MEMBER_APPROVAL_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "MEMBER_4016", "승인/거절 대상이 아닌 회원 역할입니다."),
     MEMBER_PENDING_APPROVAL(HttpStatus.FORBIDDEN, "MEMBER_4017", "가입 승인 대기 중입니다. 백오피스 승인 후 로그인할 수 있습니다."),
+    RESTORE_PHONE_MISMATCH(HttpStatus.FORBIDDEN, "MEMBER_4018", "탈퇴 계정에 등록된 전화번호로 인증해야 복구할 수 있습니다."),
 
     // 제휴 에러
     NO_SUCH_PAPER(HttpStatus.NOT_FOUND, "PAPER_9001", "제휴를 찾을 수 없습니다."),
     NO_SUCH_CONTENT(HttpStatus.NOT_FOUND, "PAPER_4002", "제휴 내용을 찾을 수 없습니다."),
     ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "PAPER_4003", "이미 승인된 제휴 입니다."),
+    WITHDRAWN_PARTNER_PAPER(HttpStatus.BAD_REQUEST, "PAPER_4004", "탈퇴한 제휴업체의 제휴는 종료만 가능합니다."),
 
     // session 에러
     NO_SUCH_SESSION(HttpStatus.NOT_FOUND, "SESSION4001", "존재하지 않는 session ID입니다."),

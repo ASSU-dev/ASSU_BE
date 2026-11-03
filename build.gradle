@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.3'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.hibernate.orm' version '6.6.18.Final'
     id 'org.jetbrains.kotlin.jvm'
 }
 
@@ -11,6 +12,12 @@ version = '0.0.1-SNAPSHOT'
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+hibernate {
+	enhancement {
+		enableAssociationManagement = false
 	}
 }
 
@@ -110,6 +117,10 @@ dependencies {
 	// health-check, metrics
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// scheduler lock
+	implementation 'net.javacrumbs.shedlock:shedlock-spring:7.10.1'
+	implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1'
 
 	//redirect
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'

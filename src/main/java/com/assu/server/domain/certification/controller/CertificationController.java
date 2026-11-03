@@ -3,6 +3,7 @@ package com.assu.server.domain.certification.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,9 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
+import com.assu.server.domain.certification.dto.CertificationSessionResponseDTO;
 import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +47,7 @@ public class CertificationController {
 			"  - `storeId` (Long, required): 스토어 id\n"+
 			"  - `adminId` (Long, required): 관리자 id\n"+
 			"  - `tableNumber` (Integer, required): 테이블 넘버\n"+
+			"  - `contentId` (Long, optional): 인증하려는 제휴 내용 ID. 전달하면 세션 상세 조회에서 혜택 정보를 받을 수 있으며, 매장·학생회와 일치하지 않으면 404\n"+
 			"\n**Response:**\n" +
 			"  - 성공 시 201(Created)와 sessionId, adminId 반환"
 	)
@@ -56,7 +61,30 @@ public class CertificationController {
 		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus.GROUP_SESSION_CREATE, result));
 	}
 
+	@GetMapping("/certification/session/{sessionId}")
+	@Operation(
+		summary = "그룹 인증 세션 상세 조회 API",
+		description = "- QR로 진입한 참여자가 인증 전에 매장과 혜택 정보를 확인하기 위한 API입니다.\n" +
+			"- 조회만 하며 인증 인원에는 영향을 주지 않습니다.\n" +
+			"- 로그인 필요 (STUDENT)\n\n" +
+			"**Path Variable:**\n" +
+			"  - `sessionId` (Long, required): QR의 세션 ID\n\n" +
+			"**Response:**\n" +
+			"  - `sessionId`, `storeId`, `storeName`, `peopleNumber`(필요 인원), `currentCount`(현재 인원)\n" +
+			"  - `partnershipContent`: `GET /store/{storeId}/papers`의 partnershipContents 항목과 같은 구조. 세션 생성 시 contentId를 보내지 않았다면 null\n\n" +
+			"**Error Cases:**\n" +
+			"  - 404 SESSION4001: 존재하지 않거나 만료된 세션"
+	)
+	public ResponseEntity<BaseResponse<CertificationSessionResponseDTO>> getSession(
+		@PathVariable Long sessionId
+	) {
+		CertificationSessionResponseDTO result = certificationService.getSession(sessionId);
+
+		return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, result));
+	}
+
 	@DeleteMapping("/certification/session/{sessionId}")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.CERTIFICATION_EXPIRE_SESSION)
 	@Operation(
 		summary = "그룹 인증 세션 만료 API",
 		description = "세션 생성자만 인증 세션을 즉시 만료시킬 수 있습니다. 만료 후 해당 세션으로 들어오는 인증 요청은 거절됩니다."
@@ -71,6 +99,7 @@ public class CertificationController {
 	}
 
 	@PostMapping("/certification/personal")
+	@ApiErrorCodeExamples(SwaggerErrorCodes.CERTIFICATION_PERSONAL)
 	@Operation(
 		summary = "개인 인증 요청 API",
 		description =

@@ -2,7 +2,7 @@ package com.assu.server.domain.certification.service;
 
 import java.util.List;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.admin.entity.Admin;
@@ -12,11 +12,15 @@ import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
+import com.assu.server.domain.certification.dto.CertificationSessionResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.entity.AssociateCertification;
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
 import com.assu.server.domain.certification.repository.AssociateCertificationRepository;
 import com.assu.server.domain.member.entity.Member;
+import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
+import com.assu.server.domain.partnership.entity.PaperContent;
+import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
@@ -35,13 +39,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class CertificationServiceImpl implements CertificationService {
 	private final StoreRepository storeRepository;
+	private final PaperContentRepository paperContentRepository;
 	private final AssociateCertificationRepository associateCertificationRepository;
 	private final MeterRegistry meterRegistry;
 	// 세션 메니저
 	private final CertificationSessionManager sessionManager;
 	// AdminService 참조
 	private final AdminService adminService;
-	private final SimpMessagingTemplate messagingTemplate;
+	private final WebSocketBroadcaster webSocketBroadcaster;
 
 
 
@@ -50,12 +55,49 @@ public class CertificationServiceImpl implements CertificationService {
 		CertificationGroupRequestDTO dto, Member member){
 		Long userId = member.getId();
 
-		Long sessionId = sessionManager.openSession(dto.storeId(), dto.people(), userId);
+		if (dto.contentId() != null) {
+			validateContentBelongsTo(dto.contentId(), dto.storeId(), dto.adminId());
+		}
+
+		Long sessionId = sessionManager.openSession(
+			dto.storeId(), dto.people(), userId, dto.adminId(), dto.contentId());
 
 		sessionManager.addUserToSession(sessionId, userId);
 
 		return new CertificationResponseDTO(sessionId);
 
+	}
+
+	@Override
+	public CertificationSessionResponseDTO getSession(Long sessionId) {
+		if (!sessionManager.exists(sessionId)) {
+			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+		}
+
+		Long storeId = Long.valueOf(sessionManager.getSessionInfo(sessionId, "storeId"));
+		int peopleNumber = Integer.parseInt(sessionManager.getSessionInfo(sessionId, "peopleNumber"));
+		String contentIdValue = sessionManager.getSessionInfo(sessionId, "contentId");
+
+		Store store = storeRepository.findById(storeId).orElseThrow(
+			() -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
+		);
+
+		PaperContentResponseDTO partnershipContent = null;
+		if (contentIdValue != null) {
+			PaperContent content = paperContentRepository.findById(Long.valueOf(contentIdValue)).orElseThrow(
+				() -> new GeneralException(ErrorStatus.NO_SUCH_CONTENT)
+			);
+			partnershipContent = PaperContentResponseDTO.toContentResponse(content);
+		}
+
+		return new CertificationSessionResponseDTO(
+			sessionId,
+			store.getId(),
+			store.getName(),
+			peopleNumber,
+			sessionManager.snapshotUserIds(sessionId).size(),
+			partnershipContent
+		);
 	}
 
 	@Override
@@ -72,7 +114,7 @@ public class CertificationServiceImpl implements CertificationService {
 		List<Long> certifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 		sessionManager.removeSession(sessionId);
 
-		messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
+		webSocketBroadcaster.send("/certification/progress/" + sessionId,
 			new CertificationProgressResponseDTO(
 				"expired",
 				certifiedUserIds.size(),
@@ -108,7 +150,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"학생과 매치되지 않는 정보입니다.",
 				currentCertifiedUserIds
 			);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			countGroupFailure("mismatch");
 			return response;
 		}
@@ -121,7 +163,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"doubled member",
 				currentCertifiedUserIds
 			);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
@@ -147,13 +189,13 @@ public class CertificationServiceImpl implements CertificationService {
 			associateCertificationRepository.save(certification);
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 
 			sessionManager.removeSession(sessionId);
 			countGroupSuccess("completed");
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			countGroupSuccess("success");
 		}
 		return response;
@@ -165,6 +207,18 @@ public class CertificationServiceImpl implements CertificationService {
 
 	private void countGroupFailure(String reason){
 		meterRegistry.counter("certification.group.result", "result", "failure", "reason", reason).increment();
+	}
+
+	private void validateContentBelongsTo(Long contentId, Long storeId, Long adminId) {
+		PaperContent content = paperContentRepository.findById(contentId).orElseThrow(
+			() -> new GeneralException(ErrorStatus.NO_SUCH_CONTENT)
+		);
+
+		boolean isSameStore = content.getPaper().getStore().getId().equals(storeId);
+		boolean isSameAdmin = content.getPaper().getAdmin().getId().equals(adminId);
+		if (!isSameStore || !isSameAdmin) {
+			throw new GeneralException(ErrorStatus.NO_SUCH_CONTENT);
+		}
 	}
 
 	@Override

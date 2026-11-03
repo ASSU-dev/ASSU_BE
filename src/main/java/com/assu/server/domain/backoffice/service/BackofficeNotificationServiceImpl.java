@@ -122,7 +122,7 @@ public class BackofficeNotificationServiceImpl implements BackofficeNotification
             throw new DatabaseException(ErrorStatus.OUTBOX_NOT_FAILED);
         }
 
-        outboxRepository.resetToPendingById(outboxId);
+        outboxRepository.resetToPendingById(outboxId, LocalDateTime.now().plus(NotificationOutbox.PUBLISH_GRACE));
 
         Notification n = outbox.getNotification();
         eventPublisher.publishEvent(new OutboxCreatedEvent(

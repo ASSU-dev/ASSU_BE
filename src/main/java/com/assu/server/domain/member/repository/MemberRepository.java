@@ -8,9 +8,12 @@ import java.util.Optional;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -18,7 +21,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findMemberById(Long id);
+
+    @EntityGraph(attributePaths = {"studentProfile", "adminProfile", "partnerProfile", "backofficeProfile", "ssuAuth", "commonAuth"})
+    @Query("SELECT m FROM Member m WHERE m.id = :id")
+    Optional<Member> findWithProfilesById(@Param("id") Long id);
     List<Member> findByDeletedAtBefore(LocalDateTime deletedAt);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM Member m WHERE m.id = :id")
+    Optional<Member> findWithLockById(@Param("id") Long id);
+
     List<Member> findByRole(UserRole role);
 
     @Query("SELECT m.id FROM Member m")

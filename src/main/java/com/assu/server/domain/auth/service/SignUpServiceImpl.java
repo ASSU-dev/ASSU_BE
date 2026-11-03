@@ -30,18 +30,23 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -64,6 +69,8 @@ public class SignUpServiceImpl implements SignUpService {
     private final StudentService studentService;
     private final PhoneAuthService phoneAuthService;
     private final CommonAuthRepository commonAuthRepository;
+    private final DiscordNotifier discordNotifier;
+    private final WithdrawalService withdrawalService;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -122,7 +129,9 @@ public class SignUpServiceImpl implements SignUpService {
         member.setProfile(student);
 
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
-        studentService.syncUserPapersForStudent(student.getId());
+        // 커밋 전 Student는 REQUIRES_NEW 트랜잭션에서 조회되지 않으므로 커밋 이후 실행
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -158,8 +167,9 @@ public class SignUpServiceImpl implements SignUpService {
         );
         studentRepository.save(student);
 
-        // 탈퇴 기간 중 변동된 제휴를 반영한다
-        studentService.syncUserPapersForStudent(student.getId());
+        // 탈퇴 기간 중 변동된 제휴를 반영한다 (갱신된 학과 정보 기준으로 커밋 이후 실행)
+        Long studentId = student.getId();
+        runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
@@ -174,8 +184,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
@@ -194,13 +205,13 @@ public class SignUpServiceImpl implements SignUpService {
             return restoreWithdrawnPartner(withdrawnMember, req, licenseImage, address, lat, lng, point);
         }
 
-        // 2) member 생성
+        // 2) member 생성 (마스터 번호는 iOS 심사 대응을 위해 승인 절차 없이 즉시 ACTIVE)
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.PARTNER)
-                        .isActivated(ActivationStatus.SUSPEND)
+                        .isActivated(resolveInitialActivationStatus(req.phoneNumber()))
                         .build());
 
         // 3) RealmAuthAdapter 로 Common 자격 저장
@@ -227,6 +238,8 @@ public class SignUpServiceImpl implements SignUpService {
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
 
+        runAfterCommit(() -> discordNotifier.send("🔔 새 제휴업체 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
+
         return SignUpResponseDTO.from(member, null);
     }
 
@@ -249,6 +262,13 @@ public class SignUpServiceImpl implements SignUpService {
         return member;
     }
 
+    // 이메일만으로는 소유를 증명할 수 없으므로, SMS 인증한 번호가 기존 번호와 같아야 복구한다
+    private void assertRegisteredPhone(String registeredPhone, String verifiedPhone) {
+        if (!verifiedPhone.equals(registeredPhone)) {
+            throw new CustomAuthException(ErrorStatus.RESTORE_PHONE_MISMATCH);
+        }
+    }
+
     private SignUpResponseDTO restoreWithdrawnPartner(
             Member member,
             PartnerSignUpRequestDTO req,
@@ -262,9 +282,10 @@ public class SignUpServiceImpl implements SignUpService {
         if (partner == null) {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
+        assertRegisteredPhone(partner.getPhoneNum(), req.phoneNumber());
 
         // isActivated는 유지한다 — 승인받았던 업체는 재승인 없이 바로 로그인 가능
-        member.restore();
+        withdrawalService.restoreMember(member);
         member.updateTermAgreements(req.locationAgree(), req.marketingAgree());
         memberRepository.save(member);
 
@@ -291,12 +312,18 @@ public class SignUpServiceImpl implements SignUpService {
 
     private void linkStore(Partner partner, String name, String address, String detailAddress,
                            Double lat, Double lng, Point point) {
-        Optional<Store> storeOpt = storeRepository.findBySameAddress(address, detailAddress);
+        Optional<Store> sameAddressStore = storeRepository.findBySameAddress(address, detailAddress);
+        if (sameAddressStore.isPresent() && isLinkedToOtherPartner(sameAddressStore.get(), partner)) {
+            throw new CustomAuthException(ErrorStatus.STORE_ALREADY_LINKED);
+        }
+
+        // 재가입 복구 업체는 이미 가게가 있으므로 새로 만들지 않고 그 가게를 옮긴다
+        Optional<Store> storeOpt = storeRepository.findByPartner(partner).or(() -> sameAddressStore);
         if (storeOpt.isPresent()) {
             Store store = storeOpt.get();
             store.linkPartner(partner);
             store.setName(name);
-            store.setGeo(lat, lng, point);
+            store.relocate(address, detailAddress, lat, lng, point);
             storeRepository.save(store);
         } else {
             Store newly = Store.builder()
@@ -312,6 +339,10 @@ public class SignUpServiceImpl implements SignUpService {
                     .build();
             storeRepository.save(newly);
         }
+    }
+
+    private boolean isLinkedToOtherPartner(Store store, Partner partner) {
+        return store.getPartner() != null && !store.getPartner().getId().equals(partner.getId());
     }
 
     @Override
@@ -358,8 +389,9 @@ public class SignUpServiceImpl implements SignUpService {
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
 
-        if (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
-                || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())) {
+        if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
+                && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
+                        || adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber()))) {
             throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
         }
 
@@ -368,13 +400,13 @@ public class SignUpServiceImpl implements SignUpService {
             return restoreWithdrawnAdmin(withdrawnMember, req, signImage);
         }
 
-        // 1) member 생성
+        // 1) member 생성 (마스터 번호는 iOS 심사 대응을 위해 승인 절차 없이 즉시 ACTIVE)
         Member member = memberRepository.save(
                 Member.builder()
                         .isLocationTermAgreed(req.locationAgree())
                         .isMarketingTermAgreed(req.marketingAgree())
                         .role(UserRole.ADMIN)
-                        .isActivated(ActivationStatus.SUSPEND)
+                        .isActivated(resolveInitialActivationStatus(req.phoneNumber()))
                         .build());
 
         // 2) RealmAuthAdapter 로 Common 자격 저장
@@ -411,6 +443,8 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
+        runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
+
         return SignUpResponseDTO.from(member, null);
     }
 
@@ -423,6 +457,7 @@ public class SignUpServiceImpl implements SignUpService {
         if (admin == null) {
             throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
         }
+        assertRegisteredPhone(admin.getPhoneNum(), req.phoneNumber());
 
         CommonInfoPayloadDTO info = req.commonInfo();
         var sp = Optional.ofNullable(info.selectedPlace())
@@ -474,6 +509,12 @@ public class SignUpServiceImpl implements SignUpService {
         }
     }
 
+    private ActivationStatus resolveInitialActivationStatus(String phoneNumber) {
+        return phoneAuthService.isMasterPhoneNumber(phoneNumber)
+                ? ActivationStatus.ACTIVE
+                : ActivationStatus.SUSPEND;
+    }
+
     private Point toPoint(Double lat, Double lng) {
         if (lat == null || lng == null)
             return null;
@@ -484,5 +525,26 @@ public class SignUpServiceImpl implements SignUpService {
 
     private String pickDisplayAddress(String road, String jibun) {
         return (road != null && !road.isBlank()) ? road : jibun;
+    }
+
+    private void syncUserPapersSafely(Long studentId) {
+        try {
+            studentService.syncUserPapersForStudent(studentId);
+        } catch (Exception e) {
+            log.error("[SignUp] UserPaper 동기화 실패 studentId={}", studentId, e);
+        }
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }
