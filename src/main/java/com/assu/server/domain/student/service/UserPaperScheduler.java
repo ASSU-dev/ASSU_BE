@@ -1,6 +1,7 @@
 package com.assu.server.domain.student.service;
 
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ public class UserPaperScheduler {
      * "0 0 3 * * *" → 매일 03:00:00
      */
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "user-paper-sync", lockAtMostFor = "PT1H", lockAtLeastFor = "PT5M")
     public void syncAllStudentsDaily() {
         studentService.syncUserPapersForAllStudents();
     }
