@@ -54,8 +54,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import jakarta.persistence.EntityManager;
 
 @Slf4j
 @Service
@@ -75,6 +79,8 @@ public class StudentServiceImpl implements StudentService {
 	private final HomeCurationItemRepository homeCurationItemRepository;
 	private final StoreRepository storeRepository;
 	private final AmazonS3Manager amazonS3Manager;
+	private final TransactionTemplate transactionTemplate;
+	private final EntityManager entityManager;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -324,17 +330,25 @@ public class StudentServiceImpl implements StudentService {
 				.build();
 	}
 
-	/**
-	 * 전체 학생에 대해 일괄로 user_paper 채워 넣는 메서드
-	 * (스케줄러에서 이거만 호출하면 됨)
-	 */
-	@Transactional
 	@Override
 	public void syncUserPapersForAllStudents() {
-		List<Student> students = studentRepository.findAll();
-		for (Student s : students) {
-			syncUserPapersForStudent(s.getId());
+		List<Long> studentIds = studentRepository.findAll().stream().map(Student::getId).toList();
+		int failCount = 0;
+		for (Long studentId : studentIds) {
+			try {
+				transactionTemplate.executeWithoutResult(status -> syncUserPapersForStudent(studentId));
+			} catch (DataIntegrityViolationException e) {
+				failCount++;
+				log.warn("[UserPaper] 다른 동기화와 경합, 이미 저장됨 studentId={}", studentId);
+			} catch (Exception e) {
+				failCount++;
+				log.error("[UserPaper] 동기화 실패 studentId={}", studentId, e);
+			} finally {
+				// 백오피스 요청(OSIV)에서는 EntityManager가 요청 끝까지 유지돼 학생마다 쌓이므로 커밋 후 비운다.
+				entityManager.clear();
+			}
 		}
+		log.info("[UserPaper] 전체 동기화 완료 total={} failed={}", studentIds.size(), failCount);
 	}
 
 	@Override
