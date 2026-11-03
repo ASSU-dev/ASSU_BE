@@ -2,7 +2,7 @@ package com.assu.server.domain.certification.service;
 
 import java.util.List;
 
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
 
 import com.assu.server.domain.admin.entity.Admin;
@@ -40,7 +40,7 @@ public class CertificationServiceImpl implements CertificationService {
 	private final CertificationSessionManager sessionManager;
 	// AdminService 참조
 	private final AdminService adminService;
-	private final SimpMessagingTemplate messagingTemplate;
+	private final WebSocketBroadcaster webSocketBroadcaster;
 
 
 
@@ -71,7 +71,7 @@ public class CertificationServiceImpl implements CertificationService {
 		List<Long> certifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 		sessionManager.removeSession(sessionId);
 
-		messagingTemplate.convertAndSend("/certification/progress/" + sessionId,
+		webSocketBroadcaster.send("/certification/progress/" + sessionId,
 			new CertificationProgressResponseDTO(
 				"expired",
 				certifiedUserIds.size(),
@@ -106,7 +106,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"학생과 매치되지 않는 정보입니다.",
 				currentCertifiedUserIds
 			);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			return response;
 		}
 
@@ -118,7 +118,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"doubled member",
 				currentCertifiedUserIds
 			);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
 
@@ -142,12 +142,12 @@ public class CertificationServiceImpl implements CertificationService {
 			associateCertificationRepository.save(certification);
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 
 			sessionManager.removeSession(sessionId);
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
-			messagingTemplate.convertAndSend("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 		}
 		return response;
 	}

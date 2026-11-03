@@ -27,7 +27,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -45,7 +45,7 @@ public class ChatServiceImpl implements ChatService {
     private final AdminRepository adminRepository;
     private final MessageRepository messageRepository;
     private final StoreRepository storeRepository;
-    private final SimpMessagingTemplate simpMessagingTemplate;
+    private final WebSocketBroadcaster webSocketBroadcaster;
     private final NotificationCommandService notificationCommandService;
     private final PresenceTracker presenceTracker;
     private final BlockRepository blockRepository;
@@ -179,7 +179,7 @@ public class ChatServiceImpl implements ChatService {
         Message saved = messageRepository.saveAndFlush(message);
 
         ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
-        simpMessagingTemplate.convertAndSend("/sub/chat/" + request.roomId(), responseDTO);
+        webSocketBroadcaster.send("/sub/chat/" + request.roomId(), responseDTO);
 
         return responseDTO;
     }
@@ -199,7 +199,7 @@ public class ChatServiceImpl implements ChatService {
         if (!readMessagesIdList.isEmpty()) {
             ChatResponseDTO.ReadMessageResponseDTO receipt =
                     new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
-            simpMessagingTemplate.convertAndSend("/sub/chat/" + roomId, receipt);
+            webSocketBroadcaster.send("/sub/chat/" + roomId, receipt);
         }
 
         return new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);

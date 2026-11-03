@@ -1,7 +1,7 @@
 package com.assu.server.domain.chat.controller;
 
 import com.assu.server.domain.chat.dto.*;
-import com.assu.server.domain.chat.redis.ChattingRedisPublisher;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import com.assu.server.domain.chat.service.BlockService;
 import com.assu.server.domain.chat.service.ChatService;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -29,7 +29,7 @@ import java.util.List;
 public class ChatController {
     private final ChatService chatService;
     private final BlockService blockService;
-    private final ChattingRedisPublisher chattingRedisPublisher;
+    private final WebSocketBroadcaster webSocketBroadcaster;
 
     @Operation(
             summary = "채팅방 생성 API",
@@ -79,10 +79,10 @@ public class ChatController {
         // 1. 서비스 호출
         MessageHandlingResult result = chatService.handleMessage(request, authenticatedMemberId);
         // 2. [항상 전송] 채팅방 메시지 전송
-        chattingRedisPublisher.publishChatMessage(request.roomId(), result.sendMessageResponseDTO());
+        webSocketBroadcaster.send("/sub/chat/" + request.roomId(), result.sendMessageResponseDTO());
         // 3. [조건부 전송] 채팅방 목록 업데이트 전송
         if (result.hasRoomUpdates()) {
-            chattingRedisPublisher.publishChatRoomUpdate(result.receiverId(), result.chatRoomUpdateDTO());
+            webSocketBroadcaster.send("/sub/chat/list/" + result.receiverId(), result.chatRoomUpdateDTO());
         }
     }
 
