@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.service.AdminService;
@@ -33,6 +32,7 @@ import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.WebSocketBroadcaster;
 
 @ExtendWith(MockitoExtension.class)
 class CertificationServiceImplTest {
@@ -48,7 +48,7 @@ class CertificationServiceImplTest {
 	@Mock
 	private AdminService adminService;
 	@Mock
-	private SimpMessagingTemplate messagingTemplate;
+	private WebSocketBroadcaster webSocketBroadcaster;
 
 	private CertificationServiceImpl certificationService;
 
@@ -60,7 +60,7 @@ class CertificationServiceImplTest {
 			associateCertificationRepository,
 			sessionManager,
 			adminService,
-			messagingTemplate
+			webSocketBroadcaster
 		);
 	}
 
