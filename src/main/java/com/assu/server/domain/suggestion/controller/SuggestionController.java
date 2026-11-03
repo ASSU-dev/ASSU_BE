@@ -7,6 +7,8 @@ import com.assu.server.domain.suggestion.dto.WriteSuggestionResponseDTO;
 import com.assu.server.domain.suggestion.service.SuggestionService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,6 +44,7 @@ public class SuggestionController {
                     "  - `adminId` (Long): 건의 대상 관리자 ID\n" +
                     "  - `storeName` (String): 희망 가게 이름\n" +
                     "  - `suggestionBenefit` (String): 희망 혜택\n")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.SUGGESTION_WRITE)
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<WriteSuggestionResponseDTO> writeSuggestion(
@@ -63,6 +66,7 @@ public class SuggestionController {
                     "  - `departName` (String): 단과대학 학생회 이름\n" +
                     "  - `majorId` (Long): 학부/학과 학생회 ID\n" +
                     "  - `majorName` (String): 학부/학과 학생회 이름\n")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.SUGGESTION_GET_ADMINS)
     @GetMapping("/admin")
     @PreAuthorize("hasRole('STUDENT')")
     public BaseResponse<GetSuggestionAdminsDTO> getSuggestionAdmins(

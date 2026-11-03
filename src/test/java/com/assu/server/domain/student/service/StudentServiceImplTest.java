@@ -42,6 +42,10 @@ import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import org.springframework.transaction.support.TransactionTemplate;
+import jakarta.persistence.EntityManager;
+
+import java.util.function.Consumer;
 
 @ExtendWith(MockitoExtension.class)
 class StudentServiceImplTest {
@@ -78,6 +82,12 @@ class StudentServiceImplTest {
 
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
+	@Mock
+	private EntityManager entityManager;
 
 	private static final Long STUDENT_ID = 1L;
 
@@ -455,5 +465,27 @@ class StudentServiceImplTest {
 		verify(userPaperRepository, times(1)).saveAll(captor.capture());
 		assertEquals(1, captor.getValue().size());
 		assertEquals(1001L, captor.getValue().get(0).getPaperContent().getId());
+	}
+
+	@Test
+	void syncUserPapersForAllStudents_whenOneStudentFails_thenContinuesWithOthers() {
+		// given
+		Student failing = Student.builder().id(1L).university(University.SSU).build();
+		Student next = Student.builder().id(2L).university(University.SSU).build();
+		when(studentRepository.findAll()).thenReturn(List.of(failing, next));
+		doAnswer(inv -> {
+			inv.<Consumer<Object>>getArgument(0).accept(null);
+			return null;
+		}).when(transactionTemplate).executeWithoutResult(any());
+		when(studentRepository.findById(1L)).thenThrow(new RuntimeException("boom"));
+		when(studentRepository.findById(2L)).thenReturn(Optional.of(next));
+
+		// when
+		studentService.syncUserPapersForAllStudents();
+
+		// then
+		verify(transactionTemplate, times(2)).executeWithoutResult(any());
+		verify(adminRepository).findMatchingAdmins(next.getUniversity(), next.getDepartment(), next.getMajor());
+		verify(entityManager, times(2)).clear();
 	}
 }

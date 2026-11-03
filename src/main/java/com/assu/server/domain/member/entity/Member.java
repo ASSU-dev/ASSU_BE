@@ -60,16 +60,16 @@ public class Member extends BaseEntity {
     private Boolean chatBlocked = false;
 
     // 역할별 프로필 - 선택적으로 연관
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Student studentProfile;
 
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Admin adminProfile;
 
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Partner partnerProfile;
 
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private BackofficeUser backofficeProfile;
 
     // 연관관계 (1:1) — 양방향 필요 없으면 아래 필드 제거해도 됨

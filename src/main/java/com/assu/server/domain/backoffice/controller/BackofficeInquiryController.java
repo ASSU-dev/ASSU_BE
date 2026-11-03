@@ -6,6 +6,8 @@ import com.assu.server.domain.inquiry.dto.InquiryResponseDTO;
 import com.assu.server.domain.inquiry.service.BackofficeInquiryService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.assu.server.domain.common.dto.PageResponseDTO;
@@ -31,6 +33,7 @@ public class BackofficeInquiryController {
 
     private final BackofficeInquiryService backofficeInquiryService;
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_INQUIRY_LIST)
     @Operation(
             summary = "운영자 전체 문의 목록 조회 API",
             description = "# [v1.1 (2026-07-04)]\n" +
@@ -61,6 +64,7 @@ public class BackofficeInquiryController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficeInquiryService.getInquiries(status, keyword, page, size));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_INQUIRY_DETAIL)
     @Operation(
             summary = "운영자 문의 상세 조회 API",
             description = "# [v1.0 (2026-06-25)]\n" +
@@ -82,6 +86,7 @@ public class BackofficeInquiryController {
     }
 
     @BackofficeAudited(action = "INQUIRY_ANSWER", targetId = "#inquiryId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_INQUIRY_ANSWER)
     @Operation(
             summary = "운영자 문의 답변 API",
             description = "# [v1.0 (2025-09-02)](https://www.notion.so/24e1197c19ed8064808fcca568b8912a?source=copy_link)\n" +

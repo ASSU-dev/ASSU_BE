@@ -100,22 +100,20 @@ public class MapServiceImpl implements MapService {
             return List.of();
         }
 
-        // 2) 해당 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
-        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
+        // 2) 뷰포트 매장에 한정해 학생의 활성 UserPaper 조회 (paper, store, admin fetch join 포함)
+        final Set<Long> storeIdSet = new HashSet<>();
+        for (Store s : stores) storeIdSet.add(s.getId());
+
+        final List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(memberId, storeCategory, adminId, storeIdSet);
         if (userPapers.isEmpty()) {
             return List.of(); // active 제휴가 없으면 빈 리스트 반환
         }
 
-        // 3) 뷰포트 매장 ID Set (O(1) 조회용)
-        final Set<Long> storeIdSet = new HashSet<>();
-        for (Store s : stores) storeIdSet.add(s.getId());
-
-        // 4) UserPaper를 매장별로 그룹화: 뷰포트 내 매장 필터
+        // 3) UserPaper를 매장별로 그룹화
         final Map<Long, List<Paper>> papersByStore = new LinkedHashMap<>();
         final Map<Long, Set<Long>> seenPapersByStore = new HashMap<>();
         for (UserPaper up : userPapers) {
             final Long storeId = up.getPaper().getStore().getId();
-            if (!storeIdSet.contains(storeId)) continue;
 
             final Long paperId = up.getPaper().getId();
             Set<Long> seenPapers = seenPapersByStore.computeIfAbsent(storeId, k -> new HashSet<>());

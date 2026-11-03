@@ -33,7 +33,7 @@ public class SuggestionServiceImpl implements SuggestionService {
     @Transactional
     public WriteSuggestionResponseDTO writeSuggestion(WriteSuggestionRequestDTO request, Long userId) {
 
-        Admin admin = adminRepository.findById(request.adminId())
+        Admin admin = adminRepository.findByIdAndMember_DeletedAtIsNull(request.adminId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
         Student student = studentRepository.findById(userId)

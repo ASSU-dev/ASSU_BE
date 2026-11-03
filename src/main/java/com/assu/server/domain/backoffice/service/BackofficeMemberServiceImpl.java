@@ -137,7 +137,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             throw new CustomAuthException(ErrorStatus.MEMBER_NOT_DELETED);
         }
 
-        member.restore();
+        withdrawalService.restoreMember(member);
         return BackofficeMemberSummaryDTO.from(loadProfileForSummary(member));
     }
 

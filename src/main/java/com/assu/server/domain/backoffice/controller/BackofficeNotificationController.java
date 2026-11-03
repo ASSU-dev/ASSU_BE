@@ -9,6 +9,8 @@ import com.assu.server.domain.backoffice.service.BackofficeNotificationService;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,6 +31,7 @@ public class BackofficeNotificationController {
     private final BackofficeNotificationService backofficeNotificationService;
 
     @BackofficeAudited(action = "PUSH_SEND", targetId = "#request.receiverId()")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_NOTIFICATION_PUSH_SEND)
     @Operation(
             summary = "운영자 수동 푸시 알림 전송 API",
             description = "# [v1.1 (2026-07-04)]\n" +
@@ -56,6 +59,7 @@ public class BackofficeNotificationController {
         return BaseResponse.onSuccess(SuccessStatus._OK, null);
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_NOTIFICATION_PUSH_LOG_LIST)
     @Operation(
             summary = "푸시 발송 이력 조회 API",
             description = "# [v1.1 (2026-07-04)]\n" +
@@ -82,6 +86,7 @@ public class BackofficeNotificationController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficeNotificationService.getPushLogs(keyword, page, size));
     }
 
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_NOTIFICATION_OUTBOX_FAILED_LIST)
     @Operation(
             summary = "전송 실패 알림 목록 조회 API",
             description = "# [v1.0 (2026-06-25)]\n" +
@@ -106,6 +111,7 @@ public class BackofficeNotificationController {
     }
 
     @BackofficeAudited(action = "PUSH_RETRY", targetId = "#outboxId")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_NOTIFICATION_OUTBOX_RETRY)
     @Operation(
             summary = "실패 알림 수동 재전송 API",
             description = "# [v1.0 (2026-06-25)]\n" +

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.service.CertificationService;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PrincipalDetails;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -53,13 +54,13 @@ public class GroupCertificationController {
 					principalDetails.getUsername(), dto.adminId(), dto.sessionId());
 
 				if (principalDetails != null) {
-					CertificationProgressResponseDTO result = certificationService.handleCertification(dto, principalDetails.getMember());
-					meterRegistry.counter("certification.group.result", "result", result.type()).increment();
-					return result;
+					return certificationService.handleCertification(dto, principalDetails.getMember());
 				}
 			} catch (Exception e) {
 				log.error("### ERROR ### 인증 처리 중 오류 발생: {}", e.getMessage(), e);
-				meterRegistry.counter("certification.group.result", "result", "failure").increment();
+				if (!(e instanceof GeneralException)) {
+					meterRegistry.counter("certification.group.result", "result", "failure", "reason", "unexpected").increment();
+				}
 			} finally {
 				sample.stop(meterRegistry.timer("certification.group.duration"));
 			}

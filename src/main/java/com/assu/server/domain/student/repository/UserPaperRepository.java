@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.Collection;
 import java.util.List;
 
 public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
@@ -17,6 +18,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
     @Query("""
         SELECT up FROM UserPaper up
         JOIN FETCH up.paper p
+        JOIN FETCH up.paperContent pc
         LEFT JOIN FETCH p.store s
         LEFT JOIN FETCH p.admin a
         LEFT JOIN FETCH p.partner pt
@@ -31,6 +33,25 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
             @Param("studentId") Long studentId,
             @Param("storeCategory") StoreCategory storeCategory,
             @Param("adminId") Long adminId
+    );
+
+    @Query("""
+        SELECT up FROM UserPaper up
+        JOIN FETCH up.paper p
+        JOIN FETCH p.store s
+        LEFT JOIN FETCH p.admin a
+        WHERE up.student.id = :studentId
+          AND s.id IN :storeIds
+          AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+          AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
+          AND (:adminId IS NULL OR a.id = :adminId)
+        ORDER BY p.id DESC
+    """)
+    List<UserPaper> findActivePartnershipsByStudentIdAndStoreIds(
+            @Param("studentId") Long studentId,
+            @Param("storeCategory") StoreCategory storeCategory,
+            @Param("adminId") Long adminId,
+            @Param("storeIds") Collection<Long> storeIds
     );
 
     @Query("""

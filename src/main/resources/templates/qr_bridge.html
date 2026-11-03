@@ -16,13 +16,13 @@
 <div class="container">
     <div class="spinner"></div>
     <p>앱으로 연결 중입니다...</p>
-    <p style="font-size: 0.9em; color: #666;">연결이 되지 않으면 <a th:href="${playStoreUrl}">여기</a>를 클릭하여 설치해 주세요.</p>
+    <p style="font-size: 0.9em; color: #666;">연결이 되지 않으면 <a th:href="${storeUrl}">여기</a>를 클릭하여 설치해 주세요.</p>
 </div>
 
 <script th:inline="javascript">
     /*<![CDATA[*/
     const appLink = [[${appLink}]];
-    const storeUrl = [[${playStoreUrl}]];
+    const storeUrl = [[${storeUrl}]];
 
     // 1. 앱 실행 시도
     window.location.href = appLink;

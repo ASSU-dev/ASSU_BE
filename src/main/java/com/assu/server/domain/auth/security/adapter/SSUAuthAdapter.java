@@ -9,12 +9,14 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class SSUAuthAdapter implements RealmAuthAdapter {
@@ -30,8 +32,12 @@ public class SSUAuthAdapter implements RealmAuthAdapter {
     @Override
     public UserDetails loadUserDetails(String studentNumber) {
         SSUAuth sa = ssuAuthRepository.findByStudentNumber(studentNumber)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> {
+                    log.debug("[AUTH_CHAIN] stage=adapter-load realm=SSU result=not-found");
+                    return new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+                });
         var m = sa.getMember();
+        log.debug("[AUTH_CHAIN] stage=adapter-load realm=SSU result=found status={}", m.getIsActivated());
         boolean enabled = m.getIsActivated() == ActivationStatus.ACTIVE;
         String authority = "ROLE_" + m.getRole().name();
 

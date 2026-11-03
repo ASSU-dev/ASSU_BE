@@ -32,16 +32,16 @@ $ARGUMENTS
    - Extract the issue number from the returned URL: `issue_number=$(basename "$issue_url")`.
    - Immediately rename the title to include the real number: `gh issue edit "$issue_number" --title "[TYPE/#$issue_number] ..."`. Never leave a literal `<number>` placeholder.
 
-3. **Protect unrelated working-tree state before switching branches.**
-   - Run `git status --short` and `git branch --show-current` first.
-   - If there are uncommitted changes that belong to the current task (e.g. the fix already applied on the wrong branch), stash *only those specific paths* with `git stash push -m "<label>" -- <path...>` — never a bare `git stash` that could sweep up unrelated in-progress work (submodule pointer diffs, other WIP files). Leave anything unrelated untouched in the working tree.
-   - Never run destructive commands (`git reset --hard`, `git clean -f`, `git checkout -- .`) as part of this flow.
+3. **Never switch branches in the main working tree.** Other sessions may be working there. Do not run `git checkout`/`git switch`/`git stash` in it, and never run destructive commands (`git reset --hard`, `git clean -f`, `git checkout -- .`).
+   - If the change was already applied in the main working tree, save it as a patch of *only those paths* (`git diff -- <path...> > <scratch>/change.patch`) to apply in the worktree in step 4. Leave the main working tree untouched.
 
-4. **Branch off develop.**
-   - `git checkout develop`
-   - `git pull origin develop --ff-only` (never merge/rebase over local develop; if this fails, stop and report — do not force)
-   - `git switch -c <type>/#<issue-number>-<brief-english-kebab-case-description>` following the repo's branch convention (see the `branch` command for the exact rules).
-   - If a stash was created in step 3, `git stash pop` to bring the change back onto the new branch.
+4. **Create a worktree off develop.**
+   - Branch name: `<type>/#<issue-number>-<brief-english-kebab-case-description>` (see the `branch` command for the exact rules). Worktree dir: `.claude/worktrees/<branch name with "/#" replaced by "-">`.
+   - `git fetch origin develop`
+   - `git worktree add -b <branch-name> .claude/worktrees/<dir> origin/develop`
+   - In the worktree: `git submodule update --init config` (needed for build).
+   - If a patch was saved in step 3, `git apply <scratch>/change.patch` inside the worktree. If it fails, stop and report.
+   - Run steps 5–6 from inside the worktree directory.
 
 5. **Commit.**
    - Stage only the files relevant to this change — never `git add -A` or `git add .`. Review `git status --short` before committing.

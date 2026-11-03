@@ -10,6 +10,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: cd-prod
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -28,40 +32,22 @@ jobs:
         with:
           install: true
 
-      - name: Create buildx builder
-        run: |
-          docker buildx create --use --name mybuilder
-          docker buildx inspect --bootstrap
-
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Dependency Cache
+      - name: Build & Push App Image
         run: |
           docker buildx build \
-            --builder mybuilder \
             --platform linux/amd64 \
             --push \
             --file Dockerfile \
-            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
-            --target dependencies \
-            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache,mode=max \
-            .
-
-      - name: Build & Push Final App Image
-        run: |
-          docker buildx build \
-            --builder mybuilder \
-            --platform linux/amd64 \
-            --push \
-            --file Dockerfile \
-            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest \
             --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:${{ github.sha }} \
-            --build-arg DEPENDENCY_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
-            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:dependency-cache \
+            --tag ${{ secrets.DOCKERHUB_USERNAME }}/assu-app:latest \
+            --cache-from type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:buildcache-prod \
+            --cache-to type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/assu-app:buildcache-prod,mode=max \
             .
 
       # --- manifest repo 갱신 (prod) ---
@@ -93,6 +79,7 @@ jobs:
           git commit \
             -m "[DEPLOY] bump image to ${{ github.sha }} (prod)" \
             -m "Triggered-by: ${{ github.actor }}"
+          git pull --rebase origin main
           git push origin main
 
       # --- 알림 ---

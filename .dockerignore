@@ -1,7 +1,9 @@
-.gradle
-build
-out
-.git
-.gitignore
-Dockerfile
-*.md
+*
+!gradlew
+!gradle/wrapper/
+!build.gradle
+!settings.gradle
+!src/main/
+!config/
+config/.git
+config/README.md

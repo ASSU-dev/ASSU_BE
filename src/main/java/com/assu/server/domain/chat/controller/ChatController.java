@@ -1,11 +1,13 @@
 package com.assu.server.domain.chat.controller;
 
 import com.assu.server.domain.chat.dto.*;
-import com.assu.server.domain.chat.redis.ChattingRedisPublisher;
+import com.assu.server.global.util.WebSocketBroadcaster;
 import com.assu.server.domain.chat.service.BlockService;
 import com.assu.server.domain.chat.service.ChatService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,9 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @Slf4j
@@ -27,7 +31,7 @@ import java.util.List;
 public class ChatController {
     private final ChatService chatService;
     private final BlockService blockService;
-    private final ChattingRedisPublisher chattingRedisPublisher;
+    private final WebSocketBroadcaster webSocketBroadcaster;
 
     @Operation(
             summary = "채팅방 생성 API",
@@ -38,6 +42,7 @@ public class ChatController {
                     "- partnerId (Long, required) 제휴업체 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_CREATE_ROOM)
     @PostMapping("/rooms")
     public BaseResponse<ChatResponseDTO.CreateChatRoomResponseDTO> createChatRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -71,15 +76,16 @@ public class ChatController {
                     "- message (String, required): 메시지\n"
     )
     @MessageMapping("/send")
-    public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request) {
+    public void handleMessage(@Payload ChatRequestDTO.ChatMessageRequestDTO request, Principal principal) {
         log.info("[STOMP SEND] roomId={}, senderId={}, receiverId={}", request.roomId(), request.senderId(), request.receiverId());
+        Long authenticatedMemberId = ((PrincipalDetails) ((Authentication) principal).getPrincipal()).getId();
         // 1. 서비스 호출
-        MessageHandlingResult result = chatService.handleMessage(request);
+        MessageHandlingResult result = chatService.handleMessage(request, authenticatedMemberId);
         // 2. [항상 전송] 채팅방 메시지 전송
-        chattingRedisPublisher.publishChatMessage(request.roomId(), result.sendMessageResponseDTO());
+        webSocketBroadcaster.send("/sub/chat/" + request.roomId(), result.sendMessageResponseDTO());
         // 3. [조건부 전송] 채팅방 목록 업데이트 전송
         if (result.hasRoomUpdates()) {
-            chattingRedisPublisher.publishChatRoomUpdate(result.receiverId(), result.chatRoomUpdateDTO());
+            webSocketBroadcaster.send("/sub/chat/list/" + result.receiverId(), result.chatRoomUpdateDTO());
         }
     }
 
@@ -109,6 +115,7 @@ public class ChatController {
                     "- roomId (Long, required): 채팅방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_GET_HISTORY)
     @GetMapping("/rooms/{roomId}/messages")
     public BaseResponse<ChatResponseDTO.ChatHistoryResponseDTO> getChatHistory(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -128,6 +135,7 @@ public class ChatController {
                     "- roomId (Long, required): 채팅방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_LEAVE_ROOM)
     @DeleteMapping("/rooms/{roomId}/leave")
     public BaseResponse<ChatResponseDTO.LeaveChattingRoomResponseDTO> leaveChattingRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -146,6 +154,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_BLOCK_MEMBER)
     @PostMapping("/block")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> block(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -163,6 +172,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_CHECK_BLOCK)
     @GetMapping("/check/block/{opponentId}")
     public BaseResponse<BlockResponseDTO.CheckBlockMemberDTO> checkBlock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -180,6 +190,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_UNBLOCK_MEMBER)
     @DeleteMapping("/unblock")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> unblock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -195,6 +206,7 @@ public class ChatController {
                     "- 차단한 대상을 조회합니다.\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_GET_BLOCK_LIST)
     @GetMapping("/block-list")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
             @AuthenticationPrincipal PrincipalDetails pd

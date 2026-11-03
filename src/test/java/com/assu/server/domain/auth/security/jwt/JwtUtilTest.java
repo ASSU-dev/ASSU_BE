@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -30,6 +32,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 
@@ -89,6 +92,48 @@ class JwtUtilTest {
 		Claims claims = mock(Claims.class);
 		when(claims.get("userId")).thenReturn(MEMBER_ID.intValue());
 		return claims;
+	}
+
+	private Member withdrawnMember() {
+		Member member = mock(Member.class);
+		when(member.isWithdrawn()).thenReturn(true);
+		return member;
+	}
+
+	@Test
+	@DisplayName("탈퇴 회원의 Access 토큰으로는 인증 객체를 만들지 않는다")
+	void getAuthentication_WithdrawnMember_ThrowsRevoked() {
+		// 1. Given
+		String accessToken = buildAccessToken(UUID.randomUUID().toString());
+		Member member = withdrawnMember();
+		when(memberRepository.findWithProfilesById(1L)).thenReturn(Optional.of(member));
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> jwtUtil.getAuthentication(accessToken));
+
+		// 3. Then
+		assertEquals(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("탈퇴 회원의 Refresh 토큰은 회전하지 않는다")
+	void rotateRefreshToken_WithdrawnMember_ThrowsRevoked() {
+		// 1. Given
+		String jti = UUID.randomUUID().toString();
+		String refreshToken = buildAccessToken(jti);
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.get("refresh:1:" + jti)).thenReturn(refreshToken);
+		Member member = withdrawnMember();
+		when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> jwtUtil.rotateRefreshToken(refreshToken));
+
+		// 3. Then
+		assertEquals(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED, exception.getCode());
+		verify(redisTemplate, never()).delete(anyString());
 	}
 
 	@Test

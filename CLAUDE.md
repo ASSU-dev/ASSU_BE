@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   3. 방향 제안 및 트레이드오프 제시
   4. **"개발해줘", "작성해줘", "구현해줘"** 등 명시적 요청이 있을 때만 코드 작성
 - 여러 기능 항목이 포함된 이슈를 구현할 때는 항목 하나씩 처리한다 (분석 → 질문 → 방향 → 승인 → 구현).
+- 브랜치 작업은 **항상 `git worktree`** 로 분리된 디렉토리에서 진행한다. 메인 작업 트리에서 `git checkout`/`git switch`로 브랜치를 전환하지 않는다 (동시에 도는 다른 세션과 충돌 방지). 방법은 아래 Git Convention > Worktree 참고.
 
 ---
 
@@ -419,6 +420,21 @@ hotfix/#390-fix-prod-token-expiry
 허용 타입: `feat`, `fix`, `refactor`, `style`, `docs`, `test`, `chore`, `hotfix`
 
 슬래시 커맨드: `/branch`
+
+### Worktree
+
+브랜치는 메인 작업 트리에서 전환하지 않고 `.claude/worktrees/` 아래 워크트리로 만든다. 디렉토리명은 브랜치명의 `/#`를 `-`로 바꾼 값.
+
+```bash
+git fetch origin develop
+git worktree add -b feat/#123-add-review-api .claude/worktrees/feat-123-add-review-api origin/develop
+cd .claude/worktrees/feat-123-add-review-api
+git submodule update --init config
+```
+
+- `config` 서브모듈은 빌드에 필요하므로 워크트리 생성 직후 초기화한다.
+- 이후 빌드/테스트/커밋/푸시는 모두 워크트리 디렉토리에서 실행한다.
+- PR 머지 후 `git worktree remove .claude/worktrees/<dir>`로 정리한다.
 
 ### Commit
 

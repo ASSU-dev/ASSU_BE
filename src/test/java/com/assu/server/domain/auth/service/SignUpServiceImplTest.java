@@ -52,6 +52,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
@@ -114,6 +115,9 @@ class SignUpServiceImplTest {
 	@Mock
 	private PasswordEncoder passwordEncoder;
 
+	@Mock
+	private WithdrawalService withdrawalService;
+
 	private static final String PHONE = "01012345678";
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String EMAIL = "partner@assu.site";
@@ -124,7 +128,7 @@ class SignUpServiceImplTest {
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
 			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
-			studentService, phoneAuthService, commonAuthRepository, discordNotifier);
+			studentService, phoneAuthService, commonAuthRepository, discordNotifier, withdrawalService);
 	}
 
 	@AfterEach
@@ -462,6 +466,7 @@ class SignUpServiceImplTest {
 
 		Partner partner = mock(Partner.class);
 		when(partner.getName()).thenReturn("숭실카페");
+		when(partner.getPhoneNum()).thenReturn(PHONE);
 		Member member = stubWithdrawnCommonAccount(UserRole.PARTNER);
 		when(member.getPartnerProfile()).thenReturn(partner);
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
@@ -478,7 +483,7 @@ class SignUpServiceImplTest {
 		SignUpResponseDTO response = signUpService.signupPartner(request, licenseImage);
 
 		// 3. Then
-		verify(member, times(1)).restore();
+		verify(withdrawalService, times(1)).restoreMember(member);
 		verify(member, never()).setIsActivated(any());
 		verify(commonAuth, times(1)).updatePassword("hashed");
 		verify(partner, times(1)).updateBusinessInfo(
@@ -488,6 +493,94 @@ class SignUpServiceImplTest {
 
 		assertEquals(1L, response.memberId());
 		assertEquals(ActivationStatus.ACTIVE, response.status());
+	}
+
+	private Partner stubRestorablePartner() {
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn(PHONE);
+		Member member = stubWithdrawnCommonAccount(UserRole.PARTNER);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
+		when(realmAuthAdapter.passwordEncoder()).thenReturn(passwordEncoder);
+		when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("hashed");
+		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
+		return partner;
+	}
+
+	@Test
+	@DisplayName("탈퇴 파트너가 재가입하면 기존 가게를 새 주소로 옮기고 새 가게를 만들지 않는다")
+	void signupPartner_WithdrawnPartnerOwningStore_RelocatesExistingStore() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+		Partner partner = stubRestorablePartner();
+		Store ownedStore = mock(Store.class);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.empty());
+		when(storeRepository.findByPartner(partner)).thenReturn(Optional.of(ownedStore));
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		signUpService.signupPartner(request, licenseImage);
+
+		// 3. Then
+		verify(ownedStore).relocate(eq("서울특별시 동작구 상도로 369"), eq("101호"), eq(37.5), eq(126.96), any(Point.class));
+		verify(storeRepository, times(1)).save(any(Store.class));
+		verify(storeRepository).save(ownedStore);
+	}
+
+	@Test
+	@DisplayName("다른 업체에 연결된 가게 주소로 가입하면 STORE_ALREADY_LINKED 예외가 발생한다")
+	void signupPartner_AddressLinkedToOtherPartner_ThrowsStoreAlreadyLinked() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+		Partner partner = stubRestorablePartner();
+		when(partner.getId()).thenReturn(1L);
+		Partner otherPartner = mock(Partner.class);
+		when(otherPartner.getId()).thenReturn(2L);
+		Store otherStore = mock(Store.class);
+		when(otherStore.getPartner()).thenReturn(otherPartner);
+		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.of(otherStore));
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> signUpService.signupPartner(request, licenseImage));
+
+		// 3. Then
+		assertEquals(ErrorStatus.STORE_ALREADY_LINKED, exception.getCode());
+		verify(otherStore, never()).linkPartner(any());
+		verify(storeRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("탈퇴 파트너 재가입 시 인증 번호가 기존 번호와 다르면 복구하지 않는다")
+	void signupPartner_WithdrawnPartnerWithDifferentPhone_ThrowsRestorePhoneMismatch() {
+		// 1. Given
+		PartnerSignUpRequestDTO request = partnerSignUpRequest();
+
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn("01099999999");
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(member.isWithdrawn()).thenReturn(true);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		stubCommonAuthLookup(member);
+
+		MockMultipartFile licenseImage =
+			new MockMultipartFile("licenseImage", "license.png", "image/png", new byte[] {1});
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> signUpService.signupPartner(request, licenseImage));
+
+		// 3. Then
+		assertEquals(ErrorStatus.RESTORE_PHONE_MISMATCH, exception.getCode());
+		verify(withdrawalService, never()).restoreMember(any());
+		verify(commonAuth, never()).updatePassword(anyString());
 	}
 
 	@Test
@@ -583,7 +676,7 @@ class SignUpServiceImplTest {
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(1L);
 		when(member.getRole()).thenReturn(role);
-		when(member.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
+		lenient().when(member.getIsActivated()).thenReturn(ActivationStatus.ACTIVE);
 		when(member.isWithdrawn()).thenReturn(true);
 		when(member.getCommonAuth()).thenReturn(commonAuth);
 		stubCommonAuthLookup(member);

@@ -4,6 +4,8 @@ import com.assu.server.domain.appreview.dto.AppReviewRequestDTO;
 import com.assu.server.domain.appreview.service.AppReviewService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,6 +40,7 @@ public class AppReviewController {
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 성공 메시지 반환"
     )
+    @ApiErrorCodeExamples(SwaggerErrorCodes.APP_REVIEW_CREATE)
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public BaseResponse<Void> createAppReview(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,9 +18,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
+import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.deviceToken.repository.DeviceTokenRepository;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
+import com.assu.server.domain.partner.entity.Partner;
+import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 
 import io.jsonwebtoken.Claims;
@@ -37,7 +42,13 @@ class WithdrawalServiceImplTest {
 	private DeviceTokenRepository deviceTokenRepository;
 
 	@Mock
+	private PaperRepository paperRepository;
+
+	@Mock
 	private JwtUtil jwtUtil;
+
+	@Mock
+	private PhoneAuthService phoneAuthService;
 
 	private static final String AUTHORIZATION = "Bearer access-token";
 	private static final String RAW_TOKEN = "access-token";
@@ -85,6 +96,7 @@ class WithdrawalServiceImplTest {
 		verify(memberRepository, never()).save(any());
 		verify(deviceTokenRepository, never()).deleteAllByMemberId(anyLong());
 		verify(jwtUtil, never()).removeAllRefreshTokens(anyLong());
+		verify(paperRepository, never()).deactivateByPartnerWithdrawal(anyLong(), any(), any());
 	}
 
 	@Test
@@ -140,5 +152,94 @@ class WithdrawalServiceImplTest {
 
 		// 3. Then
 		verify(deviceTokenRepository, times(1)).deleteAllByMemberId(MEMBER_ID);
+	}
+
+	@Test
+	@DisplayName("제휴업체가 탈퇴하면 ACTIVE/SUSPEND 제휴를 INACTIVE로 전환한다")
+	void withdrawMember_Partner_DeactivatesPapers() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.isWithdrawn()).thenReturn(false);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+
+		// 2. When
+		withdrawalService.withdrawMember(member);
+
+		// 3. Then
+		verify(paperRepository, times(1)).deactivateByPartnerWithdrawal(
+			MEMBER_ID,
+			List.of(ActivationStatus.ACTIVE, ActivationStatus.SUSPEND, ActivationStatus.BLANK),
+			ActivationStatus.INACTIVE);
+	}
+
+	@Test
+	@DisplayName("제휴업체가 아닌 회원이 탈퇴하면 제휴 상태를 변경하지 않는다")
+	void withdrawMember_NonPartner_DoesNotTouchPapers() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.isWithdrawn()).thenReturn(false);
+		when(member.getRole()).thenReturn(UserRole.ADMIN);
+
+		// 2. When
+		withdrawalService.withdrawMember(member);
+
+		// 3. Then
+		verify(paperRepository, never()).deactivateByPartnerWithdrawal(anyLong(), any(), any());
+	}
+
+	@Test
+	@DisplayName("제휴업체를 복구하면 탈퇴 시 비활성화된 제휴를 원래 상태로 되돌린다")
+	void restoreMember_Partner_RestoresPapers() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+
+		// 2. When
+		withdrawalService.restoreMember(member);
+
+		// 3. Then
+		verify(member, times(1)).restore();
+		verify(memberRepository, times(1)).save(member);
+		verify(paperRepository, times(1)).restoreByPartnerRestoration(MEMBER_ID);
+	}
+
+	@Test
+	@DisplayName("탈퇴 기간 중 다른 회원이 같은 번호로 가입했다면 복구하지 않는다")
+	void restoreMember_PhoneTakenByActiveMember_ThrowsExistedPhone() {
+		// 1. Given
+		Partner partner = mock(Partner.class);
+		when(partner.getPhoneNum()).thenReturn("01012345678");
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(member.getPartnerProfile()).thenReturn(partner);
+		doThrow(new CustomAuthException(ErrorStatus.EXISTED_PHONE))
+			.when(phoneAuthService).assertPhoneNotInUse("01012345678");
+
+		// 2. When
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> withdrawalService.restoreMember(member));
+
+		// 3. Then
+		assertEquals(ErrorStatus.EXISTED_PHONE, exception.getCode());
+		verify(member, never()).restore();
+		verify(paperRepository, never()).restoreByPartnerRestoration(anyLong());
+	}
+
+	@Test
+	@DisplayName("제휴업체가 아닌 회원을 복구하면 제휴 상태를 변경하지 않는다")
+	void restoreMember_NonPartner_DoesNotTouchPapers() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+
+		// 2. When
+		withdrawalService.restoreMember(member);
+
+		// 3. Then
+		verify(member, times(1)).restore();
+		verify(paperRepository, never()).restoreByPartnerRestoration(anyLong());
 	}
 }
