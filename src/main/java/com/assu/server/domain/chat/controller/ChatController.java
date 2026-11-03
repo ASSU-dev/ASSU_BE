@@ -6,6 +6,8 @@ import com.assu.server.domain.chat.service.BlockService;
 import com.assu.server.domain.chat.service.ChatService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,7 @@ public class ChatController {
                     "- partnerId (Long, required) 제휴업체 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_CREATE_ROOM)
     @PostMapping("/rooms")
     public BaseResponse<ChatResponseDTO.CreateChatRoomResponseDTO> createChatRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -112,6 +115,7 @@ public class ChatController {
                     "- roomId (Long, required): 채팅방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_GET_HISTORY)
     @GetMapping("/rooms/{roomId}/messages")
     public BaseResponse<ChatResponseDTO.ChatHistoryResponseDTO> getChatHistory(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -131,6 +135,7 @@ public class ChatController {
                     "- roomId (Long, required): 채팅방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_LEAVE_ROOM)
     @DeleteMapping("/rooms/{roomId}/leave")
     public BaseResponse<ChatResponseDTO.LeaveChattingRoomResponseDTO> leaveChattingRoom(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -149,6 +154,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_BLOCK_MEMBER)
     @PostMapping("/block")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> block(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -166,6 +172,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_CHECK_BLOCK)
     @GetMapping("/check/block/{opponentId}")
     public BaseResponse<BlockResponseDTO.CheckBlockMemberDTO> checkBlock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -183,6 +190,7 @@ public class ChatController {
                     "- opponentId (Long, required): 상대방 ID\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_UNBLOCK_MEMBER)
     @DeleteMapping("/unblock")
     public BaseResponse<BlockResponseDTO.BlockMemberDTO> unblock(
             @AuthenticationPrincipal PrincipalDetails pd,
@@ -198,6 +206,7 @@ public class ChatController {
                     "- 차단한 대상을 조회합니다.\n"
     )
     @PreAuthorize("hasAnyRole('ADMIN', 'PARTNER')")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.CHAT_GET_BLOCK_LIST)
     @GetMapping("/block-list")
     public BaseResponse<List<BlockResponseDTO.BlockMemberDTO>> getBlockList(
             @AuthenticationPrincipal PrincipalDetails pd

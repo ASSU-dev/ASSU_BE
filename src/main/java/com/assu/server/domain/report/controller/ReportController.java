@@ -5,6 +5,8 @@ import com.assu.server.domain.report.dto.ReportResponseDTO;
 import com.assu.server.domain.report.service.ReportService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
+import com.assu.server.global.apiPayload.code.status.SwaggerErrorCodes;
+import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +38,7 @@ public class ReportController {
             "  - 건의글 신고: SUGGESTION_INAPPROPRIATE_CONTENT, SUGGESTION_FALSE_INFORMATION, SUGGESTION_SPAM\n\n" +
             "**Response:**\n" +
             "- 성공 시 201(CREATED)과 신고 ID 반환")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REPORT_CREATE_CONTENT)
     @PostMapping
     public BaseResponse<ReportResponseDTO.CreateReportResponse> reportContent(
             @AuthenticationPrincipal PrincipalDetails principalDetails,
@@ -59,6 +62,7 @@ public class ReportController {
             +
             "**Response:**\n" +
             "- 성공 시 201(CREATED)과 신고 ID 반환")
+    @ApiErrorCodeExamples(SwaggerErrorCodes.REPORT_CREATE_STUDENT)
     @PostMapping("/students")
     public BaseResponse<ReportResponseDTO.CreateReportResponse> reportStudent(
             @AuthenticationPrincipal PrincipalDetails principalDetails,
