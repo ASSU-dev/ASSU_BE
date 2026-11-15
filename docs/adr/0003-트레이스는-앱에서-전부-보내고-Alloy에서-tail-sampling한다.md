@@ -1,25 +1,27 @@
 # ADR-0003: 트레이스는 앱에서 전부 보내고, Alloy에서 tail sampling 한다
 
 - 상태: 채택 (2026-11-15)
-- 관련: #518, manifest#35
+- 관련: #518, #577, manifest#35·#36
 
 ## 맥락
 - 요청 단위로 지연 원인을 보려고 Grafana Cloud Tempo를 붙인다. 환경(prod/dev)마다 앱 1대, Alloy 1대가 같은 노드에 있고, Alloy 메모리 limit은 180Mi였다.
-- 트래픽은 평시 분당 수 건, 한계 초당 약 25건(ADR-0002 이전 측정)이다. 트레이스 1건당 span 수와 크기는 아직 실측 전인 **추정치**다. span 8개는 요청 경로(HTTP 서버 1 + JDBC 쿼리 2(N+1 제거 후 기준) + Redis 1~3 + RabbitMQ 발행 1)를 센 값이고, span 1.5KB는 OTLP span(속성 10~20개)의 일반적인 크기다. dev 배포 뒤 Alloy의 `otelcol_receiver_accepted_spans` 지표와 파드 메모리로 실측해 이 문서를 갱신한다.
+- 트래픽은 평시 분당 수 건, 한계 초당 약 25건(ADR-0002 이전 측정)이다. 설계 때는 트레이스당 span 8개(HTTP 1 + JDBC 2 + Redis 1~3 + RabbitMQ 1), span 1.5KB로 추정했다. dev 실측(2026-11-15, Alloy `otelcol_receiver_accepted_spans_total` 283 / 결정 96건)은 **트레이스당 약 3개**였다. 조회 요청은 서버 1 + JDBC 1 + Redis 1이고 Security 관측 제외 전 수치라 더 줄어든다.
 - 샘플링 방식은 둘이다. head 방식은 앱이 요청 시작 시점에 확률로 정해서 가볍지만 에러·느린 요청도 같은 확률로 버린다. tail 방식은 수집기가 트레이스를 끝까지 모아 본 뒤 정하므로 문제 요청을 전부 남길 수 있지만 대기하는 동안 메모리를 쓴다.
 - 일반적인 대규모 구성(head 1차 → gateway collector에서 traceID 해싱 → tail 수집기)을 기준으로 우리 규모에 필요한 것만 추렸다.
 
 ## 결정
 - 앱은 샘플링 없이(확률 1.0) 모든 트레이스를 같은 네임스페이스의 Alloy(`alloy:4318`, OTLP HTTP)로 보낸다. 계측은 Java agent가 아니라 `micrometer-tracing-bridge-otel`(in-process)로 한다.
-- 앱은 `/actuator`, `/ws`, `/swagger-ui`, `/v3/api-docs` 요청을 관측에서 제외한다(`ObservationConfig`). k8s 프로브와 Synthetic 체크가 1~2분마다 호출하는 노이즈다.
+- 앱은 `/actuator`, `/ws`, `/swagger-ui`, `/v3/api-docs` 요청과 Spring Security 필터체인 관측(`spring.security.*`)을 제외한다(`ObservationConfig`). 앞은 k8s 프로브와 Synthetic 체크가 1~2분마다 호출하는 노이즈이고, 뒤는 요청 span 밑에 3개씩 붙는 데다 요청 관측을 뺀 경로에서는 `unsecured request`라는 루트 트레이스로 남는다.
 - Alloy는 `otlp 수신 → memory_limiter(150Mi) → tail_sampling → batch → Tempo` 순으로 처리한다. tail 정책은 `composite`로 초당 400 span 상한 안에서 아래와 같이 배분한다.
 
 | 정책 | 조건 | 수집 | 상한 배분 |
 |---|---|---|---|
-| errors | span status ERROR | 100% | 30% |
+| errors | span status ERROR **이고** `outcome != CLIENT_ERROR` | 100% | 30% |
 | http5xx | `outcome=SERVER_ERROR` | 100% | 20% |
 | slow | 트레이스 1초 초과 | 100% | 25% |
-| baseline | 나머지 | 10% | 25% |
+| baseline | 나머지(정상, 4xx) | 10% | 25% |
+
+errors에서 4xx를 뺀 이유: Spring 관측은 401·404도 span status를 ERROR로 찍는다. dev 첫 검증(2026-11-15)에서 tail sampling이 남긴 서버 요청 6건이 전부 401이었다(manifest#36).
 
 - `decision_wait`는 10초, 동시에 들고 있는 트레이스는 2000개까지다. Alloy limit은 256Mi로 올린다.
 
@@ -36,7 +38,7 @@
 ## 결과
 - 상한(초당 400 span) 이하에서는 문제 요청(에러·5xx·1초 초과)이 전부, 정상 요청은 10%가 Tempo에 남는다.
 - 상한을 넘으면 정책별 배분(errors 30% = 초당 120 span, http5xx 20%, slow 25%, baseline 25%)까지만 남고 나머지는 버려진다. 예를 들어 초당 120건이 전부 에러(초당 960 span)면 에러 트레이스의 약 1/8만 남는다. 이 상한은 장애 때 Tempo 한도와 Alloy 메모리를 지키려고 둔 것이고, 그 구간의 원인 분석은 남은 샘플과 로그·메트릭으로 한다.
-- Alloy 메모리는 평시 거의 0, 한계 트래픽에서 약 10MB(25 rps × 10초 × 8 span × 1.5KB × Go 객체 오버헤드 3배, 위 추정치 기준)를 더 쓴다. 앱은 bridge와 exporter 큐(기본 2048 span)로 10~20MB가 늘 것으로 본다(Micrometer Tracing 일반 경험치). 둘 다 dev에서 실측해 갱신한다.
+- 메모리 실측(dev, 2026-11-15): Alloy 62Mi → 65Mi, 앱 546Mi → 581Mi(재시작 직후 포함, bridge·exporter 큐 몫은 그 일부). 한계 트래픽에서의 Alloy 추가분은 25 rps × 10초 × 3 span × 1.5KB × 오버헤드 3배 ≈ 3~4MB로 설계 추정(10MB)보다 작다.
 - 감수한 것: Prometheus exemplar는 앱이 붙이므로 tail에서 버려진 정상 요청의 exemplar는 Tempo에 없다. p95 패널의 점을 눌렀을 때 "trace not found"가 날 수 있다. 에러·느린 요청의 점은 항상 열린다.
 - 감수한 것: 부하테스트급 트래픽(초당 120건)에서는 memory_limiter가 걸려 그 구간 span 일부가 빠진다. OOM은 나지 않는다.
 
