@@ -118,6 +118,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
 
+	// tracing (OTLP → Alloy → Grafana Cloud Tempo)
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+	implementation 'net.ttddyy.observation:datasource-micrometer-spring-boot:1.1.1'
+
 	// scheduler lock
 	implementation 'net.javacrumbs.shedlock:shedlock-spring:7.10.1'
 	implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1'
