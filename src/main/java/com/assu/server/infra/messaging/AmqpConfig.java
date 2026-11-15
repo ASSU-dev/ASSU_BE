@@ -36,6 +36,7 @@ public class AmqpConfig {
     @Bean
     RabbitTemplate rabbitTemplate(ConnectionFactory cf) {
         RabbitTemplate rt = new RabbitTemplate(cf);
+        rt.setObservationEnabled(true);
         rt.setMessageConverter(new Jackson2JsonMessageConverter());
         return rt;
     }
