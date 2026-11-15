@@ -45,8 +45,6 @@ spring:
         concurrency: 1
         max-concurrency: 4
         default-requeue-rejected: false
-    template:
-      observation-enabled: true
 
 server:
   shutdown: graceful
@@ -65,7 +63,7 @@ management:
       endpoint: ${OTEL_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
   opentelemetry:
     resource-attributes:
-      "[deployment.environment]": ${SPRING_PROFILES_ACTIVE:local}
+      "[deployment.environment]": ${spring.profiles.active:local}
   endpoints:
     web:
       exposure:
