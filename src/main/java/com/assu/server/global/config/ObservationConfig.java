@@ -13,6 +13,9 @@ public class ObservationConfig {
     @Bean
     public ObservationPredicate noiseEndpointObservationPredicate() {
         return (name, context) -> {
+            if (name.startsWith("spring.security.")) {
+                return false;
+            }
             if (context instanceof ServerRequestObservationContext serverContext) {
                 String path = serverContext.getCarrier().getRequestURI();
                 for (String prefix : NOISE_PATH_PREFIXES) {
