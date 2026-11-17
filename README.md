@@ -7,7 +7,7 @@
 > **"제휴의 시작부터 끝까지, A:SSU에서 한 번에!"**  
 > 🏆 **제5회 숭실대학교 IT 프로젝트 공모전 수상작**
 
-[📱 Google Play Store](#) | [💻 GitHub Repository](#) | [📄 API 명세서 (Swagger)](#)
+[📱 Google Play](https://play.google.com/store/apps/details?id=com.ssu.assu) | [🍎 App Store](https://apps.apple.com/kr/iphone/search?term=assu) | [💻 GitHub](https://github.com/ASSU-dev/ASSU_BE)
 
 ---
 
@@ -89,8 +89,8 @@
 
 ![A:SSU 시스템 아키텍처](docs/images/architecture.png)
 
-- 클라이언트 요청은 Traefik Ingress(HTTPS, cert-manager)를 거쳐 K3s 클러스터 안의 Spring Boot 앱으로 들어온다. prod와 dev는 네임스페이스와 노드가 분리돼 있다.
-- 앱은 Amazon RDS(MariaDB)와 S3를 쓰고, Redis·RabbitMQ는 네임스페이스마다 클러스터 안에 둔다. 알림은 Outbox 테이블 → RabbitMQ → FCM 순으로 비동기 전송한다.
+- 사용자 요청은 가비아 DNS → Internet Gateway → 퍼블릭 서브넷(ap-northeast-2c)의 노드에서 Traefik Ingress(HTTPS, cert-manager)를 거쳐 Spring Boot 앱으로 들어온다. K3s 클러스터는 control · prod · dev 노드 3대이고 prod와 dev는 네임스페이스와 노드가 분리돼 있다.
+- 데이터는 프라이빗 DB 서브넷 그룹의 Amazon RDS(MariaDB, 공개 접근 차단)와 S3에 둔다. Redis·RabbitMQ는 네임스페이스마다 클러스터 안에 있고, 알림은 Outbox 테이블 → RabbitMQ → FCM 순으로 비동기 전송한다. 운영 접속은 SSM 세션으로 한다.
 - 메트릭·로그·트레이스는 네임스페이스별 Grafana Alloy가 모아 Grafana Cloud로 보내고, 알람은 Discord로 받는다.
 - 배포는 GitHub Actions가 이미지를 빌드해 manifest 레포의 태그를 갱신하면 ArgoCD가 클러스터에 반영한다(아래 🚢 배포).
 
