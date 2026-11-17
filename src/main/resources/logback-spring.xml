@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty name="SERVICE_NAME" source="spring.application.name" defaultValue="assu"/>
+
+    <springProfile name="dev | prod">
+        <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                    <maxLength>16384</maxLength>
+                    <rootCauseFirst>true</rootCauseFirst>
+                    <exclusions>^jdk\.internal\.reflect\.,^java\.lang\.reflect\.,^org\.springframework\.cglib\.,^org\.springframework\.aop\.,^org\.apache\.catalina\.,^org\.apache\.tomcat\.,^org\.apache\.coyote\.</exclusions>
+                </throwableConverter>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!(dev | prod)">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>
