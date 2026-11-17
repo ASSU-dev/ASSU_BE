@@ -5,12 +5,13 @@ import com.assu.server.domain.auth.dto.signup.PartnerBatchSignUpItemDTO;
 import com.assu.server.domain.auth.dto.signup.PartnerSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.SignUpResponseDTO;
 import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 public interface SignUpService {
-    SignUpResponseDTO signupSsuStudent(StudentTokenSignUpRequestDTO req);
+    SignUpResponseDTO signupSsuStudent(StudentTokenSignUpRequestDTO req, USaintAuthResponseDTO authResponse);
 
     SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage);
 

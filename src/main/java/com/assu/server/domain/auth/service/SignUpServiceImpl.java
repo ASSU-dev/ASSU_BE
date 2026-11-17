@@ -5,7 +5,6 @@ import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.dto.common.TokensDTO;
 import com.assu.server.domain.auth.dto.signup.*;
 import com.assu.server.domain.auth.dto.signup.common.CommonInfoPayloadDTO;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.entity.SSUAuth;
@@ -64,7 +63,6 @@ public class SignUpServiceImpl implements SignUpService {
 
     private final GeometryFactory geometryFactory;
     private final StoreRepository storeRepository;
-    private final SSUAuthService ssuAuthService;
     private final SSUAuthRepository ssuAuthRepository;
     private final StudentService studentService;
     private final PhoneAuthService phoneAuthService;
@@ -80,15 +78,9 @@ public class SignUpServiceImpl implements SignUpService {
     }
 
     @Override
-    public SignUpResponseDTO signupSsuStudent(StudentTokenSignUpRequestDTO req) {
+    public SignUpResponseDTO signupSsuStudent(StudentTokenSignUpRequestDTO req, USaintAuthResponseDTO authResponse) {
 
-        // 1) 유세인트 인증 및 학생 정보 추출
-        USaintAuthRequestDTO authRequest = new USaintAuthRequestDTO(
-                req.studentTokenAuth().sToken(),
-                req.studentTokenAuth().sIdno()
-        );
-
-        USaintAuthResponseDTO authResponse = ssuAuthService.uSaintAuth(authRequest);
+        // 1) 유세인트 인증은 호출 측이 트랜잭션 밖에서 먼저 수행한다 (외부 호출 동안 DB 커넥션을 잡지 않기 위함)
 
         // 2) 기존 계정 확인 — 탈퇴 유예기간 내라면 신규 생성 대신 복구한다
         Optional<SSUAuth> existingAuth = ssuAuthRepository.findByStudentNumber(authResponse.studentNumber());

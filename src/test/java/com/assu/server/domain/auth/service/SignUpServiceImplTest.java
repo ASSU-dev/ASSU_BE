@@ -33,7 +33,6 @@ import com.assu.server.domain.auth.dto.signup.StudentTokenSignUpRequestDTO;
 import com.assu.server.domain.auth.dto.signup.common.CommonAuthPayloadDTO;
 import com.assu.server.domain.auth.dto.signup.common.CommonInfoPayloadDTO;
 import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
-import com.assu.server.domain.auth.dto.ssu.USaintAuthRequestDTO;
 import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.entity.CommonAuth;
 import com.assu.server.domain.auth.entity.SSUAuth;
@@ -92,9 +91,6 @@ class SignUpServiceImplTest {
 	private StoreRepository storeRepository;
 
 	@Mock
-	private SSUAuthService ssuAuthService;
-
-	@Mock
 	private SSUAuthRepository ssuAuthRepository;
 
 	@Mock
@@ -121,13 +117,15 @@ class SignUpServiceImplTest {
 	private static final String PHONE = "01012345678";
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String EMAIL = "partner@assu.site";
+	private static final USaintAuthResponseDTO AUTH_RESPONSE =
+		USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
 
 	@BeforeEach
 	void setUp() {
 		signUpService = new SignUpServiceImpl(
 			memberRepository, studentRepository, partnerRepository, adminRepository,
 			List.of(realmAuthAdapter), amazonS3Manager, jwtUtil,
-			new GeometryFactory(), storeRepository, ssuAuthService, ssuAuthRepository,
+			new GeometryFactory(), storeRepository, ssuAuthRepository,
 			studentService, phoneAuthService, commonAuthRepository, discordNotifier, withdrawalService);
 	}
 
@@ -145,9 +143,6 @@ class SignUpServiceImplTest {
 		StudentTokenSignUpRequestDTO request = new StudentTokenSignUpRequestDTO(
 			true, true, new StudentTokenAuthPayloadDTO("sToken", "20211438", University.SSU));
 
-		USaintAuthResponseDTO authResponse =
-			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
-		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
 
 		Member member = mock(Member.class);
 		when(member.isWithdrawn()).thenReturn(false);
@@ -158,7 +153,7 @@ class SignUpServiceImplTest {
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
-			() -> signUpService.signupSsuStudent(request));
+			() -> signUpService.signupSsuStudent(request, AUTH_RESPONSE));
 
 		// 3. Then
 		assertEquals(ErrorStatus.EXISTED_STUDENT, exception.getCode());
@@ -175,7 +170,7 @@ class SignUpServiceImplTest {
 		TransactionSynchronizationManager.initSynchronization();
 
 		// 2. When
-		signUpService.signupSsuStudent(request);
+		signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		verify(jwtUtil).issueTokens(1L, "20211438", UserRole.STUDENT, "SSU");
@@ -195,7 +190,7 @@ class SignUpServiceImplTest {
 		TransactionSynchronizationManager.initSynchronization();
 
 		// 2. When
-		SignUpResponseDTO response = signUpService.signupSsuStudent(request);
+		SignUpResponseDTO response = signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		assertDoesNotThrow(this::triggerAfterCommit);
@@ -213,7 +208,7 @@ class SignUpServiceImplTest {
 		TransactionSynchronizationManager.initSynchronization();
 
 		// 2. When
-		signUpService.signupSsuStudent(request);
+		signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		verify(studentService, never()).syncUserPapersForStudent(any());
@@ -233,7 +228,7 @@ class SignUpServiceImplTest {
 		Member member = stubWithdrawnStudentAccount();
 
 		// 2. When
-		SignUpResponseDTO response = signUpService.signupSsuStudent(request);
+		SignUpResponseDTO response = signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		Major major = Major.fromDisplayName("컴퓨터학부");
@@ -258,7 +253,7 @@ class SignUpServiceImplTest {
 		Member member = stubWithdrawnStudentAccount();
 
 		// 2. When
-		signUpService.signupSsuStudent(request);
+		signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		verify(member, times(1)).updateTermAgreements(true, false);
@@ -275,7 +270,7 @@ class SignUpServiceImplTest {
 		Student student = member.getStudentProfile();
 
 		// 2. When
-		signUpService.signupSsuStudent(request);
+		signUpService.signupSsuStudent(request, AUTH_RESPONSE);
 
 		// 3. Then
 		Major major = Major.fromDisplayName("컴퓨터학부");
@@ -287,9 +282,6 @@ class SignUpServiceImplTest {
 	 * 탈퇴한 학생 계정(학번 20211438)이 존재하는 상황을 구성한다.
 	 */
 	private Member stubWithdrawnStudentAccount() {
-		USaintAuthResponseDTO authResponse =
-			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
-		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
 
 		Major major = Major.fromDisplayName("컴퓨터학부");
 
@@ -637,9 +629,6 @@ class SignUpServiceImplTest {
 	}
 
 	private StudentTokenSignUpRequestDTO stubNewStudentSignUp() {
-		USaintAuthResponseDTO authResponse =
-			USaintAuthResponseDTO.of("20211438", "홍길동", "재학", "4학년 1학기", "컴퓨터학부");
-		when(ssuAuthService.uSaintAuth(any(USaintAuthRequestDTO.class))).thenReturn(authResponse);
 		when(ssuAuthRepository.findByStudentNumber("20211438")).thenReturn(Optional.empty());
 		when(realmAuthAdapter.supports(AuthRealm.SSU)).thenReturn(true);
 
