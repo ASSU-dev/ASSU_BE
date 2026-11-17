@@ -42,11 +42,11 @@
 
 | 이름 | 학과 / 학번 | GitHub / Contact |
 | :---: | :---: | :---: |
-| 이수민 | 컴퓨터학부 23학번 | [@github](https://github.com/leesumin0526) |
-| 이호근 | 컴퓨터학부 21학번 | [@github](https://github/2ghrms.com/2ghrms) |
-| 백종원 | 컴퓨터학부 23학번 | [@github](https://github.com/BAEK0111) |
-| 김예원 | 컴퓨터학부 24학번 | [@github](https://github.com/kimyw1018) |
-| 이서희 | 컴퓨터학부 24학번 | [@github](https://github.com/eeeeeaaan) |
+| 이수민 | 컴퓨터학부 23학번 | [@leesumin0526](https://github.com/leesumin0526) |
+| 이호근 | 컴퓨터학부 21학번 | [@2ghrms](https://github.com/2ghrms) |
+| 백종원 | 컴퓨터학부 23학번 | [@BAEK0111](https://github.com/BAEK0111) |
+| 김예원 | 컴퓨터학부 24학번 | [@kimyw1018](https://github.com/kimyw1018) |
+| 이서희 | 컴퓨터학부 24학번 | [@eeeeeaaan](https://github.com/eeeeeaaan) |
 
 
 ---
