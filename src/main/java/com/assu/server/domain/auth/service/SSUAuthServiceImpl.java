@@ -5,6 +5,7 @@ import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.util.LogMaskUtil;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +18,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.DefaultUriBuilderFactory;
 import reactor.util.retry.Retry;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 
@@ -32,6 +36,8 @@ public class SSUAuthServiceImpl implements SSUAuthService {
 
     private static final String USaintSSOUrl = "https://saint.ssu.ac.kr/webSSO/sso.jsp";
     private static final String USaintPortalUrl = "https://saint.ssu.ac.kr/webSSUMain/main_student.jsp";
+
+    private static final DefaultUriBuilderFactory URI_BUILDER_FACTORY = new DefaultUriBuilderFactory();
 
     // 조회(GET)라 멱등이므로 연결 실패/타임아웃 같은 일시적 오류에만 1회 재시도한다
     private static final Retry TRANSIENT_RETRY = Retry.backoff(1, Duration.ofMillis(500))
@@ -69,18 +75,20 @@ public class SSUAuthServiceImpl implements SSUAuthService {
         try {
             uSaintSSOResponseEntity = requestUSaintSSO(sToken, sIdno);
         } catch (Exception e) {
-            log.error("API request to uSaint SSO failed.", e);
+            log.error("API request to uSaint SSO failed. cause={}", summarize(e));
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_SSO_FAILED);
         }
 
         if (uSaintSSOResponseEntity == null || uSaintSSOResponseEntity.getBody() == null) {
-            log.error("Empty response from USaint SSO. sToken={}, sIdno={}", sToken, sIdno);
+            log.error("Empty response from USaint SSO. sToken={}, sIdno={}",
+                    LogMaskUtil.mask(sToken), LogMaskUtil.mask(sIdno));
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_SSO_FAILED);
         }
 
         String body = uSaintSSOResponseEntity.getBody();
         if (!body.contains("location.href = \"/irj/portal\";")) {
-            log.error("Invalid SSO response. sToken={}, sIdno={}", sToken, sIdno);
+            log.error("Invalid SSO response. sToken={}, sIdno={}",
+                    LogMaskUtil.mask(sToken), LogMaskUtil.mask(sIdno));
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_SSO_FAILED);
         }
 
@@ -100,12 +108,12 @@ public class SSUAuthServiceImpl implements SSUAuthService {
         try {
             portalResponse = requestUSaintPortal(uSaintPortalCookie);
         } catch (Exception e) {
-            log.error("API request to uSaint Portal failed.", e);
+            log.error("API request to uSaint Portal failed. cause={}", summarize(e));
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_PORTAL_FAILED);
         }
 
         if (portalResponse == null || portalResponse.getBody() == null) {
-            log.error("Empty response from uSaint Portal. cookie={}", uSaintPortalCookie);
+            log.error("Empty response from uSaint Portal.");
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_PORTAL_FAILED);
         }
 
@@ -131,7 +139,6 @@ public class SSUAuthServiceImpl implements SSUAuthService {
 
         if (nameBox == null || infoBox == null) {
             log.error("Portal HTML structure parsing failed.");
-            log.debug(uSaintPortalResponseBody);
             throw new CustomAuthException(ErrorStatus.SSU_SAINT_PARSE_FAILED);
         }
 
@@ -148,7 +155,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
             Element strong = li.getElementsByTag("strong").first();
 
             if (dt == null || strong == null || strong.text().isEmpty()) {
-                log.error("Missing dt/strong in infoBox. li={}", li);
+                log.error("Missing dt/strong in infoBox.");
                 throw new CustomAuthException(ErrorStatus.SSU_SAINT_PARSE_FAILED);
             }
 
@@ -157,7 +164,7 @@ public class SSUAuthServiceImpl implements SSUAuthService {
                     try {
                         studentNumber = strong.text();
                     } catch (NumberFormatException e) {
-                        log.error("Invalid studentId format: {}", strong.text());
+                        log.error("Invalid studentId format.");
                         throw new CustomAuthException(ErrorStatus.SSU_SAINT_PARSE_FAILED);
                     }
                 }
@@ -181,11 +188,24 @@ public class SSUAuthServiceImpl implements SSUAuthService {
         );
     }
 
+    // 예외 메시지에는 요청 URL(sToken 포함)이 들어갈 수 있어 종류만 남긴다
+    private String summarize(Exception e) {
+        if (e instanceof WebClientResponseException responseException) {
+            return "HTTP " + responseException.getStatusCode().value();
+        }
+        Throwable root = e;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root.getClass().getSimpleName();
+    }
+
     private ResponseEntity<String> requestUSaintSSO(String sToken, String sIdno) {
-        String url = USaintSSOUrl + "?sToken=" + sToken + "&sIdno=" + sIdno;
+        // 문자열로 넘기면 토큰이 든 URL 전체가 메트릭 uri 태그가 되므로 URI 객체로 넘긴다 (인코딩 방식은 기존과 동일)
+        URI uri = URI_BUILDER_FACTORY.expand(USaintSSOUrl + "?sToken=" + sToken + "&sIdno=" + sIdno);
 
         return webClient.get()
-                .uri(url)
+                .uri(uri)
                 .header("Cookie", "sToken=" + sToken + "; sIdno=" + sIdno)
                 .retrieve()
                 .toEntity(String.class) // ResponseEntity<String> 전체 반환 (body + header 포함)
