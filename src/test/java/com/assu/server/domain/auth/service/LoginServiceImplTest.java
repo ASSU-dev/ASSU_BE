@@ -45,9 +45,6 @@ class LoginServiceImplTest {
 	private JwtUtil jwtUtil;
 
 	@Mock
-	private SSUAuthService ssuAuthService;
-
-	@Mock
 	private StudentRepository studentRepository;
 
 	@Mock
@@ -56,7 +53,7 @@ class LoginServiceImplTest {
 	@BeforeEach
 	void setUp() {
 		loginService = new LoginServiceImpl(
-			authenticationManager, jwtUtil, ssuAuthService, studentRepository, new SimpleMeterRegistry(),
+			authenticationManager, jwtUtil, studentRepository, new SimpleMeterRegistry(),
 			List.of(commonAdapter));
 	}
 

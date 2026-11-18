@@ -197,7 +197,10 @@ public class AuthController {
     ) {
         SignUpResponseDTO response;
         if(request.studentTokenAuth().university().equals(University.SSU)){
-            response = signUpService.signupSsuStudent(request);
+            // 유세인트 호출 동안 DB 커넥션을 잡지 않도록 서비스 트랜잭션 밖에서 먼저 인증한다
+            USaintAuthResponseDTO authResponse =
+                    ssuAuthService.uSaintAuth(USaintAuthRequestDTO.from(request.studentTokenAuth()));
+            response = signUpService.signupSsuStudent(request, authResponse);
         } else {
             response = null;
         }
@@ -440,7 +443,9 @@ public class AuthController {
     ) {
         LoginResponseDTO response;
         if(request.university().equals(University.SSU)){
-            response = loginService.loginSsuStudent(request);
+            // 유세인트 호출 동안 DB 커넥션을 잡지 않도록 서비스 트랜잭션 밖에서 먼저 인증한다
+            USaintAuthResponseDTO authResponse = ssuAuthService.uSaintAuth(USaintAuthRequestDTO.from(request));
+            response = loginService.loginSsuStudent(authResponse);
         } else {
             response = null;
         }
