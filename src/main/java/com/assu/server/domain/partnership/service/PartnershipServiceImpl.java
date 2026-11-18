@@ -104,7 +104,8 @@ public class PartnershipServiceImpl implements PartnershipService {
     @Transactional
     public WritePartnershipResponseDTO updatePartnership(
             WritePartnershipRequestDTO request,
-            Long memberId
+            Long memberId,
+            UserRole role
     ) {
         if (request == null || memberId == null) {
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
@@ -112,6 +113,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         Paper paper = paperRepository.findById(request.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
+        assertPaperAccess(paper, memberId, role);
 
         request.updatePaper(paper);
 

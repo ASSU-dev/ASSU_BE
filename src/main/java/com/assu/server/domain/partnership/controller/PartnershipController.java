@@ -222,7 +222,7 @@ public class PartnershipController {
             @RequestBody WritePartnershipRequestDTO request,
             @AuthenticationPrincipal PrincipalDetails pd
     ){
-        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId()));
+        return BaseResponse.onSuccess(SuccessStatus._OK, partnershipService.updatePartnership(request, pd.getId(), pd.getRole()));
     }
 
     @ApiErrorCodeExamples(SwaggerErrorCodes.PARTNERSHIP_UPDATE_STATUS)
