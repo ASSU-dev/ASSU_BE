@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,6 +35,7 @@ import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
+import com.assu.server.domain.partnership.dto.WritePartnershipRequestDTO;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.repository.GoodsRepository;
@@ -239,6 +241,76 @@ class PartnershipServiceImplTest {
 		verify(chatService, times(1)).sendGuideMessage(any());
 		verify(notificationService, times(1))
 			.sendChat(eq(PARTNER_ID), eq(1L), eq("총학생회"), anyString());
+	}
+
+	// ===== updatePartnership =====
+
+	private WritePartnershipRequestDTO updateRequest() {
+		return new WritePartnershipRequestDTO(
+			PAPER_ID, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), List.of());
+	}
+
+	private Paper activePaper() {
+		return Paper.builder()
+			.id(PAPER_ID).admin(admin()).partner(partner())
+			.store(Store.builder().id(500L).name("역전할머니 맥주").build())
+			.isActivated(ActivationStatus.ACTIVE).build();
+	}
+
+	@Test
+	void updatePartnership_whenPaperAdmin_thenUpdates() {
+		// given
+		Paper paper = activePaper();
+		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+
+		// when
+		partnershipService.updatePartnership(updateRequest(), ADMIN_ID, UserRole.ADMIN);
+
+		// then
+		assertEquals(LocalDate.of(2026, 12, 31), paper.getPartnershipPeriodEnd());
+		assertEquals(ActivationStatus.SUSPEND, paper.getIsActivated());
+	}
+
+	@Test
+	void updatePartnership_whenPaperPartner_thenUpdates() {
+		// given
+		Paper paper = activePaper();
+		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+
+		// when
+		partnershipService.updatePartnership(updateRequest(), PARTNER_ID, UserRole.PARTNER);
+
+		// then
+		assertEquals(LocalDate.of(2026, 12, 31), paper.getPartnershipPeriodEnd());
+		assertEquals(ActivationStatus.SUSPEND, paper.getIsActivated());
+	}
+
+	@Test
+	void updatePartnership_whenUnrelatedAdmin_thenForbiddenAndNothingModified() {
+		assertUpdateForbidden(999L, UserRole.ADMIN);
+	}
+
+	@Test
+	void updatePartnership_whenUnrelatedPartner_thenForbiddenAndNothingModified() {
+		assertUpdateForbidden(999L, UserRole.PARTNER);
+	}
+
+	private void assertUpdateForbidden(Long memberId, UserRole role) {
+		// given
+		Paper paper = activePaper();
+		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.updatePartnership(updateRequest(), memberId, role));
+
+		// then
+		assertEquals(ErrorStatus._FORBIDDEN, exception.getCode());
+		assertNull(paper.getPartnershipPeriodEnd());
+		assertEquals(ActivationStatus.ACTIVE, paper.getIsActivated());
+		verifyNoInteractions(paperContentRepository, goodsRepository);
 	}
 
 	// ===== checkPartnershipWithPartner =====

@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface PartnershipService {
 
-    WritePartnershipResponseDTO updatePartnership(WritePartnershipRequestDTO request, Long memberId);
+    WritePartnershipResponseDTO updatePartnership(WritePartnershipRequestDTO request, Long memberId, UserRole role);
 
     void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member);
 
