@@ -20,12 +20,16 @@ import com.assu.server.domain.auth.dto.common.TokensDTO;
 import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
 import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
 import com.assu.server.domain.auth.dto.login.RefreshResponseDTO;
+import com.assu.server.domain.auth.dto.signup.student.StudentTokenAuthPayloadDTO;
+import com.assu.server.domain.auth.dto.ssu.USaintAuthResponseDTO;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
+import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.auth.security.userdetails.CommonUserDetails;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
+import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
@@ -119,6 +123,23 @@ class LoginServiceImplTest {
 		assertEquals(ActivationStatus.ACTIVE, response.status());
 		assertEquals("access-token", response.tokens().accessToken());
 		assertEquals("refresh-token", response.tokens().refreshToken());
+	}
+
+	@Test
+	@DisplayName("미가입 학생이 로그인하면 회원가입 안내 예외가 발생한다")
+	void loginSsuStudent_UnregisteredStudent_ThrowsSignupRequiredException() {
+		StudentTokenAuthPayloadDTO request = new StudentTokenAuthPayloadDTO("s-token", "s-idno", University.SSU);
+		USaintAuthResponseDTO authResponse = USaintAuthResponseDTO.of(
+			"20211438", "student", "재학", "4학년 1학기", "컴퓨터학부");
+		when(ssuAuthService.uSaintAuth(any())).thenReturn(authResponse);
+		when(commonAdapter.supports(AuthRealm.SSU)).thenReturn(true);
+		doThrow(new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER))
+			.when(commonAdapter).loadMember("20211438");
+
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> loginService.loginSsuStudent(request));
+
+		assertEquals(ErrorStatus.STUDENT_SIGNUP_REQUIRED, exception.getCode());
 	}
 
 	@Test

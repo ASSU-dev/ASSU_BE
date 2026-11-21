@@ -18,6 +18,7 @@ import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
+import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
 import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -219,7 +220,7 @@ public class StudentServiceImpl implements StudentService {
 					.discountRate(content.getDiscount())
 					.storeId(store != null ? store.getId() : null)
 					.extraCount(extraCount)
-					.partnerProfileUrl(getStoreProfileImageUrl(store))
+					.partnerProfileUrl(getPartnerProfileImageUrl(paper.getPartner()))
 					.build();
 		}).toList();
 	}
@@ -227,30 +228,39 @@ public class StudentServiceImpl implements StudentService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<StudentResponseDTO.RecommendCarouselDTO> getRecommendCarouselPartnership(Long memberId) {
-		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, null, null);
-		List<UserPaper> shuffled = new ArrayList<>(userPapers);
+		List<Store> stores = storeRepository.findDistinctActiveStoresByStudentId(memberId);
+		List<Store> shuffled = new ArrayList<>(stores);
 		Collections.shuffle(shuffled);
-		List<UserPaper> randomUserPapers = shuffled.subList(0, Math.min(10, shuffled.size()));
+		List<Store> randomStores = shuffled.subList(0, Math.min(10, shuffled.size()));
 
-		List<Long> contentIds = randomUserPapers.stream()
-				.map(up -> up.getPaperContent().getId())
+		List<Long> storeIds = randomStores.stream()
+				.map(Store::getId)
+				.toList();
+		Map<Long, PaperContent> contentByStoreId = paperContentRepository.findTopByStoreIdIn(storeIds).stream()
+				.collect(Collectors.toMap(
+						content -> content.getPaper().getStore().getId(),
+						content -> content,
+						(first, ignored) -> first,
+						LinkedHashMap::new
+				));
+		List<Long> contentIds = contentByStoreId.values().stream()
+				.map(PaperContent::getId)
 				.toList();
 		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
 				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
 
-		return randomUserPapers.stream().map(up -> {
-			PaperContent content = up.getPaperContent();
-			Store store = up.getPaper().getStore();
+		return randomStores.stream().map(store -> {
+			PaperContent content = contentByStoreId.get(store.getId());
 
-			List<Goods> goods = goodsMap.get(content.getId());
+			List<Goods> goods = content == null ? null : goodsMap.get(content.getId());
 			String firstBelonging = (goods != null && !goods.isEmpty()) ? goods.get(0).getBelonging() : null;
 
 			return new StudentResponseDTO.RecommendCarouselDTO(
-					content.getCategory(),
+					content != null ? content.getCategory() : null,
 					firstBelonging,
 					getStoreProfileImageUrl(store),
-					store != null ? store.getName() : null,
-					store != null ? store.getId() : null
+					store.getName(),
+					store.getId()
 			);
 		}).toList();
 	}
@@ -477,10 +487,14 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	private String getStoreProfileImageUrl(Store store) {
-		if (store == null || store.getPartner() == null || store.getPartner().getMember() == null) {
+		return store == null ? null : getPartnerProfileImageUrl(store.getPartner());
+	}
+
+	private String getPartnerProfileImageUrl(Partner partner) {
+		if (partner == null || partner.getMember() == null) {
 			return null;
 		}
-		String key = store.getPartner().getMember().getProfileUrl();
+		String key = partner.getMember().getProfileUrl();
 		if (key != null && !key.isBlank()) {
 			return amazonS3Manager.generatePresignedUrl(key);
 		}

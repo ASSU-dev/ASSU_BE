@@ -29,8 +29,8 @@ public interface PaperContentRepository extends JpaRepository<PaperContent, Long
     @Query("""
         SELECT pc
         FROM PaperContent pc
-        JOIN pc.paper p
-        JOIN p.store s
+        JOIN FETCH pc.paper p
+        JOIN FETCH p.store s
         WHERE s.id IN :storeIds
         ORDER BY pc.id DESC
         """)
