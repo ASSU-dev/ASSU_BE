@@ -290,6 +290,23 @@ public class StudentServiceImpl implements StudentService {
 			throw new DatabaseException(ErrorStatus.STAMP_ALREADY_APPLIED_TODAY);
 		}
 
+		return applyStamp(student);
+	}
+
+	@Override
+	@Transactional
+	public void addStampIfNotStampedToday(Long memberId) {
+		Student student = studentRepository.findByIdForUpdate(memberId)
+				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+
+		if (student.isStampedToday()) {
+			return;
+		}
+
+		applyStamp(student);
+	}
+
+	private StudentResponseDTO.CheckStampResponseDTO applyStamp(Student student) {
 		student.setStamp();
 		String responseMessage = "스탬프가 적립되었습니다.";
 
@@ -301,7 +318,7 @@ public class StudentServiceImpl implements StudentService {
 					.build();
 			stampEventApplicantRepository.save(applicant);
 			try {
-				notificationCommandService.sendStamp(memberId);
+				notificationCommandService.sendStamp(student.getId());
 			} catch (Exception e) {
 				// 알림 전송 실패해도 스탬프 적립은 성공
 			}
