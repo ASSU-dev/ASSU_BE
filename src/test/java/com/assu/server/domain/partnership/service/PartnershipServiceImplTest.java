@@ -43,10 +43,12 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.entity.PartnershipUsage;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
@@ -62,6 +64,9 @@ class PartnershipServiceImplTest {
 
 	@Mock
 	private StudentRepository studentRepository;
+
+	@Mock
+	private StudentService studentService;
 
 	@Mock
 	private PaperContentRepository contentRepository;
@@ -104,7 +109,7 @@ class PartnershipServiceImplTest {
 	void setUp() {
 		// contentRepository와 paperContentRepository가 같은 타입이라 명시적으로 생성자 주입
 		partnershipService = new PartnershipServiceImpl(
-			partnershipUsageRepository, studentRepository, contentRepository,
+			partnershipUsageRepository, studentRepository, studentService, contentRepository,
 			notificationService, chatService, chatRepository,
 			paperRepository, paperContentRepository, goodsRepository,
 			adminRepository, partnerRepository, storeRepository, amazonS3Manager);
@@ -141,7 +146,7 @@ class PartnershipServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("제휴 이용 기록 시 참여 학생 전원의 스탬프가 적립되고 이용 내역 저장 후 주문 알림이 전송된다")
+	@DisplayName("제휴 이용 기록 시 참여 학생 전원에 대해 스탬프 적립이 호출되고 이용 내역 저장 후 주문 알림이 전송된다")
 	void recordPartnershipUsage_Success_StampsAndNotifies() {
 		// 1. Given (요청자 1L + 동행 2L, 중복 ID는 Set으로 제거됨)
 		PartnershipFinalRequestDTO request = new PartnershipFinalRequestDTO(
@@ -154,8 +159,8 @@ class PartnershipServiceImplTest {
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(1L);
 
-		Student student1 = Student.builder().university(University.SSU).stamp(0).build();
-		Student student2 = Student.builder().university(University.SSU).stamp(9).build();
+		Student student1 = Student.builder().id(1L).university(University.SSU).build();
+		Student student2 = Student.builder().id(2L).university(University.SSU).build();
 		when(studentRepository.findAllById(any())).thenReturn(List.of(student1, student2));
 
 		Partner storePartner = partner();
@@ -165,9 +170,9 @@ class PartnershipServiceImplTest {
 		// 2. When
 		partnershipService.recordPartnershipUsage(request, member);
 
-		// 3. Then (스탬프 적립 확인)
-		assertEquals(1, student1.getStamp());
-		assertEquals(10, student2.getStamp());
+		// 3. Then (참여 학생 전원에 대해 스탬프 적립이 호출됨 - 실제 증가/이벤트 응모 로직은 StudentService 책임)
+		verify(studentService, times(1)).addStamp(1L);
+		verify(studentService, times(1)).addStamp(2L);
 
 		// 이용 내역 저장 내용 확인
 		@SuppressWarnings("unchecked")
@@ -181,11 +186,11 @@ class PartnershipServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("오늘 이미 스탬프를 적립한 학생은 제휴 이용 시 스탬프가 추가되지 않지만 이용 내역은 저장된다")
-	void recordPartnershipUsage_AlreadyStampedToday_SkipsStampButSavesUsage() {
-		// 1. Given
+	@DisplayName("동행 중 한 명이 이미 오늘 적립했다면 전체 요청이 실패하고 이용 내역도 저장되지 않는다")
+	void recordPartnershipUsage_OneStudentAlreadyStampedToday_ThrowsAndSavesNothing() {
+		// 1. Given (요청자 1L + 동행 2L)
 		PartnershipFinalRequestDTO request = new PartnershipFinalRequestDTO(
-			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of());
+			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of(2L));
 
 		Paper paper = Paper.builder().id(PAPER_ID).build();
 		PaperContent content = PaperContent.builder().id(1000L).paper(paper).build();
@@ -194,24 +199,19 @@ class PartnershipServiceImplTest {
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(1L);
 
-		Student student = Student.builder().university(University.SSU).stamp(3).build();
-		student.setStamp();
-		when(studentRepository.findAllById(any())).thenReturn(List.of(student));
-
-		Partner storePartner = partner();
-		Store store = Store.builder().id(500L).partner(storePartner).build();
-		when(storeRepository.findById(500L)).thenReturn(Optional.of(store));
+		Student student1 = Student.builder().id(1L).university(University.SSU).build();
+		Student student2 = Student.builder().id(2L).university(University.SSU).build();
+		when(studentRepository.findAllById(any())).thenReturn(List.of(student1, student2));
+		when(studentService.addStamp(1L)).thenReturn(mock(StudentResponseDTO.CheckStampResponseDTO.class));
+		when(studentService.addStamp(2L)).thenThrow(new DatabaseException(ErrorStatus.STAMP_ALREADY_APPLIED_TODAY));
 
 		// 2. When
-		partnershipService.recordPartnershipUsage(request, member);
+		DatabaseException exception = assertThrows(DatabaseException.class,
+			() -> partnershipService.recordPartnershipUsage(request, member));
 
-		// 3. Then (스탬프는 그대로, 이용 내역은 저장됨)
-		assertEquals(4, student.getStamp());
-
-		@SuppressWarnings("unchecked")
-		ArgumentCaptor<List<PartnershipUsage>> usageCaptor = ArgumentCaptor.forClass(List.class);
-		verify(partnershipUsageRepository, times(1)).saveAll(usageCaptor.capture());
-		assertEquals(1, usageCaptor.getValue().size());
+		// 3. Then (전체 요청 실패, 이용 내역도 저장되지 않음)
+		assertEquals(ErrorStatus.STAMP_ALREADY_APPLIED_TODAY, exception.getCode());
+		verify(partnershipUsageRepository, never()).saveAll(any());
 	}
 
 	// ===== updatePartnershipStatus =====
