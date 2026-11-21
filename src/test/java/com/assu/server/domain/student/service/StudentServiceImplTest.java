@@ -42,6 +42,7 @@ import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import org.springframework.transaction.support.TransactionTemplate;
 import jakarta.persistence.EntityManager;
@@ -83,6 +84,9 @@ class StudentServiceImplTest {
 
 	@Mock
 	private NotificationCommandService notificationCommandService;
+
+	@Mock
+	private DiscordNotifier discordNotifier;
 
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
@@ -142,6 +146,24 @@ class StudentServiceImplTest {
 		assertEquals("스탬프 10개를 모아 자동 응모 되었습니다.", response.getMessage());
 		verify(stampEventApplicantRepository, times(1)).save(any());
 		verify(notificationCommandService, times(1)).sendStamp(STUDENT_ID);
+		verify(discordNotifier, times(1)).send(any());
+	}
+
+	@Test
+	@DisplayName("오늘 이미 스탬프를 적립한 학생이 다시 적립하면 STAMP_ALREADY_APPLIED_TODAY 예외가 발생한다")
+	void addStamp_AlreadyStampedToday_ThrowsException() {
+		// 1. Given
+		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
+		student.setStamp();
+		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+
+		// 2. When
+		DatabaseException exception = assertThrows(DatabaseException.class,
+			() -> studentService.addStamp(STUDENT_ID));
+
+		// 3. Then
+		assertEquals(ErrorStatus.STAMP_ALREADY_APPLIED_TODAY, exception.getCode());
+		verify(stampEventApplicantRepository, never()).save(any());
 	}
 
 	// ===== getUsablePartnership =====
