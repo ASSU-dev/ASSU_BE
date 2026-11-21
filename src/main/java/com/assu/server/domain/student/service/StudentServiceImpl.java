@@ -313,7 +313,7 @@ public class StudentServiceImpl implements StudentService {
 	}
 	@Transactional
 	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {
-		Student student = studentRepository.findById(memberId)
+		Student student = studentRepository.findByIdForUpdate(memberId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 
 		if (student.isStampedToday()) {
