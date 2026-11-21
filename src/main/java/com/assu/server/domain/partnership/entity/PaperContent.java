@@ -1,10 +1,20 @@
 package com.assu.server.domain.partnership.entity;
 
 import com.assu.server.domain.common.entity.BaseEntity;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
@@ -12,7 +22,6 @@ import java.util.List;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
@@ -25,29 +34,27 @@ public class PaperContent extends BaseEntity {
 	@JoinColumn(name = "paper_id")
 	private Paper paper;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "criterion_type", length = 30)
-	private CriterionType criterionType;
+	@Column(name = "benefit_condition", length = 255)
+	private String benefitCondition;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "option_type", length = 30)
-	private OptionType optionType;
+	@Column(name = "benefit", columnDefinition = "TEXT")
+	private String benefit;
 
-	private Boolean anotherType;
+	@Column(name = "caution", length = 255)
+	private String caution;
 
-	@Column(name = "note", length = 255)
-	private String note;
+	@Column(name = "min_people")
+	private Integer minPeople;
 
-	private Integer people;
-
-	private Long cost;
-
-	private String category;
-
-	private Long discount;
-
+	// goods 테이블 삭제 전까지 FK 정리를 위해 매핑만 유지한다
 	@BatchSize(size = 100)
 	@OneToMany(mappedBy = "content", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Goods> goods = new ArrayList<>();
 
+	public String toDisplayText() {
+		String text = benefitCondition == null || benefitCondition.isBlank()
+			? benefit
+			: benefitCondition + " " + benefit;
+		return caution == null || caution.isBlank() ? text : text + " (" + caution + ")";
+	}
 }

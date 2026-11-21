@@ -55,17 +55,10 @@ public class BackofficePaperController {
                     "  - `adminName` (String): 관리자 이름\n" +
                     "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
                     "  - `options` (JSON): 제휴 옵션\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류 (SERVICE/DISCOUNT)\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준 (PRICE/HEADCOUNT)\n" +
-                    "    - `anotherType` (Boolean): 기타 제공 서비스 여부\n" +
-                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
-                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
-                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
-                    "    - `category` (String): 서비스 카테고리\n" +
-                    "    - `discountRate` (Long): 할인율\n" +
-                    "    - `goods` (JSON): 서비스 제공 항목 목록\n" +
-                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
-                    "      - `goodsName` (String): 서비스 제공 항목명\n"
+                    "    - `benefitCondition` (String): 혜택 조건\n" +
+                    "    - `benefit` (String): 혜택 내용 (필수)\n" +
+                    "    - `caution` (String): 유의사항\n" +
+                    "    - `minPeople` (Integer): 그룹 인증 최소 인원\n"
     )
     @GetMapping
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPapers(
@@ -100,22 +93,16 @@ public class BackofficePaperController {
     @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_PAPER_CONTENT_ADD)
     @Operation(
             summary = "제휴 계약서 내용(옵션) 추가 API (백오피스용)",
-            description = "생성되어 있는 빈 제휴 계약서에 구체적인 제휴 혜택/옵션 및 Goods를 추가합니다.\n\n" +
+            description = "생성되어 있는 빈 제휴 계약서에 구체적인 제휴 혜택(조건, 혜택, 유의사항, 최소 인원)을 추가합니다.\n\n" +
                     "**Parameters:**\n" +
                     "  - `paperId` (Long, required): 계약서 ID\n\n" +
                     "**Request Body:**\n" +
                     "  - `BackofficePaperContentCreateRequest` 객체 (JSON, required)\n" +
                     "  - `options` (JSON): 제휴 옵션 목록\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류 (SERVICE/DISCOUNT)\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준 (PRICE/HEADCOUNT)\n" +
-                    "    - `anotherType` (Boolean): 기타 제공 서비스 여부\n" +
-                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
-                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
-                    "    - `category` (String): 서비스 카테고리\n" +
-                    "    - `discountRate` (Long): 할인율\n" +
-                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
-                    "    - `goods` (JSON): 서비스 제공 항목\n" +
-                    "      - `goodsName` (String): 서비스 제공 항목명\n\n" +
+                    "    - `benefitCondition` (String): 혜택 조건\n" +
+                    "    - `benefit` (String): 혜택 내용 (필수)\n" +
+                    "    - `caution` (String): 유의사항\n" +
+                    "    - `minPeople` (Integer): 그룹 인증 최소 인원\n" +
                     "**Response:**\n" +
                     "  - 성공 시 200(OK)과 업데이트된 `WritePartnershipResponse` 객체 반환.\n"
     )

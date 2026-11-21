@@ -25,8 +25,6 @@ import com.assu.server.domain.map.dto.StoreMapResponseDTO;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -128,8 +126,8 @@ class MapServiceImplTest {
 		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(10L), anyCollection()))
 			.thenReturn(List.of(userPaper(paperA)));
 
-		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A학생회 혜택").build();
-		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(contentA));
+		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).benefit("A학생회 혜택").build();
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(anyList())).thenReturn(List.of(contentA));
 
 		// 2. When - adminId=10(A학생회)으로 필터링
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, 10L);
@@ -155,9 +153,9 @@ class MapServiceImplTest {
 		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(null), anyCollection()))
 			.thenReturn(List.of(userPaper(paperA), userPaper(paperB)));
 
-		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).note("A혜택").build();
-		PaperContent contentB = PaperContent.builder().id(2000L).paper(paperB).note("B혜택").build();
-		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(contentA, contentB));
+		PaperContent contentA = PaperContent.builder().id(1000L).paper(paperA).benefit("A혜택").build();
+		PaperContent contentB = PaperContent.builder().id(2000L).paper(paperB).benefit("B혜택").build();
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(anyList())).thenReturn(List.of(contentA, contentB));
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
@@ -182,8 +180,8 @@ class MapServiceImplTest {
 				.thenReturn(List.of(cafeStore, restaurantStore));
 		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(StoreCategory.CAFE), eq(null), anyCollection()))
 				.thenReturn(List.of(userPaper(cafeP)));
-		PaperContent content = PaperContent.builder().id(1000L).paper(cafeP).note("아메리카노 할인").build();
-		when(paperContentRepository.findByPaperIdIn(anyList())).thenReturn(List.of(content));
+		PaperContent content = PaperContent.builder().id(1000L).paper(cafeP).benefit("아메리카노 할인").build();
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(anyList())).thenReturn(List.of(content));
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, StoreCategory.CAFE, null);
@@ -207,8 +205,8 @@ class MapServiceImplTest {
 		when(storeRepository.findAllWithinViewportWithPartner(anyString())).thenReturn(List.of(store));
 		when(userPaperRepository.findActivePartnershipsByStudentIdAndStoreIds(eq(STUDENT_ID), eq(null), eq(null), anyCollection()))
 				.thenReturn(List.of(userPaper(paper)));
-		when(paperContentRepository.findByPaperIdIn(anyList()))
-				.thenReturn(List.of(PaperContent.builder().id(1000L).paper(paper).note("혜택").build()));
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(anyList()))
+				.thenReturn(List.of(PaperContent.builder().id(1000L).paper(paper).benefit("혜택").build()));
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.getStores(viewport(), STUDENT_ID, null, null);
@@ -264,7 +262,7 @@ class MapServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("키워드는 공백 무시·대소문자 무시로 매장명과 부분 일치하며 note가 있으면 note가 혜택으로 노출된다")
+	@DisplayName("키워드는 공백 무시·대소문자 무시로 매장명과 부분 일치하며 혜택 문구가 노출된다")
 	void searchStores_MatchingKeyword_UsesNoteAsBenefit() {
 		// 1. Given ("역전 할머니 맥주" 매장을 "할머니맥주"로 검색)
 		Store store = store(500L, "역전 할머니 맥주");
@@ -273,8 +271,8 @@ class MapServiceImplTest {
 			.thenReturn(List.of(userPaper(paper)));
 
 		PaperContent content = PaperContent.builder()
-			.id(1000L).paper(paper).note("생맥주 500cc 1잔 무료").build();
-		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of(content));
+			.id(1000L).paper(paper).benefit("생맥주 500cc 1잔 무료").build();
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(List.of(100L))).thenReturn(List.of(content));
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.searchStores("할머니맥주", STUDENT_ID);
@@ -291,8 +289,8 @@ class MapServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("note가 없으면 옵션·기준 타입 조합으로 혜택 문구를 생성한다 (금액 기준 할인)")
-	void searchStores_NoNote_GeneratesDiscountBenefitText() {
+	@DisplayName("혜택 문구는 조건, 혜택, 유의사항을 이어 붙여 만든다")
+	void searchStores_WithConditionAndCaution_JoinsBenefitText() {
 		// 1. Given
 		Store store = store(500L, "숭실분식");
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
@@ -301,42 +299,18 @@ class MapServiceImplTest {
 
 		PaperContent content = PaperContent.builder()
 			.id(1000L).paper(paper)
-			.optionType(OptionType.DISCOUNT).criterionType(CriterionType.PRICE)
-			.cost(10000L).discount(10L)
+			.benefitCondition("4인 이상 방문 시")
+			.benefit("떡볶이 제공")
+			.caution("테이블 당 1회")
 			.build();
-		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of(content));
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(List.of(100L))).thenReturn(List.of(content));
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.searchStores("숭실분식", STUDENT_ID);
 
 		// 3. Then
 		assertEquals(1, result.size());
-		assertEquals(List.of("10000원 이상 구매 시 10% 할인"),
-			result.get(0).partnerships().get(0).benefits());
-	}
-
-	@Test
-	@DisplayName("note가 없으면 옵션·기준 타입 조합으로 혜택 문구를 생성한다 (인원 기준 서비스 증정)")
-	void searchStores_NoNote_GeneratesServiceBenefitText() {
-		// 1. Given
-		Store store = store(500L, "숭실분식");
-		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
-			.thenReturn(List.of(userPaper(paper)));
-
-		PaperContent content = PaperContent.builder()
-			.id(1000L).paper(paper)
-			.optionType(OptionType.SERVICE).criterionType(CriterionType.HEADCOUNT)
-			.people(4).category("떡볶이")
-			.build();
-		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of(content));
-
-		// 2. When
-		List<StoreMapResponseDTO> result = mapService.searchStores("숭실분식", STUDENT_ID);
-
-		// 3. Then
-		assertEquals(1, result.size());
-		assertEquals(List.of("4명 이상 방문 시 떡볶이 증정"),
+		assertEquals(List.of("4인 이상 방문 시 떡볶이 제공 (테이블 당 1회)"),
 			result.get(0).partnerships().get(0).benefits());
 	}
 
@@ -348,7 +322,7 @@ class MapServiceImplTest {
 		Paper paper = Paper.builder().id(100L).store(store).admin(admin(10L, "총학생회")).build();
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(List.of(userPaper(paper)));
-		when(paperContentRepository.findByPaperIdIn(List.of(100L))).thenReturn(List.of());
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(List.of(100L))).thenReturn(List.of());
 
 		// 2. When
 		List<StoreMapResponseDTO> result = mapService.searchStores("숭실분식", STUDENT_ID);

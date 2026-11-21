@@ -77,7 +77,7 @@ class StudentPartnershipQueryCountTest {
                 em.persist(paper);
                 PaperContent content = PaperContent.builder()
                         .paper(paper)
-                        .note("혜택")
+                        .benefit("혜택")
                         .build();
                 em.persist(content);
                 em.persist(UserPaper.builder()

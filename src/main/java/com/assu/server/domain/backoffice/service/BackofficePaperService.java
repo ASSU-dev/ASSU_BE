@@ -18,10 +18,8 @@ import com.assu.server.domain.backoffice.dto.BackofficePaperCreateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePaperContentCreateRequestDTO;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -41,7 +39,6 @@ BackofficePaperService {
     private final PaperContentRepository paperContentRepository;
     private final AdminRepository adminRepository;
     private final StoreRepository storeRepository;
-    private final GoodsRepository goodsRepository;
 
     @Transactional(readOnly = true)
     public Page<WritePartnershipResponseDTO> getPapers(Pageable pageable) {
@@ -96,45 +93,18 @@ BackofficePaperService {
                 .build();
         paper = paperRepository.save(paper);
 
-        return WritePartnershipResponseDTO.of(paper, List.of(), List.of());
+        return WritePartnershipResponseDTO.of(paper, List.of());
     }
 
     public WritePartnershipResponseDTO addPaperContents(Long paperId, BackofficePaperContentCreateRequestDTO req) {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
-        List<PaperContent> savedContents = new ArrayList<>();
         if (req.options() != null && !req.options().isEmpty()) {
-            List<PaperContent> contents = new ArrayList<>(req.options().size());
-            for (var o : req.options()) {
-                contents.add(o.toPaperContent(paper));
-            }
-
-            for (int i = 0; i < contents.size(); i++) {
-                var opt = req.options().get(i);
-                if (opt.goods() != null && opt.goods().size() == 1) {
-                    contents.get(i).setCategory(opt.goods().get(0).goodsName());
-                }
-            }
-
-            savedContents = paperContentRepository.saveAll(contents);
-
-            List<Goods> toPersist = new ArrayList<>();
-            for (int i = 0; i < savedContents.size(); i++) {
-                var opt = req.options().get(i);
-                var content = savedContents.get(i);
-                var batch = opt.toGoods(content);
-                if (!batch.isEmpty()) toPersist.addAll(batch);
-            }
-            if (!toPersist.isEmpty()) goodsRepository.saveAll(toPersist);
+            paperContentRepository.saveAll(req.options().stream().map(o -> o.toPaperContent(paper)).toList());
         }
 
-        List<PaperContent> contentsWithGoods = paperContentRepository.findAllByOnePaperIdInFetchGoods(paper.getId());
-        List<List<Goods>> goodsBatches = contentsWithGoods.stream()
-                .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
-                .toList();
-
-        return WritePartnershipResponseDTO.of(paper, contentsWithGoods, goodsBatches);
+        return WritePartnershipResponseDTO.of(paper, paperContentRepository.findByPaperIdOrderByIdAsc(paper.getId()));
     }
 
     private List<WritePartnershipResponseDTO> buildPartnershipDTOs(List<Paper> papers) {
@@ -148,11 +118,7 @@ BackofficePaperService {
 
         List<WritePartnershipResponseDTO> result = new ArrayList<>(papers.size());
         for (Paper p : papers) {
-            List<PaperContent> contents = byPaperId.getOrDefault(p.getId(), List.of());
-            List<List<Goods>> goodsBatches = contents.stream()
-                    .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
-                    .toList();
-            result.add(WritePartnershipResponseDTO.of(p, contents, goodsBatches));
+            result.add(WritePartnershipResponseDTO.of(p, byPaperId.getOrDefault(p.getId(), List.of())));
         }
         return result;
     }

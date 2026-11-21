@@ -11,8 +11,6 @@ import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -88,7 +86,6 @@ public class MapServiceImpl implements MapService {
      *  3. 그 중 뷰포트 내 store를 포함한 paper
      *
      * 위 기준을 만족하는 paper를 매장당 모두 가져와 partnerships 리스트로 반환.
-     * papercontent의 note가 있으면 benefit 대신 note를 사용.
      */
     @Override
     public List<StoreMapResponseDTO> getStores(MapRequestDTO viewport, Long memberId, StoreCategory storeCategory, Long adminId) {
@@ -141,7 +138,7 @@ public class MapServiceImpl implements MapService {
         if (selectedPaperIds.isEmpty()) {
             contentsByPaperId = Collections.emptyMap();
         } else {
-            contentsByPaperId = paperContentRepository.findByPaperIdIn(selectedPaperIds).stream()
+            contentsByPaperId = paperContentRepository.findByPaperIdInOrderByIdAsc(selectedPaperIds).stream()
                     .collect(Collectors.groupingBy(
                             pc -> pc.getPaper().getId()
                     ));
@@ -166,7 +163,7 @@ public class MapServiceImpl implements MapService {
                             Collectors.flatMapping(
                                     paper -> {
                                         List<PaperContent> contents = contentsByPaperId.getOrDefault(paper.getId(), List.of());
-                                        return contents.stream().map(this::resolveBenefit);
+                                        return contents.stream().map(PaperContent::toDisplayText);
                                     },
                                     Collectors.filtering(
                                             benefit -> benefit != null && !benefit.isBlank(),
@@ -187,47 +184,6 @@ public class MapServiceImpl implements MapService {
 
             return StoreMapResponseDTO.ofWithPartnerships(s, partnerships, amazonS3Manager);
         }).toList();
-    }
-
-    /** note가 있으면 note를, 없으면 generateBenefitText 결과를 반환 */
-    private String resolveBenefit(PaperContent content) {
-        if (content == null) return null;
-        if (content.getNote() != null && !content.getNote().isBlank()) {
-            return content.getNote();
-        }
-        return generateBenefitText(content);
-    }
-
-    private String generateBenefitText(PaperContent content) {
-        if (content == null) return null;
-
-        OptionType optionType = content.getOptionType();
-        CriterionType criterionType = content.getCriterionType();
-
-        if (optionType == OptionType.SERVICE) {
-            if (criterionType == CriterionType.PRICE) {
-                String cost = content.getCost() != null ? content.getCost().toString() : "-";
-                String gift = content.getCategory() != null ? content.getCategory() : "상품";
-                return cost + "원 이상 구매 시 " + gift + " 증정";
-            } else if (criterionType == CriterionType.HEADCOUNT) {
-                String people = content.getPeople() != null ? content.getPeople().toString() : "-";
-                String gift = content.getCategory() != null ? content.getCategory() : "상품";
-                return people + "명 이상 방문 시 " + gift + " 증정";
-            }
-            return "서비스 혜택";
-        } else if (optionType == OptionType.DISCOUNT) {
-            if (criterionType == CriterionType.PRICE) {
-                String cost = content.getCost() != null ? content.getCost().toString() : "-";
-                String rate = content.getDiscount() != null ? content.getDiscount().toString() : "-";
-                return cost + "원 이상 구매 시 " + rate + "% 할인";
-            } else if (criterionType == CriterionType.HEADCOUNT) {
-                String people = content.getPeople() != null ? content.getPeople().toString() : "-";
-                String rate = content.getDiscount() != null ? content.getDiscount().toString() : "-";
-                return people + "명 이상 방문 시 " + rate + "% 할인";
-            }
-            return "할인 혜택";
-        }
-        return null;
     }
 
     @Override
@@ -257,7 +213,7 @@ public class MapServiceImpl implements MapService {
                 .map(Paper::getId)
                 .toList();
 
-        Map<Long, List<PaperContent>> contentsByPaperId = paperContentRepository.findByPaperIdIn(paperIds).stream()
+        Map<Long, List<PaperContent>> contentsByPaperId = paperContentRepository.findByPaperIdInOrderByIdAsc(paperIds).stream()
                 .collect(Collectors.groupingBy(pc -> pc.getPaper().getId()));
 
         return storePaperMap.entrySet().stream()
@@ -275,7 +231,7 @@ public class MapServiceImpl implements MapService {
 
                                 List<String> combinedBenefits = adminPapers.stream()
                                         .flatMap(paper -> contentsByPaperId.getOrDefault(paper.getId(), List.of()).stream())
-                                        .map(this::resolveBenefit)
+                                        .map(PaperContent::toDisplayText)
                                         .filter(benefit -> benefit != null && !benefit.isBlank())
                                         .distinct() // 혜택 중복 제거
                                         .toList();

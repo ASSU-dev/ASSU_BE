@@ -23,11 +23,8 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.notification.service.NotificationCommandService;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
-import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -73,8 +70,6 @@ class StudentServiceImplTest {
 	@Mock
 	private StampEventApplicantRepository stampEventApplicantRepository;
 
-	@Mock
-	private GoodsRepository goodsRepository;
 
 	@Mock
 	private AdminRepository adminRepository;
@@ -177,7 +172,7 @@ class StudentServiceImplTest {
 		Store store = Store.builder().id(500L).name("역전할머니 맥주").partner(partner).build();
 		Paper paper = Paper.builder().id(paperId).admin(admin).store(store).build();
 		PaperContent content = PaperContent.builder()
-			.id(contentId).paper(paper).category("안주").optionType(OptionType.SERVICE).build();
+			.id(contentId).paper(paper).benefit("안주").build();
 		return UserPaper.builder().paper(paper).paperContent(content).build();
 	}
 
@@ -189,7 +184,7 @@ class StudentServiceImplTest {
 		Store store = Store.builder().id(501L).build();
 		Paper paper = Paper.builder().id(paperId).partner(partner).store(store).build();
 		PaperContent content = PaperContent.builder()
-			.id(contentId).paper(paper).optionType(OptionType.SERVICE).build();
+			.id(contentId).paper(paper).build();
 		return UserPaper.builder().paper(paper).paperContent(content).build();
 	}
 
@@ -197,12 +192,12 @@ class StudentServiceImplTest {
 		return Store.builder().id(storeId).name("store-" + storeId).build();
 	}
 
-	private UserPaper usablePartnership(Long paperId, Long contentId, String category, OptionType optionType) {
+	private UserPaper usablePartnership(Long paperId, Long contentId, String benefit) {
 		Admin admin = Admin.builder().id(10L).name("총학생회").isPhoneVerified(false).build();
 		Store store = Store.builder().id(500L).name("역전할머니 맥주").build();
 		Paper paper = Paper.builder().id(paperId).admin(admin).store(store).build();
 		PaperContent content = PaperContent.builder()
-			.id(contentId).paper(paper).category(category).optionType(optionType).build();
+			.id(contentId).paper(paper).benefit(benefit).build();
 		return UserPaper.builder().paper(paper).paperContent(content).build();
 	}
 
@@ -211,9 +206,9 @@ class StudentServiceImplTest {
 	void getUsablePartnership_NotAll_LimitsToTwo() {
 		// 1. Given (사용 가능한 제휴 3건)
 		List<UserPaper> userPapers = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
-			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "음료"),
+			usablePartnership(102L, 1002L, "주류"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
 
 		// 2. When
@@ -229,9 +224,9 @@ class StudentServiceImplTest {
 	void getUsablePartnership_All_ReturnsEverything() {
 		// 1. Given
 		List<UserPaper> userPapers = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
-			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "음료"),
+			usablePartnership(102L, 1002L, "주류"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
 
 		// 2. When
@@ -245,39 +240,20 @@ class StudentServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("SERVICE 혜택의 카테고리가 없으면 연결된 상품의 소속명으로 대체된다")
-	void getUsablePartnership_NoCategory_FallsBackToGoodsBelonging() {
-		// 1. Given (category가 null인 SERVICE 제휴)
-		UserPaper userPaper = usablePartnership(100L, 1000L, null, OptionType.SERVICE);
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(userPaper));
-
-		Goods goods = Goods.builder()
-			.content(userPaper.getPaperContent()).belonging("생맥주 500cc").build();
-		when(goodsRepository.findByContentIdIn(List.of(1000L))).thenReturn(List.of(goods));
-
-		// 2. When
-		List<StudentResponseDTO.UsablePartnershipDTO> result =
-			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
-
-		// 3. Then
-		assertEquals("생맥주 500cc", result.get(0).getCategory());
-	}
-
-	@Test
 	@DisplayName("storeCategory=BAR이면 레포지토리에 BAR가 전달되고 반환된 BAR 결과만 노출된다")
 	void getUsablePartnership_WithStoreCategory_PassesCategoryToRepository() {
 		// 1. Given - DB가 BAR만 필터링해서 2건 반환한다고 가정
 		List<UserPaper> barUserPapers = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "주류"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, StoreCategory.BAR, null))
 			.thenReturn(barUserPapers);
 
 		// null이면 전체(BAR 2개 + RESTAURANT 1개) 반환
 		List<UserPaper> allUserPapers = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "주류", OptionType.SERVICE),
-			usablePartnership(102L, 1002L, "파스타", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "주류"),
+			usablePartnership(102L, 1002L, "파스타"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null))
 			.thenReturn(allUserPapers);
 
@@ -298,12 +274,12 @@ class StudentServiceImplTest {
 	@DisplayName("adminId를 지정하면 레포지토리에 adminId가 전달되고 반환된 결과만 노출된다")
 	void getUsablePartnership_WithAdminId_PassesAdminIdToRepository() {
 		// 1. Given - DB가 adminId=10으로 필터링해서 1건 반환한다고 가정
-		List<UserPaper> filtered = List.of(usablePartnership(100L, 1000L, "안주", OptionType.SERVICE));
+		List<UserPaper> filtered = List.of(usablePartnership(100L, 1000L, "안주"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, 10L)).thenReturn(filtered);
 
 		List<UserPaper> all = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "음료"));
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(all);
 
 		// 2. When
@@ -325,7 +301,6 @@ class StudentServiceImplTest {
 		// given
 		UserPaper up = paperPartnerOnlyPartnership(100L, 1000L, "partners/42/profile.jpg");
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
 
 		// when
@@ -340,9 +315,8 @@ class StudentServiceImplTest {
 	@DisplayName("파트너가 없으면 getUsablePartnership의 partnerProfileUrl은 null이다")
 	void getUsablePartnership_NoPartner_ReturnsNullProfileUrl() {
 		// given (기존 helper는 partner 없는 store)
-		UserPaper up = usablePartnership(100L, 1000L, "안주", OptionType.SERVICE);
+		UserPaper up = usablePartnership(100L, 1000L, "안주");
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
@@ -360,13 +334,12 @@ class StudentServiceImplTest {
 	void getRecommendPartnership_LessThan10_ReturnsAll() {
 		// given
 		List<UserPaper> userPapers = List.of(
-			usablePartnership(100L, 1000L, "안주", OptionType.SERVICE),
-			usablePartnership(101L, 1001L, "음료", OptionType.SERVICE),
-			usablePartnership(102L, 1002L, "주류", OptionType.SERVICE));
+			usablePartnership(100L, 1000L, "안주"),
+			usablePartnership(101L, 1001L, "음료"),
+			usablePartnership(102L, 1002L, "주류"));
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
 			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -381,12 +354,11 @@ class StudentServiceImplTest {
 		// given (20개 생성)
 		List<UserPaper> userPapers = new ArrayList<>();
 		for (int i = 0; i < 20; i++) {
-			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주", OptionType.SERVICE));
+			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주"));
 		}
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
 			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -401,7 +373,6 @@ class StudentServiceImplTest {
 		// given
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of());
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -416,12 +387,11 @@ class StudentServiceImplTest {
 		// given (20개 생성)
 		List<UserPaper> userPapers = new ArrayList<>();
 		for (int i = 0; i < 20; i++) {
-			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주", OptionType.SERVICE));
+			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주"));
 		}
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
 			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -440,7 +410,6 @@ class StudentServiceImplTest {
 		UserPaper up = usablePartnershipWithPartner(100L, 1000L, "partners/42/profile.jpg");
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(up.getPaper().getStore()));
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
 
 		// when
@@ -454,10 +423,9 @@ class StudentServiceImplTest {
 	@DisplayName("파트너가 없으면 getRecommendCarouselPartnership의 partnerProfileUrl은 null이다")
 	void getRecommendCarouselPartnership_NoPartner_ReturnsNullProfileUrl() {
 		// given
-		UserPaper up = usablePartnership(100L, 1000L, "안주", OptionType.SERVICE);
+		UserPaper up = usablePartnership(100L, 1000L, "안주");
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(up.getPaper().getStore()));
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -468,46 +436,40 @@ class StudentServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("업체의 대표 콘텐츠가 있으면 카테고리와 첫 번째 상품명을 반환한다")
-	void getRecommendCarouselPartnership_WithContent_ReturnsCategoryAndFirstBelonging() {
+	@DisplayName("업체의 대표 콘텐츠가 있으면 혜택 문구를 반환한다")
+	void getRecommendCarouselPartnership_WithContent_ReturnsBenefit() {
 		// given
 		Store store = store(500L);
 		Paper paper = Paper.builder().id(100L).store(store).build();
 		PaperContent content = PaperContent.builder()
-			.id(1000L).paper(paper).category("안주").optionType(OptionType.SERVICE).build();
-		Goods first = Goods.builder().id(1L).content(content).belonging("감자튀김").build();
-		Goods second = Goods.builder().id(2L).content(content).belonging("콜라").build();
+			.id(1000L).paper(paper).benefit("안주").build();
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
 		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of(content));
-		when(goodsRepository.findByContentIdIn(List.of(1000L))).thenReturn(List.of(first, second));
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		assertEquals(1, result.size());
-		assertEquals("안주", result.get(0).category());
-		assertEquals("감자튀김", result.get(0).belonging());
+		assertEquals("안주", result.get(0).benefit());
 		assertEquals(500L, result.get(0).storeId());
 		assertEquals("store-500", result.get(0).partnerName());
 	}
 
 	@Test
-	@DisplayName("대표 콘텐츠가 없는 업체도 카테고리와 상품명은 null로 반환한다")
-	void getRecommendCarouselPartnership_NoContent_ReturnsNullCategoryAndBelonging() {
+	@DisplayName("대표 콘텐츠가 없는 업체는 혜택 문구를 null로 반환한다")
+	void getRecommendCarouselPartnership_NoContent_ReturnsNullBenefit() {
 		// given
 		Store store = store(500L);
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
 		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of());
-		when(goodsRepository.findByContentIdIn(List.of())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		assertEquals(1, result.size());
-		assertNull(result.get(0).category());
-		assertNull(result.get(0).belonging());
+		assertNull(result.get(0).benefit());
 		assertEquals(500L, result.get(0).storeId());
 	}
 
@@ -518,40 +480,18 @@ class StudentServiceImplTest {
 		Store store = store(500L);
 		Paper paper = Paper.builder().id(100L).store(store).build();
 		PaperContent latest = PaperContent.builder()
-			.id(1002L).paper(paper).category("최신").optionType(OptionType.SERVICE).build();
+			.id(1002L).paper(paper).benefit("최신").build();
 		PaperContent older = PaperContent.builder()
-			.id(1001L).paper(paper).category("이전").optionType(OptionType.SERVICE).build();
+			.id(1001L).paper(paper).benefit("이전").build();
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
 		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of(latest, older));
-		when(goodsRepository.findByContentIdIn(List.of(1002L))).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		assertEquals(1, result.size());
-		assertEquals("최신", result.get(0).category());
-		assertNull(result.get(0).belonging());
-	}
-
-	@Test
-	@DisplayName("상품이 없는 콘텐츠는 상품명을 null로 반환한다")
-	void getRecommendCarouselPartnership_ContentWithoutGoods_ReturnsNullBelonging() {
-		// given
-		Store store = store(500L);
-		Paper paper = Paper.builder().id(100L).store(store).build();
-		PaperContent content = PaperContent.builder()
-			.id(1000L).paper(paper).category("주류").optionType(OptionType.SERVICE).build();
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
-		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of(content));
-		when(goodsRepository.findByContentIdIn(List.of(1000L))).thenReturn(List.of());
-
-		// when
-		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
-
-		// then
-		assertEquals("주류", result.get(0).category());
-		assertNull(result.get(0).belonging());
+		assertEquals("최신", result.get(0).benefit());
 	}
 
 	// ===== syncUserPapersForStudent =====
@@ -587,7 +527,7 @@ class StudentServiceImplTest {
 
 		PaperContent existingContent = PaperContent.builder().id(1000L).paper(paper).build();
 		PaperContent newContent = PaperContent.builder().id(1001L).paper(paper).build();
-		when(paperContentRepository.findByPaperIdIn(List.of(100L)))
+		when(paperContentRepository.findByPaperIdInOrderByIdAsc(List.of(100L)))
 			.thenReturn(List.of(existingContent, newContent));
 
 		// 이미 100_1000 조합의 UserPaper 보유

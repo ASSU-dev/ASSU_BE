@@ -115,7 +115,7 @@ public class StudentController {
 
 	@Operation(
 			summary = "사용자의 이용 가능한 제휴 조회 API",
-			description = "# [v1.1 (2026-08-31)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
+			description = "# [v1.2 (2026-11-21)](https://clumsy-seeder-416.notion.site/API-29c1197c19ed8030b1f5e2a744416651?source=copy_link)\n" +
 					"- 현재 로그인한 사용자가 이용 가능한 제휴 목록을 조회합니다.\n" +
 					"- 활성 상태인 제휴만 반환합니다.\n\n" +
 					"**Request Parameters:**\n" +
@@ -140,7 +140,7 @@ public class StudentController {
 
 	@Operation(
 			summary = "사용자의 추천 제휴 조회 API",
-			description = "# [v1.0 (2026-08-31)](https://clumsy-seeder-416.notion.site/3cd1197c19ed800b86f5ed255f91caf1?source=copy_link)\n" +
+			description = "# [v1.1 (2026-11-21)](https://clumsy-seeder-416.notion.site/3cd1197c19ed800b86f5ed255f91caf1?source=copy_link)\n" +
 					"- 현재 로그인한 사용자가 이용 가능한 제휴 중 최대 14개를 랜덤으로 반환합니다.\n" +
 					"- 활성 상태인 제휴만 포함됩니다.\n\n" +
 					"**Response:**\n" +

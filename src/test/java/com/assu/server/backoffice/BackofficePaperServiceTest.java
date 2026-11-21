@@ -26,14 +26,10 @@ import com.assu.server.domain.backoffice.dto.BackofficePaperContentCreateRequest
 import com.assu.server.domain.backoffice.dto.BackofficePaperCreateRequestDTO;
 import com.assu.server.domain.backoffice.service.BackofficePaperService;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partnership.dto.PartnershipGoodsRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipOptionRequestDTO;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
-import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -56,9 +52,6 @@ class BackofficePaperServiceTest {
 
     @Mock
     private StoreRepository storeRepository;
-
-    @Mock
-    private GoodsRepository goodsRepository;
 
     @Test
     @DisplayName("등록된 모든 제휴 계약서 목록을 페이징하여 조회한다")
@@ -203,17 +196,11 @@ class BackofficePaperServiceTest {
                 .isActivated(ActivationStatus.ACTIVE)
                 .build();
 
-        PartnershipGoodsRequestDTO goodsReq = new PartnershipGoodsRequestDTO("제휴혜택상품");
         PartnershipOptionRequestDTO optReq = new PartnershipOptionRequestDTO(
-                OptionType.SERVICE,
-                CriterionType.PRICE,
-                false,
-                null,
-                10000L,
-                "카테고리명",
-                null,
+                "10,000원 이상 주문 시",
                 "혜택설명",
-                List.of(goodsReq)
+                null,
+                null
         );
         BackofficePaperContentCreateRequestDTO req = new BackofficePaperContentCreateRequestDTO(List.of(optReq));
 
@@ -222,7 +209,7 @@ class BackofficePaperServiceTest {
 
         when(paperRepository.findById(paperId)).thenReturn(Optional.of(paper));
         when(paperContentRepository.saveAll(any())).thenReturn(savedContents);
-        when(paperContentRepository.findAllByOnePaperIdInFetchGoods(paperId)).thenReturn(savedContents);
+        when(paperContentRepository.findByPaperIdOrderByIdAsc(paperId)).thenReturn(savedContents);
 
         // when
         WritePartnershipResponseDTO response = backofficePaperService.addPaperContents(paperId, req);
@@ -230,7 +217,6 @@ class BackofficePaperServiceTest {
         // then
         assertThat(response.partnershipId()).isEqualTo(paperId);
         verify(paperContentRepository).saveAll(any());
-        verify(goodsRepository).saveAll(any());
     }
 }
 

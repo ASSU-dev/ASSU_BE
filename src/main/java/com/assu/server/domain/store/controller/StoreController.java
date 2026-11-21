@@ -89,7 +89,7 @@ public class StoreController {
 	@ApiErrorCodeExamples(SwaggerErrorCodes.STORE_GET_PAPER_CONTENT)
 	@Operation(
 		summary = "제휴 컨텐츠 조회 API",
-		description = "# [v1.0 (2026-02-14)](https://clumsy-seeder-416.notion.site/2361197c19ed8019b8b8cb054cd3135b?source=copy_link)\n" +
+		description = "# [v1.1 (2026-11-21)](https://clumsy-seeder-416.notion.site/2361197c19ed8019b8b8cb054cd3135b?source=copy_link)\n" +
 			"- 유저가 속한 단과대 및 학부의 `admin_id`와 요청한 `store_id`를 매칭하여 적용 가능한 제휴 컨텐츠를 조회합니다.\n" +
 			"- QR 코드 스캔 후 유저에게 실제로 보여줄 혜택(Paper) 목록을 가져올 때 사용됩니다.\n\n" +
 			"**Path Variable:**\n" +
@@ -103,11 +103,12 @@ public class StoreController {
 			"  - `partnershipContents` (List): 제휴 컨텐츠 상세 목록\n" +
 			"    - `adminId` (Long): 혜택 제공자 ID\n" +
 			"    - `adminName` (String): 혜택 제공자 이름 (예: OO대학 학생회)\n" +
-			"    - `paperContent` (String): 제휴 혜택 상세 설명\n" +
+			"    - `paperContent` (String): 화면 표시용 전체 문구 (조건 + 혜택 (유의사항))\n" +
 			"    - `contentId` (Long): 컨텐츠 고유 ID\n" +
-			"    - `goods` (List<String>): 제공되는 상품/서비스 리스트\n" +
-			"    - `people` (Integer): 사용 가능 인원\n" +
-			"    - `cost` (Long): 유저 부담 금액 (0이면 무료)\n" +
+			"    - `benefitCondition` (String): 혜택 조건\n" +
+			"    - `benefit` (String): 혜택 내용\n" +
+			"    - `caution` (String): 유의사항\n" +
+			"    - `minPeople` (Integer): 그룹 인증 최소 인원\n" +
 			"    - `partnershipPeriod` (String): 제휴기간 (예: \"제휴기간 2026.07.21 ~ 2026.12.31\", 기간 정보가 없으면 null)\n\n" +
 			"**Error Cases:**\n" +
 			"  - 성공: 200 OK, `isSuccess=true`, `result=PaperResponseDTO` (제휴 컨텐츠 상세 정보)\n" +

@@ -1,6 +1,7 @@
 package com.assu.server.domain.partnership.dto;
 
 import com.assu.server.domain.admin.entity.Admin;
+import jakarta.validation.Valid;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -30,7 +31,7 @@ public record ManualPartnershipRequestDTO(
         @NotNull LocalDate partnershipPeriodEnd,
 
         @Schema(description = "제휴 옵션 목록")
-        @NotNull List<PartnershipOptionRequestDTO> options
+        @NotNull List<@Valid PartnershipOptionRequestDTO> options
 ) {
     public Paper toPaper(Admin admin, Store store, ActivationStatus status) {
         return Paper.builder()
