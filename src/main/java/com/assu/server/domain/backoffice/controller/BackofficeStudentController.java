@@ -1,15 +1,21 @@
 package com.assu.server.domain.backoffice.controller;
 
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.BaseResponse;
 import com.assu.server.global.apiPayload.code.status.SuccessStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Backoffice", description = "백오피스 운영 API")
@@ -41,5 +47,22 @@ public class BackofficeStudentController {
     public BaseResponse<String> syncAllStudentsNow() {
         studentService.syncUserPapersForAllStudents();
         return BaseResponse.onSuccess(SuccessStatus._OK, "전체 학생 user_paper 동기화 완료");
+    }
+
+    @Operation(
+            summary = "스탬프 이벤트 응모자 조회 API",
+            description = "- 스탬프 10개를 달성해 자동 응모된 학생 목록을 조회합니다.\n" +
+                    "- `BACKOFFICE` 역할 및 `aud=backoffice` JWT가 필요합니다.\n\n" +
+                    "**Request Parameters:**\n" +
+                    "- `eventVersion` (String, optional): 조회할 이벤트 회차 - 기본값: 2026_SEASON_1\n\n" +
+                    "**Response:**\n" +
+                    "- 성공 시 200(OK)과 응모자 목록(페이징) 반환"
+    )
+    @GetMapping("/stamp-events")
+    public BaseResponse<Page<StudentResponseDTO.StampEventApplicantDTO>> getStampEventApplicants(
+            @RequestParam(defaultValue = "2026_SEASON_1") String eventVersion,
+            @ParameterObject Pageable pageable
+    ) {
+        return BaseResponse.onSuccess(SuccessStatus._OK, studentService.getStampEventApplicants(eventVersion, pageable));
     }
 }

@@ -468,7 +468,8 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_STUDENT
     )),
     STUDENT_EARN_STAMP(Set.of(
-            ErrorStatus.NO_SUCH_STUDENT
+            ErrorStatus.NO_SUCH_STUDENT,
+            ErrorStatus.STAMP_ALREADY_APPLIED_TODAY
     )),
     STUDENT_GET_PROFILE(Set.of(
             ErrorStatus.NO_SUCH_STUDENT

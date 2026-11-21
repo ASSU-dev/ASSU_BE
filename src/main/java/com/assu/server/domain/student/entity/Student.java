@@ -9,6 +9,9 @@ import com.assu.server.domain.common.entity.enums.University;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 
 @Entity
 @Getter
@@ -43,12 +46,19 @@ public class Student {
 
     private int stamp;
 
+    private LocalDateTime lastStampedAt;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private ReportedStatus status = ReportedStatus.NORMAL;
 
+    public boolean isStampedToday() {
+        return lastStampedAt != null && lastStampedAt.toLocalDate().isEqual(LocalDate.now());
+    }
+
     public void setStamp() {
         this.stamp++;
+        this.lastStampedAt = LocalDateTime.now();
     }
     public void resetStamp() {this.stamp = 0;}
 
