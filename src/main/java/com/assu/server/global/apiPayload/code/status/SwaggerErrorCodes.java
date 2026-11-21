@@ -260,6 +260,13 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_SUGGESTION,
             ErrorStatus._BAD_REQUEST
     )),
+    BACKOFFICE_SUGGESTION_LIST(Set.of(
+            ErrorStatus.PAGE_UNDER_ONE,
+            ErrorStatus.PAGE_SIZE_INVALID
+    )),
+    BACKOFFICE_SUGGESTION_CHECK(Set.of(
+            ErrorStatus.NO_SUCH_SUGGESTION
+    )),
     BACKOFFICE_DEV_SYNC(Set.of(
             ErrorStatus.INVALID_DEV_SYNC_TARGET,
             ErrorStatus._INTERNAL_SERVER_ERROR
