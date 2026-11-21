@@ -90,6 +90,9 @@ public enum ErrorStatus implements BaseErrorCode {
     SESSION_NOT_OPENED(HttpStatus.BAD_REQUEST, "SESSION4002", "만료되었거나 인증이 완료된 session ID입니다."),
     DOUBLE_CERTIFIED_USER(HttpStatus.BAD_REQUEST, "SESSION4003", "이미 인증된 유저입니다."),
 
+    // 스탬프 에러
+    STAMP_ALREADY_APPLIED_TODAY(HttpStatus.CONFLICT, "STAMP_4001", "하루에 스탬프는 최대 1개까지만 적립할 수 있습니다."),
+
     //리뷰 이미지 에러
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR,"REVIEW_4001", "리뷰 이미지 업로드에 실패했습니다"),
     IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND,"REVIEW_4001", "존재하지 않는 리뷰이미지 입니다"),
