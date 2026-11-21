@@ -9,6 +9,10 @@ import com.assu.server.domain.common.entity.enums.University;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
 
 @Entity
 @Getter
@@ -43,12 +47,21 @@ public class Student {
 
     private int stamp;
 
+    private LocalDateTime lastStampedAt;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private ReportedStatus status = ReportedStatus.NORMAL;
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    public boolean isStampedToday() {
+        return lastStampedAt != null && lastStampedAt.toLocalDate().isEqual(LocalDate.now(KST));
+    }
+
     public void setStamp() {
         this.stamp++;
+        this.lastStampedAt = LocalDateTime.now(KST);
     }
     public void resetStamp() {this.stamp = 0;}
 

@@ -25,6 +25,7 @@ import com.assu.server.domain.student.entity.PartnershipUsage;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import com.assu.server.domain.student.repository.StudentRepository;
+import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
@@ -47,6 +48,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
 	private final PartnershipUsageRepository partnershipUsageRepository;
 	private final StudentRepository studentRepository;
+	private final StudentService studentService;
     private final PaperContentRepository contentRepository;
     private final NotificationCommandService notificationService;
     private final ChatService chatService;
@@ -83,7 +85,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         // 4. 조회된 학생들에 대해 PartnershipUsage 생성 및 스탬프 업데이트
         List<PartnershipUsage> usages = studentsToUpdate.stream()
             .map(student -> {
-                student.setStamp();
+                studentService.addStamp(student.getId());
                 return dto.toPartnershipUsage(student, paperId);
             })
             .collect(Collectors.toList());

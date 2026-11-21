@@ -21,4 +21,5 @@ public interface StudentService {
 	StudentResponseDTO.CheckStampResponseDTO addStamp(Long id);
 	StudentProfileResponseDTO getStudentProfile(Long memberId);
 	StudentHomeResponseDTO getStudentHome(Long memberId);
+	Page<StudentResponseDTO.StampEventApplicantDTO> getStampEventApplicants(String eventVersion, Pageable pageable);
 }

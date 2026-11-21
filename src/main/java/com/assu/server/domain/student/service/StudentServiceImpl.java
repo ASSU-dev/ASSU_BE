@@ -48,6 +48,7 @@ import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -82,6 +83,7 @@ public class StudentServiceImpl implements StudentService {
 	private final AmazonS3Manager amazonS3Manager;
 	private final TransactionTemplate transactionTemplate;
 	private final EntityManager entityManager;
+	private final DiscordNotifier discordNotifier;
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -311,8 +313,12 @@ public class StudentServiceImpl implements StudentService {
 	}
 	@Transactional
 	public StudentResponseDTO.CheckStampResponseDTO addStamp(Long memberId) {
-		Student student = studentRepository.findById(memberId)
+		Student student = studentRepository.findByIdForUpdate(memberId)
 				.orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
+
+		if (student.isStampedToday()) {
+			throw new DatabaseException(ErrorStatus.STAMP_ALREADY_APPLIED_TODAY);
+		}
 
 		student.setStamp();
 		String responseMessage = "스탬프가 적립되었습니다.";
@@ -329,6 +335,8 @@ public class StudentServiceImpl implements StudentService {
 			} catch (Exception e) {
 				// 알림 전송 실패해도 스탬프 적립은 성공
 			}
+			discordNotifier.send("🎁 " + student.getName() + "(회원 ID: " + student.getId()
+					+ ") 학생이 스탬프 10개를 모아 2026_SEASON_1 이벤트에 자동 응모되었습니다.");
 
 			student.resetStamp();
 			responseMessage = "스탬프 10개를 모아 자동 응모 되었습니다.";
@@ -338,6 +346,13 @@ public class StudentServiceImpl implements StudentService {
 				.stamp(student.getStamp())
 				.message(responseMessage)
 				.build();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Page<StudentResponseDTO.StampEventApplicantDTO> getStampEventApplicants(String eventVersion, Pageable pageable) {
+		return stampEventApplicantRepository.findByEventVersion(eventVersion, pageable)
+				.map(StudentResponseDTO.StampEventApplicantDTO::from);
 	}
 
 	@Override
