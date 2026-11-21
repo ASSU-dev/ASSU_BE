@@ -20,6 +20,17 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
     """)
     List<Store> findAllExcludingWithdrawnPartner();
 
+    @Query("""
+        SELECT DISTINCT s FROM UserPaper up
+        JOIN up.paper p
+        JOIN p.store s
+        LEFT JOIN FETCH s.partner partner
+        LEFT JOIN FETCH partner.member
+        WHERE up.student.id = :studentId
+          AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+    """)
+    List<Store> findDistinctActiveStoresByStudentId(@Param("studentId") Long studentId);
+
     Optional<Store> findByPartner(Partner partner);
 
     Optional<Store> findByNameAndAddressAndDetailAddress(String name, String address, String detailAddress);
