@@ -180,6 +180,40 @@ class PartnershipServiceImplTest {
 		verify(notificationService, times(1)).sendOrder(PARTNER_ID, 0L, "03", "생맥주 1잔 무료");
 	}
 
+	@Test
+	@DisplayName("오늘 이미 스탬프를 적립한 학생은 제휴 이용 시 스탬프가 추가되지 않지만 이용 내역은 저장된다")
+	void recordPartnershipUsage_AlreadyStampedToday_SkipsStampButSavesUsage() {
+		// 1. Given
+		PartnershipFinalRequestDTO request = new PartnershipFinalRequestDTO(
+			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of());
+
+		Paper paper = Paper.builder().id(PAPER_ID).build();
+		PaperContent content = PaperContent.builder().id(1000L).paper(paper).build();
+		when(contentRepository.findById(1000L)).thenReturn(Optional.of(content));
+
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(1L);
+
+		Student student = Student.builder().university(University.SSU).stamp(3).build();
+		student.setStamp();
+		when(studentRepository.findAllById(any())).thenReturn(List.of(student));
+
+		Partner storePartner = partner();
+		Store store = Store.builder().id(500L).partner(storePartner).build();
+		when(storeRepository.findById(500L)).thenReturn(Optional.of(store));
+
+		// 2. When
+		partnershipService.recordPartnershipUsage(request, member);
+
+		// 3. Then (스탬프는 그대로, 이용 내역은 저장됨)
+		assertEquals(4, student.getStamp());
+
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<List<PartnershipUsage>> usageCaptor = ArgumentCaptor.forClass(List.class);
+		verify(partnershipUsageRepository, times(1)).saveAll(usageCaptor.capture());
+		assertEquals(1, usageCaptor.getValue().size());
+	}
+
 	// ===== updatePartnershipStatus =====
 
 	@Test

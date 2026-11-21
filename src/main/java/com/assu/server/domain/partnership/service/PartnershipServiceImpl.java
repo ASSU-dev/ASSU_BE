@@ -83,7 +83,9 @@ public class PartnershipServiceImpl implements PartnershipService {
         // 4. 조회된 학생들에 대해 PartnershipUsage 생성 및 스탬프 업데이트
         List<PartnershipUsage> usages = studentsToUpdate.stream()
             .map(student -> {
-                student.setStamp();
+                if (!student.isStampedToday()) {
+                    student.setStamp();
+                }
                 return dto.toPartnershipUsage(student, paperId);
             })
             .collect(Collectors.toList());
