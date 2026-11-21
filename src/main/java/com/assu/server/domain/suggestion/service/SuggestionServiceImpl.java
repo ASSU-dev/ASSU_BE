@@ -14,9 +14,12 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.discord.DiscordNotifier;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -28,6 +31,7 @@ public class SuggestionServiceImpl implements SuggestionService {
     private final AdminRepository adminRepository;
     private final StudentRepository studentRepository;
     private final NotificationCommandService notificationCommandService;
+    private final DiscordNotifier discordNotifier;
 
     @Override
     @Transactional
@@ -42,6 +46,7 @@ public class SuggestionServiceImpl implements SuggestionService {
         Suggestion suggestion = request.toEntity(admin, student);
         suggestionRepository.save(suggestion);
         notificationCommandService.sendPartnerSuggestion(suggestion.getAdmin().getId(), suggestion.getId());
+        runAfterCommit(() -> discordNotifier.send("💡 새 제휴 건의가 접수되었습니다. 백오피스에서 확인해 주세요."));
 
         return WriteSuggestionResponseDTO.of(suggestion);
     }
@@ -84,5 +89,18 @@ public class SuggestionServiceImpl implements SuggestionService {
         }
 
         return GetSuggestionAdminsDTO.of(universityAdmin, departmentAdmin, majorAdmin);
+    }
+
+    private void runAfterCommit(Runnable task) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            task.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                task.run();
+            }
+        });
     }
 }

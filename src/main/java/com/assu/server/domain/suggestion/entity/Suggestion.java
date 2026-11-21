@@ -19,6 +19,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @AllArgsConstructor
 @RequiredArgsConstructor
@@ -44,8 +46,16 @@ public class Suggestion extends BaseEntity {
 	@Builder.Default
 	private ReportedStatus status = ReportedStatus.NORMAL;
 
+	private LocalDateTime checkedAt;
+
 	// 신고 상태 업데이트 메서드
 	public void updateReportedStatus(ReportedStatus status) {
 		this.status = status;
+	}
+
+	public void check() {
+		if (this.checkedAt == null) {
+			this.checkedAt = LocalDateTime.now();
+		}
 	}
 }
