@@ -115,7 +115,15 @@ public class LoginServiceImpl implements LoginService {
         AuthRealm authRealm = AuthRealm.valueOf(realmStr);
         RealmAuthAdapter adapter = pickAdapter(authRealm);
 
-        Member member = adapter.loadMember(authResponse.studentNumber());
+        Member member;
+        try {
+            member = adapter.loadMember(authResponse.studentNumber());
+        } catch (CustomAuthException exception) {
+            if (exception.getCode() == ErrorStatus.NO_SUCH_MEMBER) {
+                throw new CustomAuthException(ErrorStatus.STUDENT_SIGNUP_REQUIRED);
+            }
+            throw exception;
+        }
 
         // 3) Student 정보 업데이트
         Student student = member.getStudentProfile();
