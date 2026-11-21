@@ -116,7 +116,7 @@ class StudentServiceImplTest {
 	void addStamp_Success_IncrementsStamp() {
 		// 1. Given
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
-		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When
 		StudentResponseDTO.CheckStampResponseDTO response = studentService.addStamp(STUDENT_ID);
@@ -132,7 +132,7 @@ class StudentServiceImplTest {
 	void addStamp_TenthStamp_AppliesEventAndResets() {
 		// 1. Given
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(9).build();
-		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When
 		StudentResponseDTO.CheckStampResponseDTO response = studentService.addStamp(STUDENT_ID);
@@ -151,7 +151,7 @@ class StudentServiceImplTest {
 		// 1. Given
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
 		student.setStamp();
-		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
