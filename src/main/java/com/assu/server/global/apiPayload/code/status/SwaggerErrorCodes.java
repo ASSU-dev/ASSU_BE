@@ -401,7 +401,9 @@ public enum SwaggerErrorCodes {
     // ===== Partnership / Review / Student / Store / AppReview =====
     PARTNERSHIP_RECORD_USAGE(Set.of(
             ErrorStatus.NO_SUCH_CONTENT,
-            ErrorStatus.NO_SUCH_STORE
+            ErrorStatus.NO_SUCH_STORE,
+            ErrorStatus.NO_SUCH_STUDENT,
+            ErrorStatus.STAMP_ALREADY_APPLIED_TODAY
     )),
     PARTNERSHIP_CREATE_DRAFT(Set.of(
             ErrorStatus.NO_SUCH_ADMIN,
@@ -468,7 +470,8 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_STUDENT
     )),
     STUDENT_EARN_STAMP(Set.of(
-            ErrorStatus.NO_SUCH_STUDENT
+            ErrorStatus.NO_SUCH_STUDENT,
+            ErrorStatus.STAMP_ALREADY_APPLIED_TODAY
     )),
     STUDENT_GET_PROFILE(Set.of(
             ErrorStatus.NO_SUCH_STUDENT
