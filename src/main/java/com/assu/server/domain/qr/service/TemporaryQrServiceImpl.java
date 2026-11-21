@@ -30,6 +30,10 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 
 	@Override
 	public void insertData(TemporaryQrRequestDTO dto, Member member){
+		studentRepository.findById(member.getId()).orElseThrow(
+			() -> new GeneralException(ErrorStatus.NO_SUCH_STUDENT)
+		);
+
 		Qr qr = toQr(dto,member.getId());
 		temporaryQrRepository.save(qr);
 	}
