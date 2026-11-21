@@ -1,7 +1,7 @@
 package com.assu.server.domain.partnership.dto;
 
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partnership.entity.Goods;
+import jakarta.validation.Valid;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,7 +22,7 @@ public record WritePartnershipRequestDTO(
         @NotNull LocalDate partnershipPeriodEnd,
 
         @Schema(description = "제휴 옵션 목록")
-        @NotNull List<PartnershipOptionRequestDTO> options
+        @NotNull List<@Valid PartnershipOptionRequestDTO> options
 ) {
     public void updatePaper(Paper paper) {
         paper.setPartnershipPeriodStart(partnershipPeriodStart());
@@ -34,22 +34,6 @@ public record WritePartnershipRequestDTO(
         if (options() == null || options().isEmpty()) return Collections.emptyList();
         return options().stream()
                 .map(opt -> opt.toPaperContent(paper))
-                .toList();
-    }
-
-    public List<List<Goods>> toGoodsBatches() {
-        if (options() == null || options().isEmpty()) return Collections.emptyList();
-        return options().stream()
-                .map(optionDto -> {
-                    if (optionDto.goods() == null || optionDto.goods().isEmpty()) {
-                        return Collections.<Goods>emptyList();
-                    }
-                    return optionDto.goods().stream()
-                            .map(goodsDto -> Goods.builder()
-                                    .belonging(goodsDto.goodsName())
-                                    .build())
-                            .toList();
-                })
                 .toList();
     }
 }

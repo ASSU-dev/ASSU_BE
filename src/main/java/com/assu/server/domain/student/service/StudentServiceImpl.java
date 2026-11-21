@@ -20,11 +20,8 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.dto.PaperContentResponseDTO;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
-import com.assu.server.domain.partnership.repository.GoodsRepository;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -72,7 +69,6 @@ public class StudentServiceImpl implements StudentService {
 	private final PaperContentRepository paperContentRepository;
 	private final PartnershipUsageRepository partnershipUsageRepository;
 	private final StampEventApplicantRepository stampEventApplicantRepository;
-	private final GoodsRepository goodsRepository;
 	private final AdminRepository adminRepository;
 	private final PaperRepository paperRepository;
 	private final NotificationCommandService notificationCommandService;
@@ -188,41 +184,24 @@ public class StudentServiceImpl implements StudentService {
 				.limit(Boolean.FALSE.equals(all) ? 2 : Long.MAX_VALUE)
 				.toList();
 
-		List<Long> contentIds = representatives.stream()
-				.map(up -> up.getPaperContent().getId())
-				.toList();
-		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
-				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
-
 		return representatives.stream().map(up -> {
 			Paper paper = up.getPaper();
 			PaperContent content = up.getPaperContent();
 			Store store = paper.getStore();
-
-			String finalCategory = content.getCategory();
-			if (finalCategory == null && content.getOptionType() == OptionType.SERVICE) {
-				List<Goods> goods = goodsMap.get(content.getId());
-				if (goods != null && !goods.isEmpty()) {
-					finalCategory = goods.get(0).getBelonging();
-				}
-			}
 
 			int extraCount = countByPaperId.get(paper.getId()).intValue() - 1;
 			return StudentResponseDTO.UsablePartnershipDTO.builder()
 					.partnershipId(paper.getId())
 					.adminName(paper.getAdmin() != null ? paper.getAdmin().getName() : null)
 					.partnerName(store != null ? store.getName() : null)
-					.note(content.getNote())
 					.paperId(paper.getId())
-					.criterionType(content.getCriterionType())
-					.optionType(content.getOptionType())
-					.people(content.getPeople())
-					.cost(content.getCost())
-					.category(finalCategory)
-					.discountRate(content.getDiscount())
 					.storeId(store != null ? store.getId() : null)
 					.extraCount(extraCount)
 					.partnerProfileUrl(getPartnerProfileImageUrl(paper.getPartner()))
+					.benefitCondition(content.getBenefitCondition())
+					.benefit(content.getBenefit())
+					.caution(content.getCaution())
+					.minPeople(content.getMinPeople())
 					.build();
 		}).toList();
 	}
@@ -245,24 +224,15 @@ public class StudentServiceImpl implements StudentService {
 						(first, ignored) -> first,
 						LinkedHashMap::new
 				));
-		List<Long> contentIds = contentByStoreId.values().stream()
-				.map(PaperContent::getId)
-				.toList();
-		Map<Long, List<Goods>> goodsMap = goodsRepository.findByContentIdIn(contentIds).stream()
-				.collect(Collectors.groupingBy(g -> g.getContent().getId()));
-
 		return randomStores.stream().map(store -> {
 			PaperContent content = contentByStoreId.get(store.getId());
 
-			List<Goods> goods = content == null ? null : goodsMap.get(content.getId());
-			String firstBelonging = (goods != null && !goods.isEmpty()) ? goods.get(0).getBelonging() : null;
-
 			return new StudentResponseDTO.RecommendCarouselDTO(
-					content != null ? content.getCategory() : null,
-					firstBelonging,
 					getStoreProfileImageUrl(store),
 					store.getName(),
-					store.getId()
+					store.getId(),
+					content != null ? content.getBenefitCondition() : null,
+					content != null ? content.getBenefit() : null
 			);
 		}).toList();
 	}
@@ -289,7 +259,7 @@ public class StudentServiceImpl implements StudentService {
 		if (papers.isEmpty()) return;
 
 		List<Long> paperIds = papers.stream().map(Paper::getId).toList();
-		List<PaperContent> allContents = paperContentRepository.findByPaperIdIn(paperIds);
+		List<PaperContent> allContents = paperContentRepository.findByPaperIdInOrderByIdAsc(paperIds);
 
 		// 기존 UserPaper 한 번에 조회 (N+1 방지)
 		List<UserPaper> existing = userPaperRepository.findByStudentId(studentId);

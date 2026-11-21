@@ -59,7 +59,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 		//paperId로 paperContent 를 조회
 		List<PaperContent> contentList = paperList.stream()
 			.flatMap(paper->
-				contentRepository.findByPaperId(paper.getId()).stream()
+				contentRepository.findByPaperIdOrderByIdAsc(paper.getId()).stream()
 			).toList();
 
 

@@ -1,7 +1,6 @@
 package com.assu.server.domain.partnership.dto;
 
 import com.assu.server.domain.common.entity.BaseEntity;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,8 +40,7 @@ public record PartnershipDetailResponseDTO(
 ) {
     public static PartnershipDetailResponseDTO of(
             Paper paper,
-            List<PaperContent> contents,
-            List<List<Goods>> goodsBatches
+            List<PaperContent> contents
     ) {
         List<LocalDateTime> allTimestamps = new ArrayList<>();
 
@@ -53,27 +51,14 @@ public record PartnershipDetailResponseDTO(
                     .filter(Objects::nonNull)
                     .forEach(allTimestamps::add);
         }
-        if (goodsBatches != null) {
-            goodsBatches.stream()
-                    .flatMap(List::stream)
-                    .map(BaseEntity::getUpdatedAt)
-                    .filter(Objects::nonNull)
-                    .forEach(allTimestamps::add);
-        }
 
         LocalDateTime mostRecentUpdatedAt = allTimestamps.stream()
                 .max(Comparator.naturalOrder())
                 .orElse(paper.getUpdatedAt());
 
-        List<PartnershipOptionResponseDTO> optionDTOs = new ArrayList<>();
-        if (contents != null) {
-            for (int i = 0; i < contents.size(); i++) {
-                PaperContent pc = contents.get(i);
-                List<Goods> goods = (goodsBatches != null && goodsBatches.size() > i)
-                        ? goodsBatches.get(i) : List.of();
-                optionDTOs.add(PartnershipOptionResponseDTO.of(pc, goods));
-            }
-        }
+        List<PartnershipOptionResponseDTO> optionDTOs = contents == null
+                ? List.of()
+                : contents.stream().map(PartnershipOptionResponseDTO::of).toList();
 
         return new PartnershipDetailResponseDTO(
                 paper.getId(),

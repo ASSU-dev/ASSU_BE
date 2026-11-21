@@ -12,15 +12,7 @@ import java.util.Optional;
 
 public interface PaperContentRepository extends JpaRepository<PaperContent, Long> {
 
-	List<PaperContent> findByPaperId(Long paperId);
-
-    @Query("""
-           select distinct pc
-           from PaperContent pc
-           left join fetch pc.goods g
-           where pc.paper.id = :paperId
-           """)
-    List<PaperContent> findAllByOnePaperIdInFetchGoods(@Param("paperId") Long paperId);
+	List<PaperContent> findByPaperIdOrderByIdAsc(Long paperId);
 
     Optional<PaperContent> findById(Long id);
 
@@ -41,6 +33,7 @@ public interface PaperContentRepository extends JpaRepository<PaperContent, Long
            from PaperContent pc
            join pc.paper p
            where p.id in :paperIds
+           order by pc.id
            """,
            countQuery = """
            select count(pc)
@@ -61,6 +54,6 @@ public interface PaperContentRepository extends JpaRepository<PaperContent, Long
         """, nativeQuery = true)
     List<PaperContent> findLatestByPaperIds(@Param("paperIds") List<Long> paperIds);
 
-    List<PaperContent> findByPaperIdIn(List<Long> paperIds);
+    List<PaperContent> findByPaperIdInOrderByIdAsc(List<Long> paperIds);
 
 }

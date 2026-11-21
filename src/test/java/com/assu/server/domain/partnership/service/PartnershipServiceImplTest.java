@@ -296,7 +296,7 @@ class PartnershipServiceImplTest {
 		// given
 		Paper paper = activePaper();
 		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
-		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+		when(paperContentRepository.findByPaperIdOrderByIdAsc(PAPER_ID)).thenReturn(List.of());
 
 		// when
 		partnershipService.updatePartnership(updateRequest(), ADMIN_ID, UserRole.ADMIN);
@@ -311,7 +311,7 @@ class PartnershipServiceImplTest {
 		// given
 		Paper paper = activePaper();
 		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
-		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+		when(paperContentRepository.findByPaperIdOrderByIdAsc(PAPER_ID)).thenReturn(List.of());
 
 		// when
 		partnershipService.updatePartnership(updateRequest(), PARTNER_ID, UserRole.PARTNER);
@@ -412,7 +412,7 @@ class PartnershipServiceImplTest {
 		Store tempStore = Store.builder().id(500L).name("임시매장").build();
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(null).store(tempStore).build();
 		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
-		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+		when(paperContentRepository.findByPaperIdOrderByIdAsc(PAPER_ID)).thenReturn(List.of());
 		when(paperRepository.countByStore_Id(500L)).thenReturn(0L);
 
 		// 2. When
@@ -430,7 +430,7 @@ class PartnershipServiceImplTest {
 		Store tempStore = Store.builder().id(500L).name("임시매장").build();
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(null).store(tempStore).build();
 		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
-		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of());
+		when(paperContentRepository.findByPaperIdOrderByIdAsc(PAPER_ID)).thenReturn(List.of());
 		when(paperRepository.countByStore_Id(500L)).thenReturn(1L);
 
 		// 2. When
@@ -451,7 +451,7 @@ class PartnershipServiceImplTest {
 		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		PaperContent content = PaperContent.builder().id(1000L).paper(paper).build();
-		when(paperContentRepository.findByPaperId(PAPER_ID)).thenReturn(List.of(content));
+		when(paperContentRepository.findByPaperIdOrderByIdAsc(PAPER_ID)).thenReturn(List.of(content));
 
 		// 2. When
 		partnershipService.deletePartnership(PAPER_ID, ADMIN_ID, UserRole.ADMIN);

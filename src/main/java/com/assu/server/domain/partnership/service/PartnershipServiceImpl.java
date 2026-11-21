@@ -13,7 +13,6 @@ import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.partnership.dto.*;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.repository.GoodsRepository;
@@ -119,7 +118,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         request.updatePaper(paper);
 
-        List<PaperContent> existingContents = paperContentRepository.findByPaperId(request.paperId());
+        List<PaperContent> existingContents = paperContentRepository.findByPaperIdOrderByIdAsc(request.paperId());
         if (!existingContents.isEmpty()) {
             List<Long> contentIds = existingContents.stream().map(PaperContent::getId).toList();
             goodsRepository.deleteAllByContentIds(contentIds);
@@ -127,40 +126,9 @@ public class PartnershipServiceImpl implements PartnershipService {
         }
 
         List<PaperContent> newContents = request.toPaperContents(paper);
-        
-        for (int i = 0; i < newContents.size(); i++) {
-            var option = request.options().get(i);
-            if (option.goods() != null && option.goods().size() == 1) {
-                newContents.get(i).setCategory(option.goods().get(0).goodsName());
-            }
-        }
-        
         newContents = newContents.isEmpty() ? newContents : paperContentRepository.saveAll(newContents);
 
-        List<List<Goods>> requestGoodsBatches = request.toGoodsBatches();
-
-        List<List<Goods>> attachedGoodsBatches = new ArrayList<>();
-        List<Goods> toPersist = new ArrayList<>();
-
-        for (int i = 0; i < newContents.size(); i++) {
-            PaperContent content = newContents.get(i);
-            List<Goods> batch = (requestGoodsBatches.size() > i) ? requestGoodsBatches.get(i) : Collections.emptyList();
-            List<Goods> attached = new ArrayList<>();
-            for (Goods g : batch) {
-                Goods entity = Goods.builder()
-                        .content(content)
-                        .belonging(g.getBelonging())
-                        .build();
-                attached.add(entity);
-                toPersist.add(entity);
-            }
-            attachedGoodsBatches.add(attached);
-        }
-        if (!toPersist.isEmpty()) {
-            goodsRepository.saveAll(toPersist);
-        }
-
-        return WritePartnershipResponseDTO.of(paper, newContents, attachedGoodsBatches);
+        return WritePartnershipResponseDTO.of(paper, newContents);
     }
 
     @Override
@@ -196,13 +164,9 @@ public class PartnershipServiceImpl implements PartnershipService {
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
         assertPaperAccess(paper, memberId, role);
 
-        List<PaperContent> contents = paperContentRepository.findAllByOnePaperIdInFetchGoods(partnershipId);
+        List<PaperContent> contents = paperContentRepository.findByPaperIdOrderByIdAsc(partnershipId);
 
-        List<List<Goods>> goodsBatches = contents.stream()
-                .map(pc -> pc.getGoods() == null ? Collections.<Goods>emptyList() : pc.getGoods())
-                .toList();
-
-        return PartnershipDetailResponseDTO.of(paper, contents, goodsBatches);
+        return PartnershipDetailResponseDTO.of(paper, contents);
     }
 
     @Override
@@ -322,35 +286,11 @@ public class PartnershipServiceImpl implements PartnershipService {
             }
         }
 
-        List<PaperContent> savedContents = new ArrayList<>();
-        if (request.options() != null && !request.options().isEmpty()) {
-            List<PaperContent> contents = request.toPaperContents(paper);
-            
-            for (int i = 0; i < contents.size(); i++) {
-                var opt = request.options().get(i);
-                if (opt.goods() != null && opt.goods().size() == 1) {
-                    contents.get(i).setCategory(opt.goods().get(0).goodsName());
-                }
-            }
-            
-            savedContents = paperContentRepository.saveAll(contents);
+        List<PaperContent> savedContents = request.options() == null || request.options().isEmpty()
+                ? List.of()
+                : paperContentRepository.saveAll(request.toPaperContents(paper));
 
-            List<Goods> toPersist = new ArrayList<>();
-            for (int i = 0; i < savedContents.size(); i++) {
-                var opt = request.options().get(i);
-                var content = savedContents.get(i);
-                var batch = opt.toGoods(content);
-                if (!batch.isEmpty()) toPersist.addAll(batch);
-            }
-            if (!toPersist.isEmpty()) goodsRepository.saveAll(toPersist);
-        }
-
-        List<PaperContent> contentsWithGoods = paperContentRepository.findAllByOnePaperIdInFetchGoods(paper.getId());
-        List<List<Goods>> goodsBatches = contentsWithGoods.stream()
-                .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
-                .toList();
-
-        var partnership = WritePartnershipResponseDTO.of(paper, contentsWithGoods, goodsBatches);
+        var partnership = WritePartnershipResponseDTO.of(paper, savedContents);
 
         String url = (paper.getContractImageKey() == null)
                 ? null
@@ -399,7 +339,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         assertPaperAccess(paper, memberId, role);
 
         // 0. paperContent + goods 삭제
-        List<PaperContent> contentsToDelete = paperContentRepository.findByPaperId(paperId);
+        List<PaperContent> contentsToDelete = paperContentRepository.findByPaperIdOrderByIdAsc(paperId);
         if (contentsToDelete != null && !contentsToDelete.isEmpty()) {
             List<Long> contentIds = contentsToDelete.stream()
                     .map(PaperContent::getId)
@@ -443,7 +383,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             throw new GeneralException(ErrorStatus._BAD_REQUEST);
         }
 
-        List<PaperContent> contentsToDelete = paperContentRepository.findByPaperId(paperId);
+        List<PaperContent> contentsToDelete = paperContentRepository.findByPaperIdOrderByIdAsc(paperId);
         if (contentsToDelete != null && !contentsToDelete.isEmpty()) {
             List<Long> contentIds = contentsToDelete.stream()
                     .map(PaperContent::getId)
@@ -533,11 +473,7 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         List<WritePartnershipResponseDTO> result = new ArrayList<>(papers.size());
         for (Paper p : papers) {
-            List<PaperContent> contents = byPaperId.getOrDefault(p.getId(), List.of());
-            List<List<Goods>> goodsBatches = contents.stream()
-                    .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
-                    .toList();
-            result.add(WritePartnershipResponseDTO.of(p, contents, goodsBatches));
+            result.add(WritePartnershipResponseDTO.of(p, byPaperId.getOrDefault(p.getId(), List.of())));
         }
         return result;
     }

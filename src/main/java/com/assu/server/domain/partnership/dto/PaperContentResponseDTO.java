@@ -3,21 +3,38 @@ package com.assu.server.domain.partnership.dto;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public record PaperContentResponseDTO(
+	@Schema(description = "학생회 ID", example = "1")
 	Long adminId,
+
+	@Schema(description = "학생회 이름", example = "IT대학 학생회")
 	String adminName,
+
+	@Schema(description = "화면 표시용 전체 문구 (조건 + 혜택)", example = "30,000원 이상 주문 시 음료 1캔 제공")
 	String paperContent,
+
+	@Schema(description = "제휴 내용 ID", example = "3")
 	Long contentId,
-	List<String> goods,
-	Integer people,
-	Long cost,
-	String partnershipPeriod
+
+	@Schema(description = "제휴 기간", example = "제휴기간 2026.03.01 ~ 2026.12.31")
+	String partnershipPeriod,
+
+	@Schema(description = "혜택 조건", example = "30,000원 이상 주문 시")
+	String benefitCondition,
+
+	@Schema(description = "혜택 내용", example = "음료 1캔 제공")
+	String benefit,
+
+	@Schema(description = "유의사항", example = "학생증 지참")
+	String caution,
+
+	@Schema(description = "그룹 인증 최소 인원", example = "4")
+	Integer minPeople
 ) {
 	private static final DateTimeFormatter PERIOD_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
@@ -27,31 +44,19 @@ public record PaperContentResponseDTO(
 			.toList();
 	}
 
-
 	public static PaperContentResponseDTO toContentResponse(PaperContent content) {
-		List<String> goodsList = extractGoods(content);
-		Integer peopleValue = extractPeople(content);
-
-		String paperContentText;
-		if(content.getNote()!= null){
-			paperContentText = content.getNote();
-		}else{
-			paperContentText = buildPaperContentText(content, goodsList, peopleValue);
-		}
-
 		return new PaperContentResponseDTO(
 			content.getPaper().getAdmin().getId(),
 			content.getPaper().getAdmin().getName(),
-			paperContentText,
+			content.toDisplayText(),
 			content.getId(),
-			goodsList,
-			peopleValue,
-			content.getCost(),
-			buildPartnershipPeriod(content.getPaper())
+			buildPartnershipPeriod(content.getPaper()),
+			content.getBenefitCondition(),
+			content.getBenefit(),
+			content.getCaution(),
+			content.getMinPeople()
 		);
-
 	}
-
 
 	private static String buildPartnershipPeriod(Paper paper) {
 		if (paper.getPartnershipPeriodStart() == null || paper.getPartnershipPeriodEnd() == null) {
@@ -59,65 +64,5 @@ public record PaperContentResponseDTO(
 		}
 		return "제휴기간 " + paper.getPartnershipPeriodStart().format(PERIOD_DATE_FORMAT)
 			+ " ~ " + paper.getPartnershipPeriodEnd().format(PERIOD_DATE_FORMAT);
-	}
-
-	private static List<String> extractGoods(PaperContent content) {
-		if (content.getOptionType() == OptionType.SERVICE ) {
-			return content.getGoods().stream()
-				.map(Goods::getBelonging)
-				.toList();
-		}
-		return null;
-	}
-
-	private static Integer extractPeople(PaperContent content) {
-		if (content.getCriterionType() == CriterionType.HEADCOUNT) {
-			return content.getPeople();
-		}
-		return null;
-	}
-
-	private static String buildPaperContentText(PaperContent content, List<String> goodsList, Integer peopleValue) {
-		String result = "";
-
-		boolean isGoodsSingle = goodsList != null && goodsList.size() == 1;
-		boolean isGoodsMultiple = goodsList != null && goodsList.size() > 1;
-
-		// 1. HEADCOUNT + SERVICE + 여러 개 goods
-		if (content.getCriterionType() == CriterionType.HEADCOUNT &&
-			content.getOptionType() == OptionType.SERVICE &&
-			isGoodsMultiple) {
-			result = peopleValue + "명 이상 방문 시 " + content.getCategory() + " 제공";
-		}
-		// 2. HEADCOUNT + SERVICE + 단일 goods
-		else if (content.getCriterionType() == CriterionType.HEADCOUNT &&
-			content.getOptionType() == OptionType.SERVICE &&
-			isGoodsSingle) {
-			result = peopleValue + "명 이상 방문 시 " + goodsList.get(0) + " 제공";
-		}
-		// 3. HEADCOUNT + DISCOUNT
-		else if (content.getCriterionType() == CriterionType.HEADCOUNT &&
-			content.getOptionType() == OptionType.DISCOUNT) {
-			result = peopleValue + "명 이상 방문 시 " + content.getDiscount() + "% 할인";
-		}
-		// 4. PRICE + SERVICE + 여러 개 goods
-		else if (content.getCriterionType() == CriterionType.PRICE &&
-			content.getOptionType() == OptionType.SERVICE &&
-			isGoodsMultiple) {
-			result = content.getCost() + "원 이상 주문 시 " + content.getCategory() + " 제공";
-		}
-		// 5. PRICE + SERVICE + 단일 goods
-		else if (content.getCriterionType() == CriterionType.PRICE &&
-			content.getOptionType() == OptionType.SERVICE &&
-			isGoodsSingle) {
-			result = content.getCost() + "원 이상 주문 시 " + goodsList.get(0) + " 제공";
-		}
-		// 6. PRICE + DISCOUNT
-		else if (content.getCriterionType() == CriterionType.PRICE &&
-			content.getOptionType() == OptionType.DISCOUNT) {
-			result = content.getCost() + "원 이상 주문 시 " + content.getDiscount() + "% 할인";
-		}
-
-		return result;
 	}
 }

@@ -106,7 +106,7 @@ public class CertificationController {
 			"# [v1.0 (2025-09-09)](https://clumsy-seeder-416.notion.site/2471197c19ed80fd9a8dcc43fb938a5d?source=copy_link)\n" +
 				"- 개인 단위 인증을 위한 API입니다.\n" +
 				"- 그룹 인증이 아닌 경우, 통계 및 제휴 이력 적재를 목적으로 사용됩니다.\n" +
-				"- 가게별 제휴 조회 시 `people` 값이 null 인 경우 호출됩니다.\n" +
+				"- 가게별 제휴 조회 시 `minPeople` 값이 null 인 경우 호출됩니다.\n" +
 				"\n**Request Body:**\n" +
 				"  - `storeId` (Long, required): 인증이 발생한 스토어 ID\n" +
 				"  - `adminId` (Long, required): 인증을 요청한 관리자 ID\n" +

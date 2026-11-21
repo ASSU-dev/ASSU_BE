@@ -47,17 +47,10 @@ public class BackofficePartnershipController {
                     "  - `adminName` (String): 관리자 이름\n" +
                     "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
                     "  - `options` (JSON): 제휴 옵션\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류 (SERVICE/DISCOUNT)\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준 (PRICE/HEADCOUNT)\n" +
-                    "    - `anotherType` (Boolean): 기타 제공 서비스 여부\n" +
-                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
-                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
-                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
-                    "    - `category` (String): 서비스 카테고리\n" +
-                    "    - `discountRate` (Long): 할인율\n" +
-                    "    - `goods` (JSON): 서비스 제공 항목 목록\n" +
-                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
-                    "      - `goodsName` (String): 서비스 제공 항목명\n"
+                    "    - `benefitCondition` (String): 혜택 조건\n" +
+                    "    - `benefit` (String): 혜택 내용 (필수)\n" +
+                    "    - `caution` (String): 유의사항\n" +
+                    "    - `minPeople` (Integer): 그룹 인증 최소 인원\n"
     )
     @GetMapping
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnerships(
@@ -84,17 +77,10 @@ public class BackofficePartnershipController {
                     "  - `adminName` (String): 관리자 이름\n" +
                     "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
                     "  - `options` (JSON): 제휴 옵션\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류 (SERVICE/DISCOUNT)\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준 (PRICE/HEADCOUNT)\n" +
-                    "    - `anotherType` (Boolean): 기타 제공 서비스 여부\n" +
-                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
-                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
-                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
-                    "    - `category` (String): 서비스 카테고리\n" +
-                    "    - `discountRate` (Long): 할인율\n" +
-                    "    - `goods` (JSON): 서비스 제공 항목 목록\n" +
-                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
-                    "      - `goodsName` (String): 서비스 제공 항목명\n"
+                    "    - `benefitCondition` (String): 혜택 조건\n" +
+                    "    - `benefit` (String): 혜택 내용 (필수)\n" +
+                    "    - `caution` (String): 유의사항\n" +
+                    "    - `minPeople` (Integer): 그룹 인증 최소 인원\n"
     )
     @GetMapping("/admin/{adminId}")
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnershipsByAdmin(
@@ -122,17 +108,10 @@ public class BackofficePartnershipController {
                     "  - `adminName` (String): 관리자 이름\n" +
                     "  - `isActivated` (ActivationStatus): 제안서 활성화 여부\n" +
                     "  - `options` (JSON): 제휴 옵션\n" +
-                    "    - `optionType` (OptionType): 제공 서비스 종류 (SERVICE/DISCOUNT)\n" +
-                    "    - `criterionType` (CriterionType): 서비스 제공 기준 (PRICE/HEADCOUNT)\n" +
-                    "    - `anotherType` (Boolean): 기타 제공 서비스 여부\n" +
-                    "    - `people` (Integer): 서비스 제공 기준 인원 수\n" +
-                    "    - `cost` (Integer): 서비스 제공 기준 금액\n" +
-                    "    - `note` (String): 기타 유형 제휴 옵션 문구\n" +
-                    "    - `category` (String): 서비스 카테고리\n" +
-                    "    - `discountRate` (Long): 할인율\n" +
-                    "    - `goods` (JSON): 서비스 제공 항목 목록\n" +
-                    "      - `goodsId` (Long): 서비스 제공 항목 ID\n" +
-                    "      - `goodsName` (String): 서비스 제공 항목명\n"
+                    "    - `benefitCondition` (String): 혜택 조건\n" +
+                    "    - `benefit` (String): 혜택 내용 (필수)\n" +
+                    "    - `caution` (String): 유의사항\n" +
+                    "    - `minPeople` (Integer): 그룹 인증 최소 인원\n"
     )
     @GetMapping("/store/{storeId}")
     public BaseResponse<Page<WritePartnershipResponseDTO>> getPartnershipsByStore(

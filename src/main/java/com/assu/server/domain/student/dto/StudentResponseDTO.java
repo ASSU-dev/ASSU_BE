@@ -3,8 +3,6 @@ package com.assu.server.domain.student.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.assu.server.domain.partnership.entity.enums.CriterionType;
-import com.assu.server.domain.partnership.entity.enums.OptionType;
 import com.assu.server.domain.student.entity.StampEventApplicant;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -43,11 +41,13 @@ public class StudentResponseDTO {
     }
 
 	public record RecommendCarouselDTO(
-		String category,
-		String belonging,
 		String partnerProfileUrl,
 		String partnerName,
-		Long storeId
+		Long storeId,
+		@Schema(description = "대표 혜택 조건", example = "30,000원 이상 주문 시")
+		String benefitCondition,
+		@Schema(description = "대표 혜택 내용", example = "음료 1캔 제공")
+		String benefit
 	) {}
 
 	@Getter
@@ -58,17 +58,18 @@ public class StudentResponseDTO {
 		private Long partnershipId;
 		private String adminName;
 		private String partnerName;
-		private CriterionType criterionType;
-		private OptionType optionType;
-		private Integer people;
-		private Long cost;
-		private String note;
 		private Long paperId;
-		private String category;
-		private Long discountRate;
 		private Long storeId;
 		private Integer extraCount;
 		private String partnerProfileUrl;
+		@Schema(description = "혜택 조건", example = "30,000원 이상 주문 시")
+		private String benefitCondition;
+		@Schema(description = "혜택 내용", example = "음료 1캔 제공")
+		private String benefit;
+		@Schema(description = "유의사항", example = "학생증 지참")
+		private String caution;
+		@Schema(description = "그룹 인증 최소 인원", example = "4")
+		private Integer minPeople;
 	}
 
 	@Schema(description = "스탬프 이벤트 응모자")

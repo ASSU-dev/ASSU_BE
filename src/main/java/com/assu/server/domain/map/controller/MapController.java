@@ -30,7 +30,7 @@ public class MapController {
 
     @Operation(
             summary = "현재 위치 기반 주변 장소 조회 API",
-            description = "# [v1.4 (2025-01-04)](https://clumsy-seeder-416.notion.site/2441197c19ed80bcb55fcad675dd9837?source=copy_link)\n" +
+            description = "# [v1.5 (2026-11-21)](https://clumsy-seeder-416.notion.site/2441197c19ed80bcb55fcad675dd9837?source=copy_link)\n" +
                     "- 로그인한 유저의 역할에 따라 Map 객체를 반환합니다.\n" +
                     "- 경도, 위도 순서로 입력한 Viewport 객체 입력.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+
@@ -109,7 +109,7 @@ public class MapController {
 
     @Operation(
             summary = "검색어 기반 장소 조회 API",
-            description = "# [v1.3 (2025-01-04)](https://clumsy-seeder-416.notion.site/2591197c19ed8017adf1f3d711bab3d4)\n" +
+            description = "# [v1.4 (2026-11-21)](https://clumsy-seeder-416.notion.site/2591197c19ed8017adf1f3d711bab3d4)\n" +
                     "- 로그인한 유저의 역할과 검색어에 따라 Map 객체를 반환합니다.\n" +
                     "- 검색어(searchKeyword) 입력.\n" +
                     "- 성공 시 200(OK)과 Map 객체 반환.\n"+

@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.partnership.repository.PaperContentRepository;
@@ -71,10 +70,7 @@ public class BackofficePartnershipServiceImpl implements BackofficePartnershipSe
         List<WritePartnershipResponseDTO> result = new ArrayList<>(papers.size());
         for (Paper p : papers) {
             List<PaperContent> contents = byPaperId.getOrDefault(p.getId(), List.of());
-            List<List<Goods>> goodsBatches = contents.stream()
-                    .map(pc -> pc.getGoods() == null ? List.<Goods>of() : pc.getGoods())
-                    .toList();
-            result.add(WritePartnershipResponseDTO.of(p, contents, goodsBatches));
+            result.add(WritePartnershipResponseDTO.of(p, contents));
         }
         return result;
     }

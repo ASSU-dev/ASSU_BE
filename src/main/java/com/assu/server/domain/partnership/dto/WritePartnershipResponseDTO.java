@@ -1,14 +1,12 @@
 package com.assu.server.domain.partnership.dto;
 
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.partnership.entity.Goods;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 public record WritePartnershipResponseDTO(
@@ -44,18 +42,11 @@ public record WritePartnershipResponseDTO(
 ) {
     public static WritePartnershipResponseDTO of(
             Paper paper,
-            List<PaperContent> contents,
-            List<List<Goods>> goodsBatches
+            List<PaperContent> contents
     ) {
-        List<PartnershipOptionResponseDTO> optionDTOs = new ArrayList<>();
-        if (contents != null) {
-            for (int i = 0; i < contents.size(); i++) {
-                PaperContent pc = contents.get(i);
-                List<Goods> goods = (goodsBatches != null && goodsBatches.size() > i)
-                        ? goodsBatches.get(i) : List.of();
-                optionDTOs.add(PartnershipOptionResponseDTO.of(pc, goods));
-            }
-        }
+        List<PartnershipOptionResponseDTO> optionDTOs = contents == null
+                ? List.of()
+                : contents.stream().map(PartnershipOptionResponseDTO::of).toList();
         return new WritePartnershipResponseDTO(
                 paper.getId(),
                 paper.getPartnershipPeriodStart(),
