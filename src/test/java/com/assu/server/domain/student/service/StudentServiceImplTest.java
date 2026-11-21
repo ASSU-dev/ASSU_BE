@@ -161,6 +161,53 @@ class StudentServiceImplTest {
 		verify(stampEventApplicantRepository, never()).save(any());
 	}
 
+	@Test
+	@DisplayName("오늘 스탬프를 적립하지 않은 학생은 제휴 이용 시 스탬프가 1 증가한다")
+	void addStampIfNotStampedToday_NotStampedToday_IncrementsStamp() {
+		// 1. Given
+		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
+
+		// 2. When
+		studentService.addStampIfNotStampedToday(STUDENT_ID);
+
+		// 3. Then
+		assertEquals(4, student.getStamp());
+		assertTrue(student.isStampedToday());
+	}
+
+	@Test
+	@DisplayName("오늘 이미 스탬프를 적립한 학생은 제휴 이용 시 예외 없이 적립을 건너뛴다")
+	void addStampIfNotStampedToday_AlreadyStampedToday_SkipsWithoutException() {
+		// 1. Given
+		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
+		student.setStamp();
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
+
+		// 2. When
+		assertDoesNotThrow(() -> studentService.addStampIfNotStampedToday(STUDENT_ID));
+
+		// 3. Then
+		assertEquals(4, student.getStamp());
+		verify(stampEventApplicantRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("오늘 스탬프를 적립하지 않은 학생이 제휴 이용으로 10개를 달성하면 이벤트에 자동 응모된다")
+	void addStampIfNotStampedToday_TenthStamp_AppliesEventAndResets() {
+		// 1. Given
+		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(9).build();
+		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
+
+		// 2. When
+		studentService.addStampIfNotStampedToday(STUDENT_ID);
+
+		// 3. Then
+		assertEquals(0, student.getStamp());
+		verify(stampEventApplicantRepository, times(1)).save(any());
+		verify(notificationCommandService, times(1)).sendStamp(STUDENT_ID);
+	}
+
 	// ===== getUsablePartnership =====
 
 	private UserPaper usablePartnershipWithPartner(Long paperId, Long contentId, String profileKey) {
