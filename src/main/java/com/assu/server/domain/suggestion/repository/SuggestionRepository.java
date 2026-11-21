@@ -2,6 +2,9 @@ package com.assu.server.domain.suggestion.repository;
 
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.domain.suggestion.entity.Suggestion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,5 +35,22 @@ public interface SuggestionRepository extends JpaRepository<Suggestion, Long> {
             @Param("adminId") Long adminId,
             @Param("status") ReportedStatus status,
             @Param("studentStatus") ReportedStatus studentStatus
+    );
+
+    @EntityGraph(attributePaths = {"student", "admin"})
+    @Query("""
+            select s
+            from Suggestion s
+            where ((:includeChecked = true and s.checkedAt is not null)
+                or (:includeUnchecked = true and s.checkedAt is null))
+            and (:keyword is null
+                or s.storeName like concat('%', :keyword, '%')
+                or s.content like concat('%', :keyword, '%'))
+            """)
+    Page<Suggestion> findForBackoffice(
+            @Param("includeChecked") boolean includeChecked,
+            @Param("includeUnchecked") boolean includeUnchecked,
+            @Param("keyword") String keyword,
+            Pageable pageable
     );
 }

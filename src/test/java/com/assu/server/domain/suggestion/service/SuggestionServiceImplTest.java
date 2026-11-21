@@ -2,6 +2,7 @@ package com.assu.server.domain.suggestion.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -31,6 +32,7 @@ import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.discord.DiscordNotifier;
 
 @ExtendWith(MockitoExtension.class)
 class SuggestionServiceImplTest {
@@ -50,6 +52,9 @@ class SuggestionServiceImplTest {
 	@Mock
 	private NotificationCommandService notificationCommandService;
 
+	@Mock
+	private DiscordNotifier discordNotifier;
+
 	private static final Long STUDENT_ID = 1L;
 	private static final Long ADMIN_ID = 10L;
 
@@ -68,10 +73,11 @@ class SuggestionServiceImplTest {
 		// 3. Then
 		assertEquals(ErrorStatus.NO_SUCH_ADMIN, exception.getCode());
 		verify(suggestionRepository, never()).save(any());
+		verify(discordNotifier, never()).send(anyString());
 	}
 
 	@Test
-	@DisplayName("건의 작성 성공 시 건의가 저장되고 대상 관리자에게 알림이 전송된다")
+	@DisplayName("건의 작성 성공 시 건의가 저장되고 대상 관리자 알림과 운영자 Discord 알림이 전송된다")
 	void writeSuggestion_Success_SavesAndNotifies() {
 		// 1. Given
 		WriteSuggestionRequestDTO request =
@@ -97,6 +103,7 @@ class SuggestionServiceImplTest {
 		assertEquals(student, captor.getValue().getStudent());
 
 		verify(notificationCommandService, times(1)).sendPartnerSuggestion(eq(ADMIN_ID), any());
+		verify(discordNotifier, times(1)).send(anyString());
 	}
 
 	@Test
