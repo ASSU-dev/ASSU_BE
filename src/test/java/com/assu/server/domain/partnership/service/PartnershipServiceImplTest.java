@@ -247,6 +247,25 @@ class PartnershipServiceImplTest {
 			.sendChat(eq(PARTNER_ID), eq(1L), eq("총학생회"), anyString());
 	}
 
+	@Test
+	@DisplayName("현재 상태와 같은 상태로 변경을 요청하면 안내 메시지와 알림을 다시 보내지 않는다")
+	void updatePartnershipStatus_SameStatus_DoesNotSendGuideMessageAgain() {
+		// 1. Given (이미 ACTIVE인 제안서)
+		Paper paper = Paper.builder()
+			.id(PAPER_ID).admin(admin()).partner(partner()).isActivated(ActivationStatus.ACTIVE).build();
+		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+
+		// 2. When
+		PartnershipStatusUpdateResponseDTO response = partnershipService.updatePartnershipStatus(
+			PAPER_ID, new PartnershipStatusUpdateRequestDTO("ACTIVE"), ADMIN_ID, UserRole.ADMIN);
+
+		// 3. Then
+		assertEquals("ACTIVE", response.prevStatus());
+		assertEquals("ACTIVE", response.newStatus());
+		verify(chatService, never()).sendGuideMessage(any());
+		verify(notificationService, never()).sendChat(any(), any(), any(), any());
+	}
+
 	// ===== updatePartnership =====
 
 	private WritePartnershipRequestDTO updateRequest() {

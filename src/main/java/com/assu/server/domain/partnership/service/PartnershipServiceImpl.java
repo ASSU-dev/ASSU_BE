@@ -201,6 +201,10 @@ public class PartnershipServiceImpl implements PartnershipService {
 
         paper.changeStatus(next);
 
+        if (next == prev) {
+            return PartnershipStatusUpdateResponseDTO.of(paper, prev, next);
+        }
+
         Long adminId = paper.getAdmin().getId();
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
