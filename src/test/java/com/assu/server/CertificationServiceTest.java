@@ -26,6 +26,7 @@ import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.entity.AssociateCertification;
+import com.assu.server.domain.certification.entity.enums.SessionJoinStatus;
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
 import com.assu.server.domain.certification.repository.AssociateCertificationRepository;
 import com.assu.server.domain.certification.service.CertificationServiceImpl;
@@ -106,8 +107,9 @@ class CertificationServiceImplTest {
 			.thenReturn(List.of(matchingAdmin));
 
 		// 중복 체크 및 인원 상태 설정
-		when(sessionManager.hasUser(sessionId, userId)).thenReturn(false);
-		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(1L, 2L)); // 본인 포함 2명
+		when(sessionManager.joinSession(sessionId, userId, targetPeople))
+			.thenReturn(joined(1L, 2L)); // 본인 포함 2명
+		when(sessionManager.removeSession(sessionId)).thenReturn(true);
 
 		// Store 객체 (Partner 포함 여부에 따라 Mock 혹은 Builder 사용)
 		Store mockStore = Store.builder().id(storeId).build();
@@ -156,8 +158,7 @@ class CertificationServiceImplTest {
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 
 		// 현재 인증된 유저 리스트 (이미 1명 있고, 이번에 참여자가 추가되어 총 2명이 된 상황)
-		List<Long> currentUsers = List.of(1L, participantId);
-		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(currentUsers);
+		when(sessionManager.joinSession(sessionId, participantId, 4)).thenReturn(joined(1L, participantId));
 
 		// 2. When (실행)
 		certificationService.handleCertification(dto, participantMember);
@@ -204,10 +205,10 @@ class CertificationServiceImplTest {
 
 		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
-		when(sessionManager.hasUser(sessionId, 1L)).thenReturn(false);
 
 		// 마지막 인원이 참여하여 정원이 찬 상황 가정
-		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(1L, 2L));
+		when(sessionManager.joinSession(sessionId, 1L, targetPeople)).thenReturn(joined(1L, 2L));
+		when(sessionManager.removeSession(sessionId)).thenReturn(true);
 
 		Store mockStore = Store.builder().id(storeId).build();
 		when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
@@ -316,7 +317,8 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
 		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
-		when(sessionManager.hasUser(sessionId, userId)).thenReturn(true);
+		when(sessionManager.joinSession(sessionId, userId, 2))
+			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.DUPLICATE, List.of()));
 		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(userId));
 		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
 
@@ -340,8 +342,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
 		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
-		when(sessionManager.hasUser(sessionId, 1L)).thenReturn(false);
-		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(1L, 2L));
+		when(sessionManager.joinSession(sessionId, 1L, 2)).thenReturn(joined(1L, 2L));
 		when(storeRepository.findById(storeId)).thenReturn(Optional.empty());
 		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
 
@@ -350,5 +351,81 @@ class CertificationServiceImplTest {
 
 		// then
 		assertEquals(1, count("certification.group.result", "failure", "store_not_found"));
+	}
+
+	@Test
+	void handleCertification_whenSessionFull_thenRejectedWithoutSaving() {
+		// given
+		Long sessionId = 100L;
+		Member member = givenMatchedMember(sessionId, 3L, 2);
+		when(sessionManager.joinSession(sessionId, 3L, 2))
+			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.FULL, List.of()));
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(ErrorStatus.SESSION_NOT_OPENED, exception.getCode());
+		assertEquals(1, count("certification.group.result", "failure", "full"));
+		verify(associateCertificationRepository, never()).save(any());
+		verify(webSocketBroadcaster, never()).send(any(), any());
+	}
+
+	@Test
+	void handleCertification_whenSessionRemovedBeforeJoin_thenNoSuchSession() {
+		// given
+		Long sessionId = 100L;
+		Member member = givenMatchedMember(sessionId, 3L, 2);
+		when(sessionManager.joinSession(sessionId, 3L, 2))
+			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.NO_SESSION, List.of()));
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
+		verify(associateCertificationRepository, never()).save(any());
+	}
+
+	@Test
+	void handleCertification_whenCompletionAlreadyClaimed_thenDoesNotSaveOrSendCompleted() {
+		// given (정원은 채웠지만 세션 키 삭제는 다른 요청이 먼저 수행)
+		Long sessionId = 100L;
+		Long storeId = 500L;
+		Member member = givenMatchedMember(sessionId, 2L, 2);
+		when(sessionManager.joinSession(sessionId, 2L, 2)).thenReturn(joined(1L, 2L));
+		when(storeRepository.findById(storeId)).thenReturn(Optional.of(Store.builder().id(storeId).build()));
+		when(sessionManager.removeSession(sessionId)).thenReturn(false);
+		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> certificationService.handleCertification(dto, member));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
+		verify(associateCertificationRepository, never()).save(any());
+		verify(webSocketBroadcaster, never()).send(any(), any());
+		assertEquals(0, count("certification.group.result", "completed", "none"));
+	}
+
+	private CertificationSessionManager.JoinResult joined(Long... userIds) {
+		return new CertificationSessionManager.JoinResult(SessionJoinStatus.JOINED, List.of(userIds));
+	}
+
+	private Member givenMatchedMember(Long sessionId, Long userId, int targetPeople) {
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(userId);
+		when(member.getStudentProfile()).thenReturn(mock(Student.class));
+		when(sessionManager.exists(sessionId)).thenReturn(true);
+		when(sessionManager.getSessionInfo(sessionId, "storeId")).thenReturn("500");
+		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn(String.valueOf(targetPeople));
+		Admin matchingAdmin = Admin.builder().id(77L).isPhoneVerified(false).build();
+		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
+		return member;
 	}
 }
