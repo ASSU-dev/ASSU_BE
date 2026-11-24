@@ -44,19 +44,31 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewResponseDTO.WriteReviewResponseDTO writeReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<MultipartFile> reviewImages) {
+        claimUsageForReview(request.getPartnershipUsageId(), memberId);
+
         String affiliation = adminNameToAffliation(request.getAdminName());
 
         Review review = createReview(memberId, request.getStoreId(), request, reviewImages, affiliation);
 
-        PartnershipUsage pu = partnershipUsageRepository.findById(request.getPartnershipUsageId()).orElseThrow(
-                () -> new GeneralException(ErrorStatus.NO_SUCH_USAGE)
-        );
-        pu.setIsReviewed(true);
-        partnershipUsageRepository.save(pu);
-
         recalcAndUpdateStoreRate(review.getStore().getId());
 
         return ReviewResponseDTO.WriteReviewResponseDTO.from(review);
+    }
+
+    private void claimUsageForReview(Long partnershipUsageId, Long memberId) {
+        if (partnershipUsageId == null) {
+            throw new GeneralException(ErrorStatus.NO_SUCH_USAGE);
+        }
+        if (partnershipUsageRepository.markReviewedIfUnreviewed(partnershipUsageId, memberId) == 1) {
+            return;
+        }
+
+        PartnershipUsage usage = partnershipUsageRepository.findById(partnershipUsageId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_USAGE));
+        if (usage.getStudent() == null || !usage.getStudent().getId().equals(memberId)) {
+            throw new GeneralException(ErrorStatus.FORBIDDEN_USAGE);
+        }
+        throw new GeneralException(ErrorStatus.ALREADY_REVIEWED_USAGE);
     }
 
     private String adminNameToAffliation(String adminName) {
@@ -143,9 +155,12 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional
-    public ReviewResponseDTO.DeleteReviewResponseDTO deleteReview(Long reviewId) {
+    public ReviewResponseDTO.DeleteReviewResponseDTO deleteReview(Long reviewId, Long memberId) {
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new CustomReviewException(ErrorStatus._BAD_REQUEST));
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_REVIEW));
+        if (review.getStudent() == null || !review.getStudent().getId().equals(memberId)) {
+            throw new CustomReviewException(ErrorStatus.FORBIDDEN_REVIEW);
+        }
 
         Long storeId = review.getStore().getId();
         reviewRepository.deleteById(reviewId);

@@ -17,7 +17,7 @@ public interface ReviewService {
     Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable);
     Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable);
 
-    ReviewResponseDTO.DeleteReviewResponseDTO deleteReview(@PathVariable Long reviewId);
+    ReviewResponseDTO.DeleteReviewResponseDTO deleteReview(Long reviewId, Long memberId);
 
     ReviewResponseDTO.StandardScoreResponseDTO standardScore(@PathVariable Long storeId);
     ReviewResponseDTO.StandardScoreResponseDTO myStoreAverage(@PathVariable Long memberId);

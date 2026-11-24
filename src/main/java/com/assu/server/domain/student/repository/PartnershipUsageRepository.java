@@ -46,4 +46,9 @@ public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsa
 		"WHERE pu.student.id = :studentId " +
 		"AND (pu.isReviewed = false)")
 	Page<PartnershipUsage> findByUnreviewedUsage(Long studentId, Pageable pageable);
+
+	@Modifying(flushAutomatically = true)
+	@Query("UPDATE PartnershipUsage pu SET pu.isReviewed = true " +
+		"WHERE pu.id = :id AND pu.student.id = :studentId AND pu.isReviewed = false")
+	int markReviewedIfUnreviewed(@Param("id") Long id, @Param("studentId") Long studentId);
 }

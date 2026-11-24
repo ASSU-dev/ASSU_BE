@@ -339,11 +339,6 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NOTIFICATION_NOT_FOUND,
             ErrorStatus.NOTIFICATION_ACCESS_DENIED
     )),
-    NOTIFICATION_QUEUE(Set.of(
-            ErrorStatus.INVALID_NOTIFICATION_TYPE,
-            ErrorStatus.MISSING_NOTIFICATION_FIELD,
-            ErrorStatus.NO_SUCH_MEMBER
-    )),
     NOTIFICATION_TOGGLE(Set.of(
             ErrorStatus.NO_SUCH_MEMBER
     )),
@@ -450,7 +445,9 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_PARTNER,
             ErrorStatus.NO_SUCH_STUDENT,
             ErrorStatus.IMAGE_UPLOAD_FAILED,
-            ErrorStatus.NO_SUCH_USAGE
+            ErrorStatus.NO_SUCH_USAGE,
+            ErrorStatus.FORBIDDEN_USAGE,
+            ErrorStatus.ALREADY_REVIEWED_USAGE
     )),
     REVIEW_CHECK_PARTNER(Set.of(
             ErrorStatus.NO_SUCH_PARTNER,
@@ -460,7 +457,8 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_STORE
     )),
     REVIEW_DELETE(Set.of(
-            ErrorStatus._BAD_REQUEST
+            ErrorStatus.NO_SUCH_REVIEW,
+            ErrorStatus.FORBIDDEN_REVIEW
     )),
     REVIEW_MY_STORE_AVERAGE(Set.of(
             ErrorStatus.NO_SUCH_PARTNER,

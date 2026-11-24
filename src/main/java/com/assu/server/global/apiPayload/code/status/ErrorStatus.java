@@ -62,6 +62,8 @@ public enum ErrorStatus implements BaseErrorCode {
     PARTNER_STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "STORE_4007", "파트너에 연결된 스토어가 없습니다."),
     STORE_ALREADY_LINKED(HttpStatus.CONFLICT, "STORE_4008", "이미 다른 제휴업체에 연결된 가게 주소입니다."),
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
+    FORBIDDEN_USAGE(HttpStatus.FORBIDDEN, "USAGE4002", "본인의 제휴 사용 내역이 아닙니다."),
+    ALREADY_REVIEWED_USAGE(HttpStatus.CONFLICT, "USAGE4003", "이미 리뷰를 작성한 제휴 사용 내역입니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
     NO_SUCH_STORE_WITH_THAT_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4006","해당 store ID에 해당하는 partner ID가 존재하지 않습니다."),
@@ -97,6 +99,8 @@ public enum ErrorStatus implements BaseErrorCode {
     //리뷰 이미지 에러
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR,"REVIEW_4001", "리뷰 이미지 업로드에 실패했습니다"),
     IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND,"REVIEW_4001", "존재하지 않는 리뷰이미지 입니다"),
+    NO_SUCH_REVIEW(HttpStatus.NOT_FOUND, "REVIEW_4002", "존재하지 않는 리뷰입니다."),
+    FORBIDDEN_REVIEW(HttpStatus.FORBIDDEN, "REVIEW_4003", "본인이 작성한 리뷰가 아닙니다."),
     // 채팅 에러
     NO_SUCH_ROOM(HttpStatus.NOT_FOUND, "CHATTING_5001", "존재하지 않는 채팅방 ID 입니다."),
     NO_MEMBER_IN_THE_ROOM(HttpStatus.NOT_FOUND, "CHATTING_5002", "해당 방에는 해당 사용자가 없습니다."),
