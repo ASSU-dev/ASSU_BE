@@ -20,10 +20,13 @@ import com.assu.server.infra.discord.DiscordNotifier;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -36,10 +39,32 @@ public class ReportServiceImpl implements ReportService {
     private final SuggestionRepository suggestionRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final DiscordNotifier discordNotifier;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
-    @Transactional
     public ReportResponseDTO.CreateReportResponse reportContent(Long reporterId,
+            ReportRequestDTO.CreateContentReportRequest request) {
+        return createTranslatingDuplicate(() -> createContentReport(reporterId, request));
+    }
+
+    @Override
+    public ReportResponseDTO.CreateReportResponse reportStudent(Long reporterId,
+            ReportRequestDTO.CreateStudentReportRequest request) {
+        return createTranslatingDuplicate(() -> createStudentReport(reporterId, request));
+    }
+
+    // 제약 위반을 트랜잭션 안에서 잡으면 rollback-only가 되어 커밋에서 실패하므로, 트랜잭션 밖에서 변환한다.
+    private ReportResponseDTO.CreateReportResponse createTranslatingDuplicate(
+            Supplier<ReportResponseDTO.CreateReportResponse> creation) {
+        try {
+            return transactionTemplate.execute(status -> creation.get());
+        } catch (DataIntegrityViolationException e) {
+            log.warn("[Report] 동시 중복 신고로 unique 제약 위반: {}", e.getMostSpecificCause().getMessage());
+            throw new ReportException(ErrorStatus.REPORT_DUPLICATE);
+        }
+    }
+
+    private ReportResponseDTO.CreateReportResponse createContentReport(Long reporterId,
             ReportRequestDTO.CreateContentReportRequest request) {
         // 신고자 존재 확인
         Member reporter = memberRepository.findById(reporterId)
@@ -78,9 +103,7 @@ public class ReportServiceImpl implements ReportService {
         return ReportResponseDTO.CreateReportResponse.of(savedReport.getId());
     }
 
-    @Override
-    @Transactional
-    public ReportResponseDTO.CreateReportResponse reportStudent(Long reporterId,
+    private ReportResponseDTO.CreateReportResponse createStudentReport(Long reporterId,
             ReportRequestDTO.CreateStudentReportRequest request) {
         // 신고자 존재 확인
         Member reporter = memberRepository.findById(reporterId)

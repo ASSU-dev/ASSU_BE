@@ -291,8 +291,7 @@ public enum SwaggerErrorCodes {
     )),
     CHAT_LEAVE_ROOM(Set.of(
             ErrorStatus.NO_SUCH_MEMBER,
-            ErrorStatus.NO_MEMBER_IN_THE_ROOM,
-            ErrorStatus.NO_MEMBER
+            ErrorStatus.NO_MEMBER_IN_THE_ROOM
     )),
     CHAT_BLOCK_MEMBER(Set.of(
             ErrorStatus._BAD_REQUEST

@@ -22,8 +22,12 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.assu.server.global.util.WebSocketBroadcaster;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
@@ -37,6 +41,7 @@ import com.assu.server.domain.chat.repository.BlockRepository;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
@@ -87,9 +92,48 @@ class ChatServiceImplTest {
 	@Spy
 	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
 	private static final Long ROOM_ID = 1L;
+
+	@BeforeEach
+	void runTransactionCallbackInline() {
+		lenient().when(transactionTemplate.execute(any()))
+			.thenAnswer(inv -> inv.<TransactionCallback<Object>>getArgument(0).doInTransaction(null));
+	}
+
+	@Test
+	@DisplayName("동시 생성으로 unique 제약을 위반하면 먼저 만들어진 채팅방을 isNew=false로 반환한다")
+	void createChatRoom_ConcurrentDuplicate_ReturnsExistingRoom() {
+		// 1. Given (사전 조회에서는 없었지만 저장 시점에 다른 요청이 먼저 생성)
+		ChatRequestDTO.CreateChatRoomRequestDTO request =
+			new ChatRequestDTO.CreateChatRoomRequestDTO(ADMIN_ID, PARTNER_ID);
+
+		Admin admin = givenAdmin(ADMIN_ID);
+		Partner partner = givenPartner(PARTNER_ID);
+		Store store = Store.builder().id(500L).partner(partner).build();
+		ChattingRoom existingRoom = ChattingRoom.builder()
+			.id(ROOM_ID).admin(admin).partner(partner).build();
+
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(storeRepository.findByPartnerId(PARTNER_ID)).thenReturn(Optional.of(store));
+		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID))
+			.thenReturn(null, existingRoom);
+		when(chatRepository.save(any(ChattingRoom.class)))
+			.thenThrow(new DataIntegrityViolationException("uk_chatting_room_admin_partner"));
+
+		// 2. When
+		ChatResponseDTO.CreateChatRoomResponseDTO response = chatService.createChatRoom(request, PARTNER_ID);
+
+		// 3. Then
+		assertEquals(ROOM_ID, response.roomId());
+		assertFalse(response.isNew());
+		verify(transactionTemplate, times(2)).execute(any());
+	}
 
 	// ===== createChatRoom =====
 
@@ -443,7 +487,7 @@ class ChatServiceImplTest {
 
 		ChattingRoom room = ChattingRoom.builder()
 			.id(ROOM_ID).admin(admin).partner(partner).memberCount(2).build();
-		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
 
 		// 2. When
 		ChatResponseDTO.LeaveChattingRoomResponseDTO response =
@@ -467,7 +511,7 @@ class ChatServiceImplTest {
 
 		ChattingRoom room = ChattingRoom.builder()
 			.id(ROOM_ID).admin(admin).partner(null).memberCount(1).build();
-		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
 
 		// 2. When
 		ChatResponseDTO.LeaveChattingRoomResponseDTO response =
@@ -481,6 +525,75 @@ class ChatServiceImplTest {
 	}
 
 	@Test
+	@DisplayName("이미 나간 참여자가 다시 나가기를 요청하면 방 상태를 바꾸지 않고 성공으로 응답한다")
+	void leaveChattingRoom_AlreadyLeft_DoesNotChangeRoom() {
+		// 1. Given (관리자는 이미 나갔고 파트너만 남은 방)
+		Member adminMember = givenMember(ADMIN_ID);
+		when(adminMember.getRole()).thenReturn(UserRole.ADMIN);
+		Partner partner = givenPartner(PARTNER_ID);
+
+		ChattingRoom room = ChattingRoom.builder()
+			.id(ROOM_ID).admin(null).partner(partner).memberCount(1).build();
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
+
+		// 2. When
+		ChatResponseDTO.LeaveChattingRoomResponseDTO response =
+			chatService.leaveChattingRoom(ROOM_ID, ADMIN_ID);
+
+		// 3. Then
+		assertTrue(response.isLeftSuccessfully());
+		assertFalse(response.isRoomDeleted());
+		assertEquals(partner, room.getPartner());
+		assertEquals(1, room.getMemberCount());
+		verify(chatRepository, never()).save(any());
+		verify(chatRepository, never()).delete(any());
+	}
+
+	@Test
+	@DisplayName("인원 수가 0으로 잘못 기록된 방이라도 남아 있는 참여자는 나갈 수 있고 방이 삭제된다")
+	void leaveChattingRoom_MemberCountOutOfSync_RemainingParticipantCanLeave() {
+		// 1. Given
+		Member partnerMember = givenMember(PARTNER_ID);
+		Partner partner = Partner.builder().id(PARTNER_ID).member(partnerMember).name("역전할머니 맥주").isPhoneVerified(false).build();
+
+		ChattingRoom room = ChattingRoom.builder()
+			.id(ROOM_ID).admin(null).partner(partner).memberCount(0).build();
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
+
+		// 2. When
+		ChatResponseDTO.LeaveChattingRoomResponseDTO response =
+			chatService.leaveChattingRoom(ROOM_ID, PARTNER_ID);
+
+		// 3. Then
+		assertTrue(response.isLeftSuccessfully());
+		assertTrue(response.isRoomDeleted());
+		verify(chatRepository, times(1)).delete(room);
+	}
+
+	@Test
+	@DisplayName("한 명만 남은 방에서 참여자가 아닌 회원이 나가려고 하면 방 상태를 바꾸지 않고 NO_SUCH_MEMBER 예외가 발생한다")
+	void leaveChattingRoom_NotAMemberOfHalfEmptyRoom_ThrowsException() {
+		// 1. Given (관리자가 나간 방에 다른 파트너가 요청)
+		Member stranger = givenMember(999L);
+		when(stranger.getRole()).thenReturn(UserRole.PARTNER);
+		Partner partner = givenPartner(PARTNER_ID);
+
+		ChattingRoom room = ChattingRoom.builder()
+			.id(ROOM_ID).admin(null).partner(partner).memberCount(1).build();
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
+
+		// 2. When
+		DatabaseException exception = assertThrows(DatabaseException.class,
+			() -> chatService.leaveChattingRoom(ROOM_ID, 999L));
+
+		// 3. Then
+		assertEquals(ErrorStatus.NO_SUCH_MEMBER, exception.getCode());
+		assertEquals(partner, room.getPartner());
+		assertEquals(1, room.getMemberCount());
+		verify(chatRepository, never()).delete(any());
+	}
+
+	@Test
 	@DisplayName("채팅방 구성원이 아닌 회원이 나가려고 하면 NO_SUCH_MEMBER 예외가 발생한다")
 	void leaveChattingRoom_NotAMember_ThrowsException() {
 		// 1. Given
@@ -490,7 +603,7 @@ class ChatServiceImplTest {
 
 		ChattingRoom room = ChattingRoom.builder()
 			.id(ROOM_ID).admin(admin).partner(partner).memberCount(2).build();
-		when(chatRepository.findById(ROOM_ID)).thenReturn(Optional.of(room));
+		when(chatRepository.findWithLockById(ROOM_ID)).thenReturn(Optional.of(room));
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,

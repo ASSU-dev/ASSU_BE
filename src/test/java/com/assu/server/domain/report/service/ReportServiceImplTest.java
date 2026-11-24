@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.member.entity.Member;
@@ -59,8 +63,43 @@ class ReportServiceImplTest {
 	@Mock
 	private DiscordNotifier discordNotifier;
 
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
 	private static final Long REPORTER_ID = 1L;
 	private static final Long REVIEW_ID = 100L;
+
+	@BeforeEach
+	void runTransactionCallbackInline() {
+		lenient().when(transactionTemplate.execute(any()))
+			.thenAnswer(inv -> inv.<TransactionCallback<Object>>getArgument(0).doInTransaction(null));
+	}
+
+	@Test
+	@DisplayName("동시 중복 신고로 unique 제약을 위반하면 REPORT_DUPLICATE 예외로 변환된다")
+	void reportContent_ConcurrentDuplicate_TranslatesConstraintViolation() {
+		// 1. Given (사전 중복 검사는 통과했지만 저장 시점에 제약 위반)
+		givenReporter();
+		Review review = mock(Review.class);
+		when(review.getStudent()).thenReturn(studentWithId(999L));
+		when(reviewRepository.findById(REVIEW_ID)).thenReturn(Optional.of(review));
+		when(reportRepository.existsByReporterIdAndTargetTypeAndTargetId(
+			REPORTER_ID, ReportTargetType.REVIEW, REVIEW_ID)).thenReturn(false);
+		when(reportRepository.save(any(Report.class)))
+			.thenThrow(new DataIntegrityViolationException("uk_report_reporter_target"));
+
+		ReportRequestDTO.CreateContentReportRequest request = ReportRequestDTO.CreateContentReportRequest.builder()
+			.targetType(ReportTargetType.REVIEW).targetId(REVIEW_ID)
+			.reportType(ReportType.REVIEW_SPAM).build();
+
+		// 2. When
+		ReportException exception = assertThrows(ReportException.class,
+			() -> reportService.reportContent(REPORTER_ID, request));
+
+		// 3. Then
+		assertEquals(ErrorStatus.REPORT_DUPLICATE, exception.getCode());
+		verify(eventPublisher, never()).publishEvent(any(ReportProcessedEvent.class));
+	}
 
 	private Member givenReporter() {
 		Member reporter = mock(Member.class);

@@ -5,13 +5,30 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.report.entity.enums.ReportStatus;
 import com.assu.server.domain.report.entity.enums.ReportTargetType;
 import com.assu.server.domain.report.entity.enums.ReportType;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_report_reporter_target",
+                columnNames = {"reporter_id", "target_type", "target_id"}),
+        indexes = @Index(name = "idx_report_target", columnList = "target_type, target_id"))
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
