@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 
 import com.assu.server.domain.auth.dto.common.TokensDTO;
@@ -52,11 +53,14 @@ class LoginServiceImplTest {
 	@Mock
 	private RealmAuthAdapter commonAdapter;
 
+	@Mock
+	private LoginAttemptLimiter loginAttemptLimiter;
+
 	@BeforeEach
 	void setUp() {
 		loginService = new LoginServiceImpl(
 			authenticationManager, jwtUtil, studentRepository, new SimpleMeterRegistry(),
-			List.of(commonAdapter));
+			loginAttemptLimiter, List.of(commonAdapter));
 	}
 
 	@Test
@@ -118,6 +122,39 @@ class LoginServiceImplTest {
 		assertEquals(ActivationStatus.ACTIVE, response.status());
 		assertEquals("access-token", response.tokens().accessToken());
 		assertEquals("refresh-token", response.tokens().refreshToken());
+		verify(loginAttemptLimiter).reset(LoginAttemptLimiter.Policy.COMMON, "partner@assu.com");
+	}
+
+	@Test
+	@DisplayName("로그인 시도가 차단된 계정은 비밀번호를 확인하지 않고 LOGIN_ATTEMPTS_EXCEEDED 예외가 발생한다")
+	void loginCommon_whenAttemptsExceeded_thenRejectsBeforeAuthentication() {
+		// given
+		CommonLoginRequestDTO request = new CommonLoginRequestDTO("partner@assu.com", "password1!");
+		doThrow(new CustomAuthException(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED))
+			.when(loginAttemptLimiter).checkAttempt(LoginAttemptLimiter.Policy.COMMON, "partner@assu.com");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> loginService.loginCommon(request));
+
+		// then
+		assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, exception.getCode());
+		verify(authenticationManager, never()).authenticate(any());
+	}
+
+	@Test
+	@DisplayName("비밀번호가 틀리면 시도 횟수를 초기화하지 않는다")
+	void loginCommon_whenBadCredentials_thenDoesNotResetAttempts() {
+		// given
+		CommonLoginRequestDTO request = new CommonLoginRequestDTO("partner@assu.com", "wrong-password1!");
+		when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+
+		// when
+		assertThrows(BadCredentialsException.class, () -> loginService.loginCommon(request));
+
+		// then
+		verify(loginAttemptLimiter).checkAttempt(LoginAttemptLimiter.Policy.COMMON, "partner@assu.com");
+		verify(loginAttemptLimiter, never()).reset(any(), any());
 	}
 
 	@Test

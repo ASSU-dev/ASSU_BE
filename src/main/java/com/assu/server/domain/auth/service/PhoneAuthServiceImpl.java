@@ -8,6 +8,7 @@ import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import com.assu.server.infra.aligo.exception.AligoException;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -25,10 +26,13 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private final AligoSmsClient aligoSmsClient;
     private final PartnerRepository partnerRepository;
     private final AdminRepository adminRepository;
+    private final MeterRegistry meterRegistry;
 
     private static final Duration AUTH_CODE_TTL = Duration.ofMinutes(5); // 인증번호 5분 유효
     private static final Duration VERIFIED_TTL = Duration.ofMinutes(30); // 인증 완료 후 가입까지 허용 시간
     private static final String VERIFIED_KEY_PREFIX = "phone-verified:";
+    private static final int MAX_VERIFY_FAILURES = 5;
+    private static final String VERIFY_FAILURE_KEY_PREFIX = "phone-verify-fail:";
 
     // iOS 앱스토어 심사(해외 번호)용 마스터 번호 - 알리고가 국내 번호만 지원해 SMS 수신이 불가능한 심사 환경 우회용
     private static final String MASTER_PHONE_NUMBER = "01000000000";
@@ -47,6 +51,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         String authNumber = RandomNumberUtil.generateSixDigit();
         redisTemplate.opsForValue().set(phoneNumber, authNumber, AUTH_CODE_TTL);
+        redisTemplate.delete(VERIFY_FAILURE_KEY_PREFIX + phoneNumber);
 
         String message = "[ASSU] 인증번호: " + authNumber;
 
@@ -79,11 +84,27 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
         String stored = valueOps.get(phoneNumber);
 
-        if (stored == null || !stored.equals(authNumber)) {
+        if (stored == null) {
+            throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+        }
+
+        String failureKey = VERIFY_FAILURE_KEY_PREFIX + phoneNumber;
+        if (!stored.equals(authNumber)) {
+            Long failures = valueOps.increment(failureKey);
+            if (failures != null && failures == 1) {
+                redisTemplate.expire(failureKey, AUTH_CODE_TTL);
+            }
+            if (failures != null && failures >= MAX_VERIFY_FAILURES) {
+                redisTemplate.delete(phoneNumber);
+                redisTemplate.delete(failureKey);
+                meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").increment();
+                throw new CustomAuthException(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED);
+            }
             throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
         }
 
         redisTemplate.delete(phoneNumber);
+        redisTemplate.delete(failureKey);
 
         // 가입 요청이 인증을 실제로 거쳤는지 확인할 수 있도록 인증 완료 표식을 남긴다
         valueOps.set(VERIFIED_KEY_PREFIX + phoneNumber, "1", VERIFIED_TTL);
