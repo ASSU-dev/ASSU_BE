@@ -6,9 +6,11 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 
 @Slf4j
@@ -35,6 +37,14 @@ public class LoginAttemptLimiter {
 
     private static final String KEY_PREFIX = "login-fail:";
 
+    // INCR와 EXPIRE가 따로 실행되면 늦게 도착한 EXPIRE가 차단 시간을 덮어쓰므로 한 스크립트로 묶는다
+    private static final RedisScript<Long> COUNT_ATTEMPT_SCRIPT = RedisScript.of("""
+            local attempts = redis.call('INCR', KEYS[1])
+            if attempts == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+            if attempts == tonumber(ARGV[2]) then redis.call('EXPIRE', KEYS[1], ARGV[3]) end
+            return attempts
+            """, Long.class);
+
     private final StringRedisTemplate redisTemplate;
     private final MeterRegistry meterRegistry;
 
@@ -50,33 +60,19 @@ public class LoginAttemptLimiter {
 
     public void reset(Policy policy, String identifier) {
         try {
-            redisTemplate.delete(key(policy, identifier));
+            redisTemplate.delete(key(identifier));
         } catch (RuntimeException exception) {
             failOpen(policy, exception);
         }
     }
 
     private boolean exceedsLimit(Policy policy, String identifier) {
-        String key = key(policy, identifier);
         try {
-            Long attempts = redisTemplate.opsForValue().increment(key);
-            if (attempts == null) {
-                return false;
-            }
-            if (attempts == policy.maxFailures) {
-                redisTemplate.expire(key, policy.blockDuration);
-            } else if (attempts == 1) {
-                redisTemplate.expire(key, policy.failureWindow);
-            }
-            if (attempts <= policy.maxFailures) {
-                return false;
-            }
-            // INCR 직후 EXPIRE가 유실되어 TTL이 없는 키는 영구 차단이 되므로 여기서 복구한다
-            Long ttlSeconds = redisTemplate.getExpire(key);
-            if (ttlSeconds != null && ttlSeconds == -1) {
-                redisTemplate.expire(key, policy.blockDuration);
-            }
-            return true;
+            Long attempts = redisTemplate.execute(COUNT_ATTEMPT_SCRIPT, List.of(key(identifier)),
+                    String.valueOf(policy.failureWindow.toSeconds()),
+                    String.valueOf(policy.maxFailures),
+                    String.valueOf(policy.blockDuration.toSeconds()));
+            return attempts != null && attempts > policy.maxFailures;
         } catch (RuntimeException exception) {
             failOpen(policy, exception);
             return false;
@@ -89,7 +85,8 @@ public class LoginAttemptLimiter {
         meterRegistry.counter("auth.login.limit.failopen").increment();
     }
 
-    private String key(Policy policy, String identifier) {
-        return KEY_PREFIX + policy.realm + ":" + identifier.trim().toLowerCase(Locale.ROOT);
+    // 로그인 경로를 번갈아 써서 한도를 늘릴 수 없도록 계정 하나에 카운터 하나만 둔다
+    private String key(String identifier) {
+        return KEY_PREFIX + identifier.trim().toLowerCase(Locale.ROOT);
     }
 }
