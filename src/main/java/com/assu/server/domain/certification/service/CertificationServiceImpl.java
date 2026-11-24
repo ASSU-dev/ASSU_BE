@@ -15,6 +15,7 @@ import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.dto.CertificationSessionResponseDTO;
 import com.assu.server.domain.certification.dto.GroupSessionRequest;
 import com.assu.server.domain.certification.entity.AssociateCertification;
+import com.assu.server.domain.certification.entity.enums.SessionJoinStatus;
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
 import com.assu.server.domain.certification.repository.AssociateCertificationRepository;
 import com.assu.server.domain.member.entity.Member;
@@ -112,7 +113,9 @@ public class CertificationServiceImpl implements CertificationService {
 		}
 
 		List<Long> certifiedUserIds = sessionManager.snapshotUserIds(sessionId);
-		sessionManager.removeSession(sessionId);
+		if (!sessionManager.removeSession(sessionId)) {
+			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+		}
 
 		webSocketBroadcaster.send("/certification/progress/" + sessionId,
 			new CertificationProgressResponseDTO(
@@ -155,7 +158,9 @@ public class CertificationServiceImpl implements CertificationService {
 			return response;
 		}
 
-		if (sessionManager.hasUser(sessionId, userId)) {
+		CertificationSessionManager.JoinResult joinResult = sessionManager.joinSession(sessionId, userId, targetPeople);
+
+		if (joinResult.status() == SessionJoinStatus.DUPLICATE) {
 			List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
 			CertificationProgressResponseDTO response = new CertificationProgressResponseDTO(
 				"progress",
@@ -167,9 +172,16 @@ public class CertificationServiceImpl implements CertificationService {
 			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
+		if (joinResult.status() == SessionJoinStatus.NO_SESSION) {
+			countGroupFailure("no_such_session");
+			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+		}
+		if (joinResult.status() == SessionJoinStatus.FULL) {
+			countGroupFailure("full");
+			throw new GeneralException(ErrorStatus.SESSION_NOT_OPENED);
+		}
 
-		sessionManager.addUserToSession(sessionId, userId);
-		List<Long> currentCertifiedUserIds = sessionManager.snapshotUserIds(sessionId);
+		List<Long> currentCertifiedUserIds = joinResult.userIds();
 		int currentCount = currentCertifiedUserIds.size();
 
 		CertificationProgressResponseDTO response;
@@ -178,6 +190,12 @@ public class CertificationServiceImpl implements CertificationService {
 				countGroupFailure("store_not_found");
 				return new GeneralException(ErrorStatus.NO_SUCH_STORE);
 			});
+
+			// 세션 키를 삭제한 요청만 완료 처리한다. 만료 요청이 먼저 삭제했다면 완료로 기록하지 않는다.
+			if (!sessionManager.removeSession(sessionId)) {
+				countGroupFailure("no_such_session");
+				throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
+			}
 
 			AssociateCertification certification = AssociateCertification.builder()
 				.store(store)
@@ -190,8 +208,6 @@ public class CertificationServiceImpl implements CertificationService {
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
 			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
-
-			sessionManager.removeSession(sessionId);
 			countGroupSuccess("completed");
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
