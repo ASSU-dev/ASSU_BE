@@ -1,7 +1,6 @@
 package com.assu.server.domain.store.repository;
 import java.util.Optional;
 
-import com.assu.server.domain.store.entity.enums.StoreCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.partner.entity.Partner;
@@ -149,7 +148,7 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
     );
 
     @Query("""
-        SELECT DISTINCT s
+        SELECT s
         FROM Store s
         LEFT JOIN FETCH s.partner p
         LEFT JOIN FETCH p.member
@@ -160,15 +159,6 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
             @Param("wkt") String wkt
     );
 
-    @Query("""
-        SELECT DISTINCT s
-        FROM Store s
-        LEFT JOIN FETCH s.partner p
-        LEFT JOIN FETCH p.member
-        WHERE LOWER(s.name) LIKE LOWER(CONCAT('%', :name, '%'))
-        ORDER BY s.id DESC
-        """)
-    List<Store> findByNameContainingIgnoreCaseOrderByIdDescWithPartner(@Param("name") String name);
     Optional<Store> findByName(String name);
     Optional<Store> findById(Long id);
     Optional<Store> findByPartnerId(Long partnerId);
@@ -176,16 +166,16 @@ public interface StoreRepository extends JpaRepository<Store,Long> {
     // [오늘] 전체 스토어 중 사용 건수 상위 10개 (ACTIVE만)
     @Query(value = """
         SELECT s.name
-        FROM store s
-        LEFT JOIN paper p ON p.store_id = s.id AND p.is_activated = 'ACTIVE'
-        LEFT JOIN partnership_usage pu 
-            ON pu.paper_id = p.id
-            AND pu.created_at >= CURDATE()
-            AND pu.created_at < CURDATE() + INTERVAL 1 DAY
+        FROM partnership_usage pu
+        JOIN paper p ON p.id = pu.paper_id AND p.is_activated = 'ACTIVE'
+        JOIN store s ON s.id = p.store_id
+        WHERE pu.created_at >= :dayStart AND pu.created_at < :dayEnd
         GROUP BY s.id, s.name
-        HAVING COUNT(pu.id) > 0
-        ORDER BY COUNT(pu.id) DESC, s.id ASC
+        ORDER BY COUNT(*) DESC, s.id ASC
         LIMIT 10
         """, nativeQuery = true)
-    List<String> findTodayBestStoreNames();
+    List<String> findTodayBestStoreNames(
+            @Param("dayStart") LocalDateTime dayStart,
+            @Param("dayEnd") LocalDateTime dayEnd
+    );
 }
