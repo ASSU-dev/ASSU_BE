@@ -13,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,13 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final int MAX_SENDS_PER_WINDOW = 10;
     private static final Duration SEND_COUNT_WINDOW = Duration.ofHours(24);
     private static final String SEND_COUNT_KEY_PREFIX = "phone-send-count:";
+
+    // INCR 뒤 EXPIRE 전에 종료되면 만료 없는 카운터가 남으므로 한 스크립트로 묶는다
+    private static final RedisScript<Long> INCREMENT_WITH_TTL_SCRIPT = RedisScript.of("""
+            local count = redis.call('INCR', KEYS[1])
+            if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+            return count
+            """, Long.class);
 
     // iOS 앱스토어 심사(해외 번호)용 마스터 번호 - 알리고가 국내 번호만 지원해 SMS 수신이 불가능한 심사 환경 우회용
     private static final String MASTER_PHONE_NUMBER = "01000000000";
@@ -65,11 +74,6 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         String sendCount = valueOps.get(sendCountKey);
         if (sendCount != null && Long.parseLong(sendCount) >= MAX_SENDS_PER_WINDOW) {
-            // INCR 직후 EXPIRE가 유실되어 TTL이 없는 키는 영구 차단이 되므로 여기서 복구한다
-            Long ttlSeconds = redisTemplate.getExpire(sendCountKey);
-            if (ttlSeconds != null && ttlSeconds == -1) {
-                redisTemplate.expire(sendCountKey, SEND_COUNT_WINDOW);
-            }
             rejectSend("send-limit", ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED);
         }
 
@@ -94,10 +98,11 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         }
 
         // 실제로 발송된 건만 세어, 발송 실패가 사용자의 발송 한도를 깎지 않게 한다
-        Long sends = valueOps.increment(sendCountKey);
-        if (sends != null && sends == 1) {
-            redisTemplate.expire(sendCountKey, SEND_COUNT_WINDOW);
-        }
+        incrementWithTtl(sendCountKey, SEND_COUNT_WINDOW);
+    }
+
+    private Long incrementWithTtl(String key, Duration ttl) {
+        return redisTemplate.execute(INCREMENT_WITH_TTL_SCRIPT, List.of(key), String.valueOf(ttl.toSeconds()));
     }
 
     private void rejectSend(String reason, ErrorStatus errorStatus) {
@@ -130,10 +135,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         String failureKey = VERIFY_FAILURE_KEY_PREFIX + phoneNumber;
         if (!stored.equals(authNumber)) {
-            Long failures = valueOps.increment(failureKey);
-            if (failures != null && failures == 1) {
-                redisTemplate.expire(failureKey, AUTH_CODE_TTL);
-            }
+            Long failures = incrementWithTtl(failureKey, AUTH_CODE_TTL);
             if (failures != null && failures >= MAX_VERIFY_FAILURES) {
                 redisTemplate.delete(phoneNumber);
                 redisTemplate.delete(failureKey);

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import java.time.Duration;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
@@ -120,14 +122,14 @@ class PhoneAuthServiceImplTest {
 		// given
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(valueOperations.setIfAbsent(SEND_COOLDOWN_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
-		when(valueOperations.increment(SEND_COUNT_KEY)).thenReturn(1L);
+		when(redisTemplate.execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), eq("86400"))).thenReturn(1L);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// when
 		phoneAuthService.checkAndSendAuthNumber(PHONE);
 
 		// then
-		verify(redisTemplate).expire(SEND_COUNT_KEY, Duration.ofHours(24));
+		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), eq("86400"));
 	}
 
 	@Test
@@ -185,7 +187,7 @@ class PhoneAuthServiceImplTest {
 		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
 		verify(redisTemplate, times(1)).delete(PHONE);
 		verify(redisTemplate, times(1)).delete(SEND_COOLDOWN_KEY);
-		verify(valueOperations, never()).increment(anyString());
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), any());
 	}
 
 	@Test
@@ -207,7 +209,7 @@ class PhoneAuthServiceImplTest {
 		assertEquals(ErrorStatus.FAILED_TO_PARSE_ALIGO, exception.getCode());
 		verify(redisTemplate, times(1)).delete(PHONE);
 		verify(redisTemplate, times(1)).delete(SEND_COOLDOWN_KEY);
-		verify(valueOperations, never()).increment(anyString());
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), any());
 	}
 
 	@Test
@@ -263,7 +265,7 @@ class PhoneAuthServiceImplTest {
 		// given
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(valueOperations.get(PHONE)).thenReturn("654321");
-		when(valueOperations.increment(VERIFY_FAILURE_KEY)).thenReturn(1L);
+		when(redisTemplate.execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"))).thenReturn(1L);
 
 		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -271,7 +273,7 @@ class PhoneAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate).expire(VERIFY_FAILURE_KEY, Duration.ofMinutes(5));
+		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"));
 		verify(redisTemplate, never()).delete(anyString());
 	}
 
@@ -281,7 +283,7 @@ class PhoneAuthServiceImplTest {
 		// given
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 		when(valueOperations.get(PHONE)).thenReturn("654321");
-		when(valueOperations.increment(VERIFY_FAILURE_KEY)).thenReturn(5L);
+		when(redisTemplate.execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"))).thenReturn(5L);
 
 		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
