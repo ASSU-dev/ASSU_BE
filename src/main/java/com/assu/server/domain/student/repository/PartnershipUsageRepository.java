@@ -18,16 +18,6 @@ public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsa
     @Query("UPDATE PartnershipUsage p SET p.student = null WHERE p.student.id = :studentId")
     void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
 
-	@Query(value = """
-       SELECT place
-       FROM partnership_usage
-       WHERE date = DATE(DATE_ADD(NOW(), INTERVAL 9 HOUR))
-       GROUP BY place
-       ORDER BY COUNT(*) DESC
-       LIMIT 10
-       """, nativeQuery = true)
-	List<String> findTodayPopularPartnership();
-
 	@Query("SELECT pu FROM PartnershipUsage pu " +
 		"WHERE pu.student.id= :studentId " +
 		"AND YEAR(pu.date) = :year " +

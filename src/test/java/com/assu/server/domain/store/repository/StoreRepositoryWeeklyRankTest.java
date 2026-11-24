@@ -113,6 +113,27 @@ class StoreRepositoryWeeklyRankTest {
                 .isLessThan(thisWeekLeaderRows.get(4).getStoreRank());
     }
 
+    @Test
+    void findTodayBestStoreNames_whenStoresHaveUsagesInRange_thenOrdersByUsageCountAndSkipsUnused() {
+        // given
+        Store busyStore = createStore("오늘베스트 많은 가게");
+        Store quietStore = createStore("오늘베스트 적은 가게");
+        createStore("오늘베스트 없는 가게");
+        createUsages(quietStore, 1);
+        createUsages(busyStore, 2);
+        LocalDateTime now = LocalDateTime.now();
+
+        // when
+        List<String> names = storeRepository.findTodayBestStoreNames(now.minusDays(1), now.plusDays(1));
+        List<String> namesOutsideRange = storeRepository.findTodayBestStoreNames(now.plusDays(1), now.plusDays(2));
+
+        // then
+        assertThat(names)
+                .containsSubsequence("오늘베스트 많은 가게", "오늘베스트 적은 가게")
+                .doesNotContain("오늘베스트 없는 가게");
+        assertThat(namesOutsideRange).doesNotContain("오늘베스트 많은 가게", "오늘베스트 적은 가게");
+    }
+
     private List<StoreRepository.GlobalWeeklyRankRow> findTrend(Store store, LocalDateTime rangeEnd) {
         return storeRepository.findGlobalWeeklyTrendLast6Weeks(
                 store.getId(),

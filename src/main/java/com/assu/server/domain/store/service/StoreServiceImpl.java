@@ -70,7 +70,9 @@ public class StoreServiceImpl implements StoreService {
     @Override
 	@Transactional
 	public TodayBestResponseDTO getTodayBestStore() {
-		List<String> bestStores = storeRepository.findTodayBestStoreNames();
+		LocalDate today = LocalDate.now(KST);
+		List<String> bestStores = storeRepository.findTodayBestStoreNames(
+			toStoredDateTime(today), toStoredDateTime(today.plusDays(1)));
 		return new TodayBestResponseDTO(bestStores);
 	}
 

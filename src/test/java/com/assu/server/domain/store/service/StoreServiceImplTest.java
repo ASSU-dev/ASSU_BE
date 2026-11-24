@@ -156,7 +156,7 @@ class StoreServiceImplTest {
 	@DisplayName("오늘의 베스트 매장 이름 목록을 그대로 반환한다")
 	void getTodayBestStore_ReturnsStoreNames() {
 		// 1. Given
-		when(storeRepository.findTodayBestStoreNames())
+		when(storeRepository.findTodayBestStoreNames(any(), any()))
 			.thenReturn(List.of("역전할머니 맥주", "숭실분식"));
 
 		// 2. When
@@ -165,7 +165,7 @@ class StoreServiceImplTest {
 		// 3. Then
 		assertNotNull(response);
 		assertEquals(List.of("역전할머니 맥주", "숭실분식"), response.bestStores());
-		verify(storeRepository, times(1)).findTodayBestStoreNames();
+		verify(storeRepository, times(1)).findTodayBestStoreNames(any(), any());
 	}
 
 	@Test
