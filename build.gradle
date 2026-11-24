@@ -1,8 +1,8 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.3'
+	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.7'
-	id 'org.hibernate.orm' version '6.6.18.Final'
+	id 'org.hibernate.orm' version '6.6.53.Final'
     id 'org.jetbrains.kotlin.jvm'
 }
 
@@ -12,6 +12,17 @@ version = '0.0.1-SNAPSHOT'
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+ext['tomcat.version'] = '10.1.62'
+ext['netty.version'] = '4.1.141.Final'
+ext['jackson-bom.version'] = '2.21.8'
+
+dependencyManagement {
+	dependencies {
+		dependency 'com.google.guava:guava:33.7.2-jre'
+		dependency 'com.google.protobuf:protobuf-java:4.31.0'
 	}
 }
 
@@ -71,7 +82,7 @@ dependencies {
 	implementation 'software.amazon.awssdk:s3'
 
 	// jsoup (crawl)
-	implementation 'org.jsoup:jsoup:1.21.1'
+	implementation 'org.jsoup:jsoup:1.23.2'
 
 	// lombok
 	compileOnly 'org.projectlombok:lombok'
@@ -84,7 +95,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// maria db
-	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
+	implementation 'org.mariadb.jdbc:mariadb-java-client:3.4.5'
 
 	// spring test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -105,7 +116,7 @@ dependencies {
 	implementation("org.locationtech.jts:jts-core:1.19.0")
 
 	// fcm
-	implementation 'com.squareup.okhttp3:okhttp:4.10.0'
+	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 	//implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.google.auth:google-auth-library-oauth2-http:1.18.0'
 	implementation 'com.google.firebase:firebase-admin:9.2.0'
