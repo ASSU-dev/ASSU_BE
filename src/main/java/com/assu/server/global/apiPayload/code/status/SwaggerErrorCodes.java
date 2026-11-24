@@ -32,6 +32,8 @@ public enum SwaggerErrorCodes {
     )),
     AUTH_PHONE_SEND_CODE(Set.of(
             ErrorStatus.EXISTED_PHONE,
+            ErrorStatus.PHONE_AUTH_SEND_COOLDOWN,
+            ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED,
             ErrorStatus.FAILED_TO_SEND_SMS,
             ErrorStatus.FAILED_TO_PARSE_ALIGO
     )),
