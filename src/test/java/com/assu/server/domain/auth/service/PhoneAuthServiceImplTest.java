@@ -8,11 +8,11 @@ import static org.mockito.Mockito.*;
 
 import java.time.Duration;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -27,11 +27,15 @@ import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import com.assu.server.infra.aligo.exception.AligoException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 @ExtendWith(MockitoExtension.class)
 class PhoneAuthServiceImplTest {
 
-	@InjectMocks
 	private PhoneAuthServiceImpl phoneAuthService;
+
+	private MeterRegistry meterRegistry;
 
 	@Mock
 	private StringRedisTemplate redisTemplate;
@@ -51,6 +55,14 @@ class PhoneAuthServiceImplTest {
 	private static final String PHONE = "01012345678";
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String MASTER_AUTH_NUMBER = "123456";
+	private static final String VERIFY_FAILURE_KEY = "phone-verify-fail:" + PHONE;
+
+	@BeforeEach
+	void setUp() {
+		meterRegistry = new SimpleMeterRegistry();
+		phoneAuthService = new PhoneAuthServiceImpl(
+			redisTemplate, aligoSmsClient, partnerRepository, adminRepository, meterRegistry);
+	}
 
 	private AligoSendResponse aligoResponse(String resultCode) {
 		AligoSendResponse response = new AligoSendResponse();
@@ -178,6 +190,45 @@ class PhoneAuthServiceImplTest {
 
 		// 3. Then
 		verify(redisTemplate, times(1)).delete(PHONE);
+		verify(redisTemplate, times(1)).delete(VERIFY_FAILURE_KEY);
+	}
+
+	@Test
+	@DisplayName("인증번호가 처음 틀리면 실패 횟수에 인증번호와 같은 5분 TTL을 건다")
+	void verifyAuthNumber_whenFirstMismatch_thenStartsFailureCount() {
+		// given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.get(PHONE)).thenReturn("654321");
+		when(valueOperations.increment(VERIFY_FAILURE_KEY)).thenReturn(1L);
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
+
+		// then
+		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
+		verify(redisTemplate).expire(VERIFY_FAILURE_KEY, Duration.ofMinutes(5));
+		verify(redisTemplate, never()).delete(anyString());
+	}
+
+	@Test
+	@DisplayName("인증번호를 5번 틀리면 저장된 인증번호를 폐기하고 PHONE_AUTH_ATTEMPTS_EXCEEDED 예외가 발생한다")
+	void verifyAuthNumber_whenFifthMismatch_thenDeletesCodeAndThrowsAttemptsExceeded() {
+		// given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.get(PHONE)).thenReturn("654321");
+		when(valueOperations.increment(VERIFY_FAILURE_KEY)).thenReturn(5L);
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
+
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED, exception.getCode());
+		verify(redisTemplate).delete(PHONE);
+		verify(redisTemplate).delete(VERIFY_FAILURE_KEY);
+		verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").count());
 	}
 
 	@Test

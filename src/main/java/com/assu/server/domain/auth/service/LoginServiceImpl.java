@@ -39,6 +39,7 @@ public class LoginServiceImpl implements LoginService {
     private final JwtUtil jwtUtil;
     private final StudentRepository studentRepository;
     private final MeterRegistry meterRegistry;
+    private final LoginAttemptLimiter loginAttemptLimiter;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
 
@@ -56,6 +57,8 @@ public class LoginServiceImpl implements LoginService {
      */
     @Override
     public LoginResponseDTO loginCommon(CommonLoginRequestDTO request) {
+        loginAttemptLimiter.checkAttempt(LoginAttemptLimiter.Policy.COMMON, request.email());
+
         Authentication authentication = authenticationManager.authenticate(
                 new LoginUsernamePasswordAuthenticationToken(
                         AuthRealm.COMMON,
@@ -63,6 +66,7 @@ public class LoginServiceImpl implements LoginService {
                         request.password()
                 )
         );
+        loginAttemptLimiter.reset(LoginAttemptLimiter.Policy.COMMON, request.email());
 
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
