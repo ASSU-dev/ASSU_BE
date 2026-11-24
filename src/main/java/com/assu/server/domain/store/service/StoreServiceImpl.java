@@ -1,6 +1,10 @@
 package com.assu.server.domain.store.service;
 
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +33,8 @@ public class StoreServiceImpl implements StoreService {
 	private final PartnershipUsageRepository partnershipUsageRepository;
     private final QRCertificationRepository qrCertificationRepository;
     private final AmazonS3Manager amazonS3Manager;
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     @Override
     @Transactional
@@ -77,7 +83,9 @@ public class StoreServiceImpl implements StoreService {
                 .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
         Long storeId = store.getId();
 
-        List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyRankForStore(storeId);
+        LocalDate weekStart = currentWeekStart();
+        List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyRankForStore(
+                storeId, toStoredDateTime(weekStart), toStoredDateTime(weekStart.plusWeeks(1)));
         if (rows.isEmpty()) {
             // 데이터가 없을 때 기본값 반환(필요 시 예외로 변경)
             return new StoreResponseDTO.WeeklyRankResponseDTO(null, 0L);
@@ -94,7 +102,16 @@ public class StoreServiceImpl implements StoreService {
                 .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
         Long storeId = store.getId();
 
-        List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyTrendLast6Weeks(storeId);
+        LocalDate oldestWeekStart = currentWeekStart().minusWeeks(5);
+        List<StoreRepository.GlobalWeeklyRankRow> rows = storeRepository.findGlobalWeeklyTrendLast6Weeks(
+                storeId,
+                toStoredDateTime(oldestWeekStart),
+                toStoredDateTime(oldestWeekStart.plusWeeks(1)),
+                toStoredDateTime(oldestWeekStart.plusWeeks(2)),
+                toStoredDateTime(oldestWeekStart.plusWeeks(3)),
+                toStoredDateTime(oldestWeekStart.plusWeeks(4)),
+                toStoredDateTime(oldestWeekStart.plusWeeks(5)),
+                toStoredDateTime(oldestWeekStart.plusWeeks(6)));
 
         String storeName = rows.isEmpty() ? null : rows.get(0).getStoreName();
         return StoreConverter.listWeeklyRankResponseDTO(storeId, storeName, rows);
@@ -114,5 +131,14 @@ public class StoreServiceImpl implements StoreService {
                 .collect(Collectors.toList());
 
         return new StoreResponseDTO.StampRankingListDTO(rankings);
+    }
+
+    private static LocalDate currentWeekStart() {
+        return LocalDate.now(KST).with(DayOfWeek.MONDAY);
+    }
+
+    // created_at은 JVM 기본 시간대의 LocalDateTime으로 기록되므로, KST 자정을 같은 기준의 값으로 바꿔 비교한다
+    private static LocalDateTime toStoredDateTime(LocalDate kstDate) {
+        return kstDate.atStartOfDay(KST).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
     }
 }
