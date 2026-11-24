@@ -34,6 +34,7 @@ public enum SwaggerErrorCodes {
             ErrorStatus.EXISTED_PHONE,
             ErrorStatus.PHONE_AUTH_SEND_COOLDOWN,
             ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.FAILED_TO_SEND_SMS,
             ErrorStatus.FAILED_TO_PARSE_ALIGO
     )),
@@ -68,6 +69,7 @@ public enum SwaggerErrorCodes {
     )),
     AUTH_LOGIN_COMMON(Set.of(
             ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.MEMBER_PENDING_APPROVAL,
             ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN,
             ErrorStatus.AUTHORIZATION_EXCEPTION
@@ -102,6 +104,7 @@ public enum SwaggerErrorCodes {
     )),
     BACKOFFICE_AUTH_LOGIN(Set.of(
             ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.NO_BACKOFFICE_TYPE,
             ErrorStatus.AUTHORIZATION_EXCEPTION
     )),
