@@ -56,6 +56,8 @@ class PhoneAuthServiceImplTest {
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String MASTER_AUTH_NUMBER = "123456";
 	private static final String VERIFY_FAILURE_KEY = "phone-verify-fail:" + PHONE;
+	private static final String SEND_COOLDOWN_KEY = "phone-send-cooldown:" + PHONE;
+	private static final String SEND_COUNT_KEY = "phone-send-count:" + PHONE;
 
 	@BeforeEach
 	void setUp() {
@@ -92,6 +94,7 @@ class PhoneAuthServiceImplTest {
 		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent("phone-send-cooldown:" + PHONE, "1", Duration.ofSeconds(60))).thenReturn(true);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// 2. When
@@ -107,6 +110,61 @@ class PhoneAuthServiceImplTest {
 
 		verify(aligoSmsClient).sendSms(eq(PHONE), eq("[ASSU] 인증번호: " + authNumber), anyString());
 		verify(redisTemplate, never()).delete(PHONE);
+		verify(redisTemplate, never()).delete(SEND_COOLDOWN_KEY);
+		verify(redisTemplate).delete(VERIFY_FAILURE_KEY);
+	}
+
+	@Test
+	@DisplayName("첫 발송에 성공하면 발송 횟수를 세고 24시간 TTL을 건다")
+	void checkAndSendAuthNumber_whenFirstSendSucceeds_thenCountsSendWithDailyWindow() {
+		// given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent(SEND_COOLDOWN_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+		when(valueOperations.increment(SEND_COUNT_KEY)).thenReturn(1L);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
+
+		// when
+		phoneAuthService.checkAndSendAuthNumber(PHONE);
+
+		// then
+		verify(redisTemplate).expire(SEND_COUNT_KEY, Duration.ofHours(24));
+	}
+
+	@Test
+	@DisplayName("60초 안에 다시 요청하면 SMS를 보내지 않고 PHONE_AUTH_SEND_COOLDOWN 예외가 발생한다")
+	void checkAndSendAuthNumber_whenWithinCooldown_thenThrowsWithoutSending() {
+		// given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent(SEND_COOLDOWN_KEY, "1", Duration.ofSeconds(60))).thenReturn(false);
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_SEND_COOLDOWN, exception.getCode());
+		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
+		verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "cooldown").count());
+	}
+
+	@Test
+	@DisplayName("24시간 동안 10번 발송한 번호는 SMS를 보내지 않고 PHONE_AUTH_SEND_LIMIT_EXCEEDED 예외가 발생한다")
+	void checkAndSendAuthNumber_whenSendLimitReached_thenThrowsWithoutSending() {
+		// given
+		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent(SEND_COOLDOWN_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+		when(valueOperations.get(SEND_COUNT_KEY)).thenReturn("10");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED, exception.getCode());
+		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
+		verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "send-limit").count());
 	}
 
 	@Test
@@ -116,6 +174,7 @@ class PhoneAuthServiceImplTest {
 		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent("phone-send-cooldown:" + PHONE, "1", Duration.ofSeconds(60))).thenReturn(true);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("-101"));
 
 		// 2. When
@@ -125,6 +184,8 @@ class PhoneAuthServiceImplTest {
 		// 3. Then
 		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
 		verify(redisTemplate, times(1)).delete(PHONE);
+		verify(redisTemplate, times(1)).delete(SEND_COOLDOWN_KEY);
+		verify(valueOperations, never()).increment(anyString());
 	}
 
 	@Test
@@ -134,6 +195,7 @@ class PhoneAuthServiceImplTest {
 		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent("phone-send-cooldown:" + PHONE, "1", Duration.ofSeconds(60))).thenReturn(true);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
 			.thenThrow(new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO));
 
@@ -144,6 +206,8 @@ class PhoneAuthServiceImplTest {
 		// 3. Then
 		assertEquals(ErrorStatus.FAILED_TO_PARSE_ALIGO, exception.getCode());
 		verify(redisTemplate, times(1)).delete(PHONE);
+		verify(redisTemplate, times(1)).delete(SEND_COOLDOWN_KEY);
+		verify(valueOperations, never()).increment(anyString());
 	}
 
 	@Test
@@ -295,6 +359,7 @@ class PhoneAuthServiceImplTest {
 		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
 		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		when(valueOperations.setIfAbsent("phone-send-cooldown:" + MASTER_PHONE, "1", Duration.ofSeconds(60))).thenReturn(true);
 		when(aligoSmsClient.sendSms(eq(MASTER_PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// 2. When

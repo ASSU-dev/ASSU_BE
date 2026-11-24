@@ -33,6 +33,11 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final String VERIFIED_KEY_PREFIX = "phone-verified:";
     private static final int MAX_VERIFY_FAILURES = 5;
     private static final String VERIFY_FAILURE_KEY_PREFIX = "phone-verify-fail:";
+    private static final Duration SEND_COOLDOWN = Duration.ofSeconds(60);
+    private static final String SEND_COOLDOWN_KEY_PREFIX = "phone-send-cooldown:";
+    private static final int MAX_SENDS_PER_WINDOW = 10;
+    private static final Duration SEND_COUNT_WINDOW = Duration.ofHours(24);
+    private static final String SEND_COUNT_KEY_PREFIX = "phone-send-count:";
 
     // iOS 앱스토어 심사(해외 번호)용 마스터 번호 - 알리고가 국내 번호만 지원해 SMS 수신이 불가능한 심사 환경 우회용
     private static final String MASTER_PHONE_NUMBER = "01000000000";
@@ -49,8 +54,27 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         }
         assertPhoneNotInUse(phoneNumber);
 
+        ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
+        String cooldownKey = SEND_COOLDOWN_KEY_PREFIX + phoneNumber;
+        String sendCountKey = SEND_COUNT_KEY_PREFIX + phoneNumber;
+
+        // SET NX로 선점하므로 동시 요청 중 하나만 발송까지 진행한다
+        if (!Boolean.TRUE.equals(valueOps.setIfAbsent(cooldownKey, "1", SEND_COOLDOWN))) {
+            rejectSend("cooldown", ErrorStatus.PHONE_AUTH_SEND_COOLDOWN);
+        }
+
+        String sendCount = valueOps.get(sendCountKey);
+        if (sendCount != null && Long.parseLong(sendCount) >= MAX_SENDS_PER_WINDOW) {
+            // INCR 직후 EXPIRE가 유실되어 TTL이 없는 키는 영구 차단이 되므로 여기서 복구한다
+            Long ttlSeconds = redisTemplate.getExpire(sendCountKey);
+            if (ttlSeconds != null && ttlSeconds == -1) {
+                redisTemplate.expire(sendCountKey, SEND_COUNT_WINDOW);
+            }
+            rejectSend("send-limit", ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED);
+        }
+
         String authNumber = RandomNumberUtil.generateSixDigit();
-        redisTemplate.opsForValue().set(phoneNumber, authNumber, AUTH_CODE_TTL);
+        valueOps.set(phoneNumber, authNumber, AUTH_CODE_TTL);
         redisTemplate.delete(VERIFY_FAILURE_KEY_PREFIX + phoneNumber);
 
         String message = "[ASSU] 인증번호: " + authNumber;
@@ -59,15 +83,31 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         try {
             response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
         } catch (AligoException e) {
-            redisTemplate.delete(phoneNumber);
+            discardFailedSend(phoneNumber);
             throw e;
         }
 
         // 실패 처리
         if (!"1".equals(response.getResult_code())) {
-            redisTemplate.delete(phoneNumber);
+            discardFailedSend(phoneNumber);
             throw new CustomAuthException(ErrorStatus.FAILED_TO_SEND_SMS);
         }
+
+        // 실제로 발송된 건만 세어, 발송 실패가 사용자의 발송 한도를 깎지 않게 한다
+        Long sends = valueOps.increment(sendCountKey);
+        if (sends != null && sends == 1) {
+            redisTemplate.expire(sendCountKey, SEND_COUNT_WINDOW);
+        }
+    }
+
+    private void rejectSend(String reason, ErrorStatus errorStatus) {
+        meterRegistry.counter("auth.phone.blocked", "reason", reason).increment();
+        throw new CustomAuthException(errorStatus);
+    }
+
+    private void discardFailedSend(String phoneNumber) {
+        redisTemplate.delete(phoneNumber);
+        redisTemplate.delete(SEND_COOLDOWN_KEY_PREFIX + phoneNumber);
     }
 
     @Override
