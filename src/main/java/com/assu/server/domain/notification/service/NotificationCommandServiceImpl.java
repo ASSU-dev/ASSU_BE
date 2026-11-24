@@ -4,7 +4,6 @@ package com.assu.server.domain.notification.service;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
-import com.assu.server.domain.notification.dto.QueueNotificationRequestDTO;
 import com.assu.server.domain.notification.entity.*;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
 import com.assu.server.domain.notification.repository.NotificationRepository;
@@ -126,69 +125,6 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     @Override
     public void sendStamp(Long receiverId) {
         sendIfEnabled(receiverId, NotificationType.STAMP, null, Map.of());
-    }
-
-    @Override
-    public void queue(QueueNotificationRequestDTO req) {
-        System.out.println("Queue called with type: " + req.type() + ", receiverId: " + req.receiverId());
-        
-        if (req.type() == null) {
-            throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
-        }
-        if (req.receiverId() == null) {
-            throw new DatabaseException(ErrorStatus.MISSING_NOTIFICATION_FIELD);
-        }
-
-        final NotificationType type;
-        try {
-            type = NotificationType.valueOf(req.type().toUpperCase(Locale.ROOT));
-            System.out.println("Parsed type: " + type);
-        } catch (IllegalArgumentException e) {
-            throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
-        }
-
-        final Long receiverId = req.receiverId();
-
-        switch (type) {
-            case CHAT -> {
-                Long roomId = (req.refId() != null) ? req.refId() : req.roomId();
-                if (roomId == null || req.senderName() == null || req.message() == null) {
-                    throw new DatabaseException(ErrorStatus.MISSING_NOTIFICATION_FIELD);
-                }
-                sendChat(receiverId, roomId, req.senderName(), req.message());
-            }
-
-            case PARTNER_SUGGESTION -> {
-                Long suggestionId = (req.refId() != null) ? req.refId() : req.suggestionId();
-                if (suggestionId == null) {
-                    throw new DatabaseException(ErrorStatus.MISSING_NOTIFICATION_FIELD);
-                }
-                sendPartnerSuggestion(receiverId, suggestionId);
-            }
-
-            case ORDER -> {
-                Long orderId = (req.refId() != null) ? req.refId() : req.orderId();
-                if (orderId == null || req.table_num() == null || req.paper_content() == null) {
-                    throw new DatabaseException(ErrorStatus.MISSING_NOTIFICATION_FIELD);
-                }
-                sendOrder(receiverId, orderId, req.table_num(), req.paper_content());
-            }
-
-            case PARTNER_PROPOSAL -> {
-                Long proposalId = (req.refId() != null) ? req.refId() : req.proposalId();
-                if (proposalId == null || req.partner_name() == null) {
-                    throw new DatabaseException(ErrorStatus.MISSING_NOTIFICATION_FIELD);
-                }
-                sendPartnerProposal(receiverId, proposalId, req.partner_name());
-            }
-
-            case STAMP -> {
-                System.out.println("Calling sendStamp for receiverId: " + receiverId);
-                sendStamp(receiverId);
-            }
-
-            default -> throw new DatabaseException(ErrorStatus.INVALID_NOTIFICATION_TYPE);
-        }
     }
 
     // Helper methods
