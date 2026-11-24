@@ -42,6 +42,7 @@ public enum ErrorStatus implements BaseErrorCode {
     PHONE_AUTH_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4291", "인증번호 입력 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."),
     PHONE_AUTH_SEND_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "AUTH4292", "인증번호는 1분에 한 번만 요청할 수 있습니다. 잠시 후 다시 시도해주세요."),
     PHONE_AUTH_SEND_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4293", "인증번호 요청 횟수를 초과했습니다. 24시간 후 다시 시도해주세요."),
+    AUTH_REQUESTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4294", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     //페이징 에러
     PAGE_UNDER_ONE(HttpStatus.BAD_REQUEST,"PAGE_4001","페이지는 1이상이여야 합니다."),
