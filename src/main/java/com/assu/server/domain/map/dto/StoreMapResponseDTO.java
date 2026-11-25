@@ -3,7 +3,8 @@ package com.assu.server.domain.map.dto;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.entity.enums.LinkType;
 import com.assu.server.domain.store.entity.enums.StoreCategory;
-import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -30,7 +31,7 @@ public record StoreMapResponseDTO(
         @Schema(description = "가게 경도", example = "126.96")
         @NotNull Double longitude,
 
-        @Schema(description = "가게 프로필 Url", example = "https://www.beer.co.kr")
+        @Schema(description = "가게 프로필 이미지 URL (256px WebP, 서명된 CDN URL)", example = "https://img.assu.site/fit-in/256x256/filters:format(webp):quality(80)/public/store-profiles/3f2a9c1e.png?signature=9b1c...")
         String profileUrl,
 
         @Schema(description = "가게 전화번호", example = "010-1234-5678")
@@ -54,13 +55,12 @@ public record StoreMapResponseDTO(
     public static StoreMapResponseDTO ofWithPartnerships(
             Store store,
             List<PartnershipInfo> partnerships,
-            AmazonS3Manager s3Manager
+            ImageCdnManager imageCdnManager
     ) {
         final boolean hasPartner = store.getPartner() != null;
         final String key = (store.getPartner() != null && store.getPartner().getMember() != null)
                 ? store.getPartner().getMember().getProfileUrl() : null;
-        final String profileUrl = (key != null && !key.isBlank())
-                ? s3Manager.generatePresignedUrl(key) : null;
+        final String profileUrl = imageCdnManager.generateUrl(key, ImageSize.THUMBNAIL);
         final String phoneNumber = (store.getPartner() != null
                 && store.getPartner().getPhoneNum() != null)
                 ? store.getPartner().getPhoneNum() : "";

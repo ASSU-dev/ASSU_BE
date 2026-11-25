@@ -33,6 +33,7 @@ import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
 
 @ExtendWith(MockitoExtension.class)
 class MapServiceImplTest {
@@ -57,6 +58,9 @@ class MapServiceImplTest {
 
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
+
+	@Mock
+	private ImageCdnManager imageCdnManager;
 
 	@Mock
 	private UserPaperRepository userPaperRepository;

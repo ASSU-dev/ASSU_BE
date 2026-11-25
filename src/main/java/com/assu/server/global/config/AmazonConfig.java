@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudfront.CloudFrontClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
@@ -47,6 +48,14 @@ public class AmazonConfig {
                 .region(Region.of(region))
                 .credentialsProvider(awsCredentialsProvider())
                 .endpointOverride(URI.create("https://s3." + region + ".amazonaws.com"))
+                .build();
+    }
+
+    @Bean
+    public CloudFrontClient cloudFrontClient() {
+        return CloudFrontClient.builder()
+                .region(Region.AWS_GLOBAL)
+                .credentialsProvider(awsCredentialsProvider())
                 .build();
     }
 }
