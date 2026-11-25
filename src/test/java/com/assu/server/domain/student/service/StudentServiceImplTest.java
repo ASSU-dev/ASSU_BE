@@ -43,7 +43,8 @@ import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.discord.DiscordNotifier;
-import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 import org.springframework.transaction.support.TransactionTemplate;
 import jakarta.persistence.EntityManager;
 
@@ -89,7 +90,7 @@ class StudentServiceImplTest {
 	private DiscordNotifier discordNotifier;
 
 	@Mock
-	private AmazonS3Manager amazonS3Manager;
+	private ImageCdnManager imageCdnManager;
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
@@ -367,20 +368,20 @@ class StudentServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("파트너 프로필 이미지가 있으면 getUsablePartnership은 presigned URL을 반환한다")
-	void getUsablePartnership_WithPartnerProfileUrl_ReturnsPresignedUrl() {
+	@DisplayName("파트너 프로필 이미지가 있으면 getUsablePartnership은 썸네일(THUMBNAIL) 이미지 URL을 반환한다")
+	void getUsablePartnership_WithPartnerProfileUrl_ReturnsThumbnailUrl() {
 		// given
 		UserPaper up = paperPartnerOnlyPartnership(100L, 1000L, "partners/42/profile.jpg");
 		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(List.of(up));
 		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
-		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+		when(imageCdnManager.generateUrl("partners/42/profile.jpg", ImageSize.THUMBNAIL)).thenReturn("https://cdn.url");
 
 		// when
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
 			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// then
-		assertEquals("https://presigned.url", result.get(0).getPartnerProfileUrl());
+		assertEquals("https://cdn.url", result.get(0).getPartnerProfileUrl());
 	}
 
 	@Test
@@ -397,7 +398,7 @@ class StudentServiceImplTest {
 
 		// then
 		assertNull(result.get(0).getPartnerProfileUrl());
-		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
+		verify(imageCdnManager, never()).generateUrl(anyString(), any());
 	}
 
 	// ===== getRecommendPartnership =====
@@ -481,20 +482,20 @@ class StudentServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("파트너 프로필 이미지가 있으면 getRecommendCarouselPartnership은 presigned URL을 반환한다")
-	void getRecommendCarouselPartnership_WithPartnerProfileUrl_ReturnsPresignedUrl() {
+	@DisplayName("파트너 프로필 이미지가 있으면 getRecommendCarouselPartnership은 썸네일(THUMBNAIL) 이미지 URL을 반환한다")
+	void getRecommendCarouselPartnership_WithPartnerProfileUrl_ReturnsThumbnailUrl() {
 		// given
 		UserPaper up = usablePartnershipWithPartner(100L, 1000L, "partners/42/profile.jpg");
 		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(up.getPaper().getStore()));
 		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
 		when(goodsRepository.findByContentIdIn(anyList())).thenReturn(List.of());
-		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+		when(imageCdnManager.generateUrl("partners/42/profile.jpg", ImageSize.THUMBNAIL)).thenReturn("https://cdn.url");
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
-		assertEquals("https://presigned.url", result.get(0).partnerProfileUrl());
+		assertEquals("https://cdn.url", result.get(0).partnerProfileUrl());
 	}
 
 	@Test
@@ -511,7 +512,7 @@ class StudentServiceImplTest {
 
 		// then
 		assertNull(result.get(0).partnerProfileUrl());
-		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
+		verify(imageCdnManager, never()).generateUrl(anyString(), any());
 	}
 
 	@Test

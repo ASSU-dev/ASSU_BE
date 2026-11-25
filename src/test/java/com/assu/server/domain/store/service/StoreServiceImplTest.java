@@ -27,7 +27,8 @@ import com.assu.server.domain.store.exception.CustomStoreException;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
-import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 
 @ExtendWith(MockitoExtension.class)
 class StoreServiceImplTest {
@@ -48,7 +49,7 @@ class StoreServiceImplTest {
 	private QRCertificationRepository qrCertificationRepository;
 
 	@Mock
-	private AmazonS3Manager amazonS3Manager;
+	private ImageCdnManager imageCdnManager;
 
 	private static final Long PARTNER_ID = 20L;
 	private static final Long STORE_ID = 500L;
@@ -70,8 +71,8 @@ class StoreServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("파트너와 프로필 이미지가 있으면 presigned URL을 반환한다")
-	void getStoreDetails_WithPartnerAndProfileUrl_ReturnsPresignedUrl() {
+	@DisplayName("파트너와 프로필 이미지가 있으면 상세용(LARGE) 이미지 URL을 반환한다")
+	void getStoreDetails_WithPartnerAndProfileUrl_ReturnsLargeImageUrl() {
 		// given
 		Member member = mock(Member.class);
 		when(member.getProfileUrl()).thenReturn("partners/42/profile.jpg");
@@ -86,7 +87,7 @@ class StoreServiceImplTest {
 			.partner(partner).build();
 
 		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
-		when(amazonS3Manager.generatePresignedUrl("partners/42/profile.jpg")).thenReturn("https://presigned.url");
+		when(imageCdnManager.generateUrl("partners/42/profile.jpg", ImageSize.LARGE)).thenReturn("https://cdn.url");
 
 		// when
 		StoreResponseDTO.GetStoreDetailsDTO result = storeService.getStoreDetails(STORE_ID);
@@ -102,7 +103,7 @@ class StoreServiceImplTest {
 		assertEquals(4, result.rate());
 		assertEquals("02-820-0114", result.phoneNumber());
 		assertTrue(result.hasPartner());
-		assertEquals("https://presigned.url", result.profileUrl());
+		assertEquals("https://cdn.url", result.profileUrl());
 	}
 
 	@Test
@@ -125,7 +126,7 @@ class StoreServiceImplTest {
 		// then
 		assertTrue(result.hasPartner());
 		assertNull(result.profileUrl());
-		verify(amazonS3Manager, never()).generatePresignedUrl(anyString());
+		verify(imageCdnManager, never()).generateUrl(anyString(), any());
 	}
 
 	@Test
