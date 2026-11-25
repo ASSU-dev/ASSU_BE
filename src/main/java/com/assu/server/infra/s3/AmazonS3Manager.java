@@ -137,6 +137,9 @@ public class AmazonS3Manager{
     }
 
     public String generateKeyName(String path, String extension) {
+        if (extension == null || extension.isBlank()) {
+            return generateKeyName(path);
+        }
         return path + '/' + UUID.randomUUID() + '.' + extension;
     }
 

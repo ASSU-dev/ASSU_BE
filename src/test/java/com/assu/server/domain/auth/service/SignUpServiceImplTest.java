@@ -369,7 +369,7 @@ class SignUpServiceImplTest {
 		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
 
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
-		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.generateKeyName("partners/1/license", "png")).thenReturn("key");
 		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
 
 		Partner partner = mock(Partner.class);
@@ -416,7 +416,7 @@ class SignUpServiceImplTest {
 		when(memberRepository.save(memberCaptor.capture())).thenReturn(savedMember);
 
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
-		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.generateKeyName("admins/1/sign", "png")).thenReturn("key");
 		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
 
 		MockMultipartFile signImage =
@@ -464,7 +464,7 @@ class SignUpServiceImplTest {
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
 		when(realmAuthAdapter.passwordEncoder()).thenReturn(passwordEncoder);
 		when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("hashed");
-		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.generateKeyName(anyString(), eq("png"))).thenReturn("key");
 		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
 		when(storeRepository.findBySameAddress(anyString(), any())).thenReturn(Optional.empty());
 
@@ -495,7 +495,7 @@ class SignUpServiceImplTest {
 		when(realmAuthAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
 		when(realmAuthAdapter.passwordEncoder()).thenReturn(passwordEncoder);
 		when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("hashed");
-		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("key");
+		when(amazonS3Manager.generateKeyName(anyString(), eq("png"))).thenReturn("key");
 		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("license-url");
 		return partner;
 	}
