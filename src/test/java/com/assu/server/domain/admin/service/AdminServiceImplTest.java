@@ -28,6 +28,8 @@ import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 
 @ExtendWith(MockitoExtension.class)
 class AdminServiceImplTest {
@@ -40,6 +42,9 @@ class AdminServiceImplTest {
 
 	@Mock
 	private PartnerRepository partnerRepository;
+
+	@Mock
+	private ImageCdnManager imageCdnManager;
 
 	@Test
 	@DisplayName("학적 정보로 매칭되는 관리자 조회 시 리포지토리에 그대로 위임한다")
@@ -119,7 +124,9 @@ class AdminServiceImplTest {
 		Admin admin = Admin.builder().id(adminId).isPhoneVerified(false).build();
 
 		Member partnerMember = mock(Member.class);
-		when(partnerMember.getProfileUrl()).thenReturn("https://assu-bucket.s3.amazonaws.com/profile.png");
+		when(partnerMember.getProfileUrl()).thenReturn("public/store-profiles/abc.png");
+		when(imageCdnManager.generateUrl("public/store-profiles/abc.png", ImageSize.THUMBNAIL))
+			.thenReturn("https://img.assu.site/fit-in/256x256/filters:format(webp):quality(80)/public/store-profiles/abc.png?signature=sig");
 
 		Partner partner = Partner.builder()
 			.id(101L)
@@ -144,7 +151,8 @@ class AdminServiceImplTest {
 		assertEquals("역전할머니 맥주 숭실대점", response.partnerName());
 		assertEquals("서울특별시 동작구", response.partnerAddress());
 		assertEquals("2층 201호", response.partnerDetailAddress());
-		assertEquals("https://assu-bucket.s3.amazonaws.com/profile.png", response.partnerUrl());
+		assertEquals("https://img.assu.site/fit-in/256x256/filters:format(webp):quality(80)/public/store-profiles/abc.png?signature=sig",
+			response.partnerUrl());
 		assertEquals("02-123-4567", response.partnerPhone());
 	}
 

@@ -10,6 +10,7 @@ import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.infra.s3.ImageCdnManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ public class AdminServiceImpl implements AdminService {
 
     private final AdminRepository adminRepository;
     private final PartnerRepository partnerRepository;
+    private final ImageCdnManager imageCdnManager;
 
     @Override
     @Transactional
@@ -55,6 +57,6 @@ public class AdminServiceImpl implements AdminService {
 
         Partner picked = pickedList.get(0);
 
-        return AdminResponseDTO.from(picked);
+        return AdminResponseDTO.of(picked, imageCdnManager);
     }
 }

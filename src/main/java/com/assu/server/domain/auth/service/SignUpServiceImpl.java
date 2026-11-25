@@ -305,8 +305,8 @@ public class SignUpServiceImpl implements SignUpService {
     }
 
     private String uploadPartnerLicense(Long memberId, MultipartFile licenseImage) {
-        String keyPath = "partners/" + memberId + "/" + licenseImage.getOriginalFilename();
-        String keyName = amazonS3Manager.generateKeyName(keyPath);
+        String keyName = amazonS3Manager.generateKeyName(
+                "partners/" + memberId + "/license", getFileExtension(licenseImage.getOriginalFilename()));
         return amazonS3Manager.uploadFile(keyName, licenseImage);
     }
 
@@ -487,9 +487,21 @@ public class SignUpServiceImpl implements SignUpService {
     }
 
     private String uploadAdminSign(Long memberId, MultipartFile signImage) {
-        String keyPath = "admins/" + memberId + "/" + signImage.getOriginalFilename();
-        String keyName = amazonS3Manager.generateKeyName(keyPath);
+        String keyName = amazonS3Manager.generateKeyName(
+                "admins/" + memberId + "/sign", getFileExtension(signImage.getOriginalFilename()));
         return amazonS3Manager.uploadFile(keyName, signImage);
+    }
+
+    private String getFileExtension(String filename) {
+        if (filename == null) {
+            return "";
+        }
+        int lastDot = filename.lastIndexOf('.');
+        if (lastDot == -1) {
+            return "";
+        }
+        String extension = filename.substring(lastDot + 1).toLowerCase();
+        return extension.matches("[a-z0-9]{1,5}") ? extension : "";
     }
 
     private EnrollmentStatus parseEnrollmentStatus(String status) {

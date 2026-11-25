@@ -3,6 +3,7 @@ package com.assu.server.domain.member.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
@@ -16,10 +17,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileImageServiceImplTest {
@@ -32,6 +35,9 @@ class ProfileImageServiceImplTest {
 
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
+
+	@Mock
+	private ImageCdnManager imageCdnManager;
 
 	private static final Long MEMBER_ID = 1L;
 
@@ -136,10 +142,11 @@ class ProfileImageServiceImplTest {
 		// 1. Given
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
 		when(member.getProfileUrl()).thenReturn("members/1/profile/old.png");
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
 
-		when(amazonS3Manager.generateKeyName(anyString())).thenReturn("members/1/profile/new-key.png");
+		when(amazonS3Manager.generateKeyName("members/1/profile", "png")).thenReturn("members/1/profile/new-key.png");
 		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("members/1/profile/new-key.png");
 
 		// 2. When
@@ -148,7 +155,28 @@ class ProfileImageServiceImplTest {
 		// 3. Then
 		assertEquals("members/1/profile/new-key.png", result);
 		verify(amazonS3Manager, times(1)).deleteFile("members/1/profile/old.png");
+		verify(imageCdnManager, times(1)).invalidate("members/1/profile/old.png");
 		verify(member, times(1)).setProfileUrl("members/1/profile/new-key.png");
+	}
+
+	@Test
+	@DisplayName("제휴업체가 프로필 이미지를 올리면 원본 파일명 없이 CDN 공개 경로에 저장한다")
+	void updateProfileImage_Partner_UploadsToPublicStoreProfilePath() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getRole()).thenReturn(UserRole.PARTNER);
+		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+
+		when(amazonS3Manager.generateKeyName("public/store-profiles", "png")).thenReturn("public/store-profiles/new-key.png");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("public/store-profiles/new-key.png");
+
+		// 2. When
+		String result = profileImageService.updateProfileImage(MEMBER_ID, validImage());
+
+		// 3. Then
+		assertEquals("public/store-profiles/new-key.png", result);
+		verify(amazonS3Manager, times(1)).uploadFile(eq("public/store-profiles/new-key.png"), any());
+		verify(member, times(1)).setProfileUrl("public/store-profiles/new-key.png");
 	}
 
 	// ===== getProfileImageUrl =====
@@ -219,6 +247,7 @@ class ProfileImageServiceImplTest {
 
 		// 3. Then
 		verify(amazonS3Manager, times(1)).deleteFile("members/1/profile/key.png");
+		verify(imageCdnManager, times(1)).invalidate("members/1/profile/key.png");
 		verify(member, times(1)).setProfileUrl(null);
 	}
 }

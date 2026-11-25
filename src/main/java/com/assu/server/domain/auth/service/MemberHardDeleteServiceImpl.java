@@ -24,6 +24,7 @@ import com.assu.server.domain.student.repository.StampEventApplicantRepository;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,7 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
     private final SuggestionRepository suggestionRepository;
     private final StampEventApplicantRepository stampEventApplicantRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final ImageCdnManager imageCdnManager;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -121,6 +123,7 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
                 for (String key : s3Keys) {
                     try {
                         amazonS3Manager.deleteFile(key);
+                        imageCdnManager.invalidate(key);
                     } catch (RuntimeException e) {
                         log.warn("하드 삭제 후 S3 파일 삭제 실패: memberId={}, key={}", memberId, key, e);
                     }

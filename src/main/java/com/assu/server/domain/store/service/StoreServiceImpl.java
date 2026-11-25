@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.store.exception.CustomStoreException;
-import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 import org.springframework.stereotype.Service;
 import com.assu.server.domain.store.dto.StoreResponseDTO;
 import com.assu.server.domain.store.dto.TodayBestResponseDTO;
@@ -28,7 +29,7 @@ public class StoreServiceImpl implements StoreService {
     private final PartnerRepository partnerRepository;
 	private final PartnershipUsageRepository partnershipUsageRepository;
     private final QRCertificationRepository qrCertificationRepository;
-    private final AmazonS3Manager amazonS3Manager;
+    private final ImageCdnManager imageCdnManager;
 
     @Override
     @Transactional
@@ -37,13 +38,9 @@ public class StoreServiceImpl implements StoreService {
                 .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
 
         Partner partner = store.getPartner();
-        String profileUrl = null;
-        if (partner != null && partner.getMember() != null) {
-            String key = partner.getMember().getProfileUrl();
-            if (key != null && !key.isBlank()) {
-                profileUrl = amazonS3Manager.generatePresignedUrl(key);
-            }
-        }
+        String profileUrl = (partner != null && partner.getMember() != null)
+                ? imageCdnManager.generateUrl(partner.getMember().getProfileUrl(), ImageSize.LARGE)
+                : null;
 
         return new StoreResponseDTO.GetStoreDetailsDTO(
                 store.getId(),
