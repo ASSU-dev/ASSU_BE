@@ -55,7 +55,7 @@ class LoginAttemptLimiterTest {
 	@DisplayName("일반 계정은 정규화한 이메일 키로 15분 창·5회·15분 차단을 한 번의 스크립트로 센다")
 	void checkAttempt_whenCommonAccountWithinLimit_thenPassesWithCommonPolicy() {
 		// given
-		when(commonAuthRepository.findRoleByEmail(" User@ASSU.com ")).thenReturn(Optional.of(UserRole.PARTNER));
+		when(commonAuthRepository.findRoleByEmail("user@assu.com")).thenReturn(Optional.of(UserRole.PARTNER));
 		when(redisTemplate.execute(any(RedisScript.class), eq(KEY), eq("900"), eq("5"), eq("900"))).thenReturn(5L);
 
 		// when & then
@@ -71,6 +71,18 @@ class LoginAttemptLimiterTest {
 
 		// when & then
 		assertDoesNotThrow(() -> loginAttemptLimiter.checkAttempt("user@assu.com"));
+	}
+
+	@Test
+	@DisplayName("백오피스 계정을 대소문자·공백을 바꾼 표기로 시도해도 같은 키에 30분 차단을 적용한다")
+	void checkAttempt_whenBackofficeEmailInDifferentNotation_thenSameKeyAndBackofficePolicy() {
+		// given
+		when(commonAuthRepository.findRoleByEmail("user@assu.com")).thenReturn(Optional.of(UserRole.BACKOFFICE));
+		when(redisTemplate.execute(any(RedisScript.class), eq(KEY), eq("900"), eq("5"), eq("1800"))).thenReturn(5L);
+
+		// when & then
+		assertDoesNotThrow(() -> loginAttemptLimiter.checkAttempt("  USER@Assu.COM "));
+		verify(commonAuthRepository).findRoleByEmail("user@assu.com");
 	}
 
 	@Test

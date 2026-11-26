@@ -54,8 +54,9 @@ public class LoginAttemptLimiter {
 
     // 확인 후 증가 방식은 동시 요청이 한도를 넘겨 통과하므로, 시도를 먼저 세고 인증에 성공하면 reset으로 지운다
     public void checkAttempt(String identifier) {
-        Policy policy = resolvePolicy(identifier);
-        if (!exceedsLimit(policy, identifier)) {
+        String account = normalize(identifier);
+        Policy policy = resolvePolicy(account);
+        if (!exceedsLimit(policy, account)) {
             return;
         }
         meterRegistry.counter("auth.login.blocked", "realm", policy.realm).increment();
@@ -65,7 +66,7 @@ public class LoginAttemptLimiter {
 
     public void reset(String identifier) {
         try {
-            redisTemplate.delete(key(identifier));
+            redisTemplate.delete(KEY_PREFIX + normalize(identifier));
         } catch (RuntimeException exception) {
             log.warn("Redis 로그인 시도 횟수 초기화 실패", exception);
             meterRegistry.counter("auth.login.limit.failopen").increment();
@@ -73,16 +74,17 @@ public class LoginAttemptLimiter {
     }
 
     // 차단 시간을 요청 경로가 아니라 계정 역할로 정해, 공통 로그인 경로로 백오피스 계정을 대입해도 30분 차단이 적용되게 한다
-    private Policy resolvePolicy(String identifier) {
-        return commonAuthRepository.findRoleByEmail(identifier)
+    // 카운터 키와 같은 정규화 값으로 조회한다. email 컬럼은 대소문자를 구분하지 않는 콜레이션이라 저장된 표기와 무관하게 찾는다
+    private Policy resolvePolicy(String account) {
+        return commonAuthRepository.findRoleByEmail(account)
                 .filter(role -> role == UserRole.BACKOFFICE)
                 .map(role -> Policy.BACKOFFICE)
                 .orElse(Policy.COMMON);
     }
 
-    private boolean exceedsLimit(Policy policy, String identifier) {
+    private boolean exceedsLimit(Policy policy, String account) {
         try {
-            Long attempts = redisTemplate.execute(COUNT_ATTEMPT_SCRIPT, List.of(key(identifier)),
+            Long attempts = redisTemplate.execute(COUNT_ATTEMPT_SCRIPT, List.of(KEY_PREFIX + account),
                     String.valueOf(policy.failureWindow.toSeconds()),
                     String.valueOf(policy.maxFailures),
                     String.valueOf(policy.blockDuration.toSeconds()));
@@ -99,8 +101,8 @@ public class LoginAttemptLimiter {
         meterRegistry.counter("auth.login.limit.failopen").increment();
     }
 
-    // 로그인 경로를 번갈아 써서 한도를 늘릴 수 없도록 계정 하나에 카운터 하나만 둔다
-    private String key(String identifier) {
-        return KEY_PREFIX + identifier.trim().toLowerCase(Locale.ROOT);
+    // 로그인 경로나 이메일 표기를 바꿔 한도를 늘릴 수 없도록 계정 하나에 카운터 하나만 둔다
+    private static String normalize(String identifier) {
+        return identifier.trim().toLowerCase(Locale.ROOT);
     }
 }
