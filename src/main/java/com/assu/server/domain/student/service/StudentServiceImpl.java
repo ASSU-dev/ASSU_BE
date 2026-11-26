@@ -82,7 +82,7 @@ public class StudentServiceImpl implements StudentService {
 	private final EntityManager entityManager;
 	private final DiscordNotifier discordNotifier;
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
@@ -133,7 +133,7 @@ public class StudentServiceImpl implements StudentService {
 
 
 	@Override
-	@Transactional
+	@Transactional(readOnly = true)
 	public Page<StudentResponseDTO.UsageDetail> getUnreviewedUsage(Long memberId, Pageable pageable) {
 		// 프론트에서 1-based 페이지를 보낸 경우 0-based 로 보정
 		pageable = PageRequest.of(

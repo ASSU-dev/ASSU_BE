@@ -28,8 +28,5 @@ public class ReviewPhoto extends BaseEntity {
 	@JoinColumn(name = "key_name") // S3 키 이름 저장 (조회 시 새 URL 생성용)
 	private String keyName;
 
-	public void updatePhotoUrl(String newPhotoUrl) {
-		this.photoUrl = newPhotoUrl; //일시적 저장
-	}
 
 }

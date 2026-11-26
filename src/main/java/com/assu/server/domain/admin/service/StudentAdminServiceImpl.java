@@ -9,7 +9,7 @@ import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class StudentAdminServiceImpl implements StudentAdminService {
     private final StudentAdminRepository studentAdminRepository;
@@ -28,7 +28,6 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     private final PaperRepository paperRepository;
 
     @Override
-    @Transactional
     public StudentAdminResponseDTO.CountAdminAuthResponseDTO getCountAdminAuth(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
         Long total = studentAdminRepository.countAllByAdminId(memberId);
@@ -37,7 +36,6 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     }
 
     @Override
-    @Transactional
     public StudentAdminResponseDTO.NewCountAdminResponseDTO getNewStudentCountAdmin(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
@@ -49,7 +47,6 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     }
 
     @Override
-    @Transactional
     public StudentAdminResponseDTO.CountUsagePersonResponseDTO getCountUsagePerson(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
@@ -62,7 +59,6 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     }
 
     @Override
-    @Transactional
     public StudentAdminResponseDTO.CountUsageResponseDTO getCountUsage(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
@@ -82,7 +78,6 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     }
 
     @Override
-    @Transactional
     public StudentAdminResponseDTO.CountUsageListResponseDTO getCountUsageList(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 

@@ -14,7 +14,6 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +27,6 @@ public class ReportStatusSyncService {
     private final StudentRepository studentRepository;
 
     @EventListener
-    @Async
     @Transactional
     public void handleReportProcessed(ReportProcessedEvent event) {
         log.info("신고 처리 이벤트 수신: Report ID: {}, Target Type: {}, Target ID: {}, Status: {}",

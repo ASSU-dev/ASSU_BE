@@ -17,7 +17,7 @@ import com.assu.server.domain.store.dto.TodayBestResponseDTO;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.certification.repository.QRCertificationRepository;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
@@ -28,6 +28,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class StoreServiceImpl implements StoreService {
     private final StoreRepository storeRepository;
     private final PartnerRepository partnerRepository;
@@ -38,7 +39,6 @@ public class StoreServiceImpl implements StoreService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     @Override
-    @Transactional
     public StoreResponseDTO.GetStoreDetailsDTO getStoreDetails(Long storeId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new CustomStoreException(ErrorStatus.NO_SUCH_STORE));
@@ -65,7 +65,6 @@ public class StoreServiceImpl implements StoreService {
     }
 
     @Override
-	@Transactional
 	public TodayBestResponseDTO getTodayBestStore() {
 		LocalDate today = LocalDate.now(KST);
 		List<String> bestStores = storeRepository.findTodayBestStoreNames(
@@ -74,7 +73,6 @@ public class StoreServiceImpl implements StoreService {
 	}
 
     @Override
-    @Transactional
     public StoreResponseDTO.WeeklyRankResponseDTO getWeeklyRank(Long memberId) {
 
         Optional<Partner> partner = partnerRepository.findById(memberId);
@@ -93,7 +91,6 @@ public class StoreServiceImpl implements StoreService {
     }
 
     @Override
-    @Transactional
     public StoreResponseDTO.ListWeeklyRankResponseDTO getListWeeklyRank(Long memberId) {
 
         Optional<Partner> partner = partnerRepository.findById(memberId);
@@ -118,7 +115,6 @@ public class StoreServiceImpl implements StoreService {
     }
 
     @Override
-    @Transactional
     public StoreResponseDTO.StampRankingListDTO getStampRanking() {
         List<QRCertificationRepository.StampRankingRow> rows = qrCertificationRepository.findDailyStampRanking();
 

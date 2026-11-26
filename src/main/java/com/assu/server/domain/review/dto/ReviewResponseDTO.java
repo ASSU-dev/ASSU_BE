@@ -43,7 +43,7 @@ public class ReviewResponseDTO {
             LocalDateTime createdAt,
             List<String> reviewImageUrls
     ) {
-        public static CheckReviewResponseDTO from(Review review) {
+        public static CheckReviewResponseDTO from(Review review, List<String> reviewImageUrls) {
             return CheckReviewResponseDTO.builder()
                     .reviewId(review.getId())
                     .storeId(review.getStore().getId())
@@ -52,9 +52,7 @@ public class ReviewResponseDTO {
                     .content(review.getContent())
                     .rate(review.getRate())
                     .createdAt(review.getCreatedAt())
-                    .reviewImageUrls(review.getImageList().stream()
-                            .map(ReviewPhoto::getPhotoUrl)
-                            .toList())
+                    .reviewImageUrls(reviewImageUrls)
                     .build();
         }
     }
