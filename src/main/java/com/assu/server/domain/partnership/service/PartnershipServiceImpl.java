@@ -188,7 +188,8 @@ public class PartnershipServiceImpl implements PartnershipService {
             Long memberId,
             UserRole role
     ) {
-        Paper paper = paperRepository.findById(partnershipId)
+        // 같은 상태 변경이 동시에 들어와도 한 요청만 이전 상태를 보고 안내 메시지·푸시를 보내도록 행을 잠근다
+        Paper paper = paperRepository.findWithLockById(partnershipId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PAPER));
         assertPaperAccess(paper, memberId, role);
 

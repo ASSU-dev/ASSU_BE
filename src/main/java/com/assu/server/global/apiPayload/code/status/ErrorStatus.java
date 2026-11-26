@@ -64,6 +64,7 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
     FORBIDDEN_USAGE(HttpStatus.FORBIDDEN, "USAGE4002", "본인의 제휴 사용 내역이 아닙니다."),
     ALREADY_REVIEWED_USAGE(HttpStatus.CONFLICT, "USAGE4003", "이미 리뷰를 작성한 제휴 사용 내역입니다."),
+    USAGE_STORE_MISMATCH(HttpStatus.BAD_REQUEST, "USAGE4004", "리뷰 대상 가게에서 사용한 제휴 내역이 아닙니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
     NO_SUCH_STORE_WITH_THAT_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4006","해당 store ID에 해당하는 partner ID가 존재하지 않습니다."),
@@ -112,10 +113,8 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // 알림(Notification) 에러
     INVALID_NOTIFICATION_STATUS_FILTER(HttpStatus.BAD_REQUEST,"NOTIFICATION_4001","유효하지 않은 알림 status 필터입니다. (all | unread 만 허용)"),
-    INVALID_NOTIFICATION_TYPE(HttpStatus.BAD_REQUEST,"NOTIFICATION_4002","지원하지 않는 알림 타입입니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4003","존재하지 않는 알림입니다."),
     NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN,"NOTIFICATION_4004","해당 알림에 접근할 권한이 없습니다."),
-    MISSING_NOTIFICATION_FIELD(HttpStatus.BAD_REQUEST,"NOTIFICATION_4005","알림 생성에 필요한 필드가 누락되었습니다."),
     OUTBOX_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4006","존재하지 않는 알림 Outbox입니다."),
     OUTBOX_NOT_FAILED(HttpStatus.BAD_REQUEST,"NOTIFICATION_4007","FAILED 상태인 Outbox만 수동 재전송할 수 있습니다."),
 

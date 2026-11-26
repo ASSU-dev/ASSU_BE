@@ -44,22 +44,33 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewResponseDTO.WriteReviewResponseDTO writeReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<MultipartFile> reviewImages) {
-        claimUsageForReview(request.getPartnershipUsageId(), memberId);
+        Store store = findStoreOfPartner(request.getStoreId(), request.getPartnerId());
+        claimUsageForReview(request.getPartnershipUsageId(), memberId, store.getId());
 
         String affiliation = adminNameToAffliation(request.getAdminName());
 
-        Review review = createReview(memberId, request.getStoreId(), request, reviewImages, affiliation);
+        Review review = createReview(memberId, store, request, reviewImages, affiliation);
 
         recalcAndUpdateStoreRate(review.getStore().getId());
 
         return ReviewResponseDTO.WriteReviewResponseDTO.from(review);
     }
 
-    private void claimUsageForReview(Long partnershipUsageId, Long memberId) {
+    // 다른 가게의 평점을 바꾸지 못하도록 요청한 가게와 업체가 실제로 연결돼 있는지 먼저 확인한다
+    private Store findStoreOfPartner(Long storeId, Long partnerId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
+        if (store.getPartner() == null || !store.getPartner().getId().equals(partnerId)) {
+            throw new CustomReviewException(ErrorStatus.NO_SUCH_STORE_WITH_THAT_PARTNER);
+        }
+        return store;
+    }
+
+    private void claimUsageForReview(Long partnershipUsageId, Long memberId, Long storeId) {
         if (partnershipUsageId == null) {
             throw new GeneralException(ErrorStatus.NO_SUCH_USAGE);
         }
-        if (partnershipUsageRepository.markReviewedIfUnreviewed(partnershipUsageId, memberId) == 1) {
+        if (partnershipUsageRepository.markReviewedIfUnreviewed(partnershipUsageId, memberId, storeId) == 1) {
             return;
         }
 
@@ -67,6 +78,9 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_USAGE));
         if (usage.getStudent() == null || !usage.getStudent().getId().equals(memberId)) {
             throw new GeneralException(ErrorStatus.FORBIDDEN_USAGE);
+        }
+        if (!partnershipUsageRepository.existsByIdAndStoreId(partnershipUsageId, storeId)) {
+            throw new GeneralException(ErrorStatus.USAGE_STORE_MISMATCH);
         }
         throw new GeneralException(ErrorStatus.ALREADY_REVIEWED_USAGE);
     }
@@ -78,9 +92,7 @@ public class ReviewServiceImpl implements ReviewService {
             return adminName.replace(" 학생회"," 재학생");
     }
 
-    private Review createReview(Long memberId, Long storeId, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STORE));
+    private Review createReview(Long memberId, Store store, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
         Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.getPartnerId())
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Student student = studentRepository.findById(memberId)

@@ -191,7 +191,7 @@ class PartnershipServiceImplTest {
 	void updatePartnershipStatus_NoAccess_ThrowsException() {
 		// 1. Given (다른 관리자의 paper)
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(partner()).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		// 2. When
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -207,7 +207,7 @@ class PartnershipServiceImplTest {
 	void updatePartnershipStatus_InvalidStatus_ThrowsException() {
 		// 1. Given
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(partner()).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
@@ -226,7 +226,7 @@ class PartnershipServiceImplTest {
 		Partner partner = partner();
 		Paper paper = Paper.builder()
 			.id(PAPER_ID).admin(admin).partner(partner).isActivated(ActivationStatus.SUSPEND).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
 
@@ -253,7 +253,7 @@ class PartnershipServiceImplTest {
 		// 1. Given (이미 ACTIVE인 제안서)
 		Paper paper = Paper.builder()
 			.id(PAPER_ID).admin(admin()).partner(partner()).isActivated(ActivationStatus.ACTIVE).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		// 2. When
 		PartnershipStatusUpdateResponseDTO response = partnershipService.updatePartnershipStatus(

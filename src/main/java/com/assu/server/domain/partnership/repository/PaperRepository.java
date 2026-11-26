@@ -2,10 +2,12 @@ package com.assu.server.domain.partnership.repository;
 
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.partnership.entity.Paper;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +17,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT p FROM Paper p WHERE p.id = :paperId")
+	Optional<Paper> findWithLockById(@Param("paperId") Long paperId);
 
 	@Query("SELECT p FROM Paper p " +
 		"WHERE p.store.id = :storeId " +
