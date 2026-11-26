@@ -7,7 +7,6 @@ import com.assu.server.global.util.RandomNumberUtil;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
-import com.assu.server.infra.aligo.exception.AligoException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +47,24 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
             return count
             """, Long.class);
 
+    // 조회·비교·실패 집계·폐기·완료 표식이 따로 실행되면 동시 요청이 모두 폐기 전 인증번호와 비교되므로 한 스크립트로 묶는다
+    private static final RedisScript<String> VERIFY_SCRIPT = RedisScript.of("""
+            local stored = redis.call('GET', KEYS[1])
+            if not stored then return 'MISSING' end
+            if stored == ARGV[1] then
+              redis.call('DEL', KEYS[1], KEYS[2])
+              redis.call('SET', KEYS[3], '1', 'EX', ARGV[4])
+              return 'VERIFIED'
+            end
+            local failures = redis.call('INCR', KEYS[2])
+            if failures == 1 then redis.call('EXPIRE', KEYS[2], ARGV[3]) end
+            if failures >= tonumber(ARGV[2]) then
+              redis.call('DEL', KEYS[1], KEYS[2])
+              return 'EXHAUSTED'
+            end
+            return 'MISMATCH'
+            """, String.class);
+
     // iOS 앱스토어 심사(해외 번호)용 마스터 번호 - 알리고가 국내 번호만 지원해 SMS 수신이 불가능한 심사 환경 우회용
     private static final String MASTER_PHONE_NUMBER = "01000000000";
     private static final String MASTER_AUTH_NUMBER = "123456";
@@ -86,7 +103,7 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         AligoSendResponse response;
         try {
             response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
-        } catch (AligoException e) {
+        } catch (RuntimeException e) {
             discardFailedSend(phoneNumber);
             throw e;
         }
@@ -126,30 +143,21 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
             return;
         }
 
-        ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
-        String stored = valueOps.get(phoneNumber);
+        String result = redisTemplate.execute(VERIFY_SCRIPT,
+                List.of(phoneNumber, VERIFY_FAILURE_KEY_PREFIX + phoneNumber, VERIFIED_KEY_PREFIX + phoneNumber),
+                authNumber,
+                String.valueOf(MAX_VERIFY_FAILURES),
+                String.valueOf(AUTH_CODE_TTL.toSeconds()),
+                String.valueOf(VERIFIED_TTL.toSeconds()));
 
-        if (stored == null) {
-            throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+        if ("VERIFIED".equals(result)) {
+            return;
         }
-
-        String failureKey = VERIFY_FAILURE_KEY_PREFIX + phoneNumber;
-        if (!stored.equals(authNumber)) {
-            Long failures = incrementWithTtl(failureKey, AUTH_CODE_TTL);
-            if (failures != null && failures >= MAX_VERIFY_FAILURES) {
-                redisTemplate.delete(phoneNumber);
-                redisTemplate.delete(failureKey);
-                meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").increment();
-                throw new CustomAuthException(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED);
-            }
-            throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+        if ("EXHAUSTED".equals(result)) {
+            meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").increment();
+            throw new CustomAuthException(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED);
         }
-
-        redisTemplate.delete(phoneNumber);
-        redisTemplate.delete(failureKey);
-
-        // 가입 요청이 인증을 실제로 거쳤는지 확인할 수 있도록 인증 완료 표식을 남긴다
-        valueOps.set(VERIFIED_KEY_PREFIX + phoneNumber, "1", VERIFIED_TTL);
+        throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
     }
 
     @Override

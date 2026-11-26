@@ -61,7 +61,7 @@ class BackofficeAuthServiceImplTest {
 		// given
 		CommonLoginRequestDTO request = new CommonLoginRequestDTO(EMAIL, "password1!");
 		doThrow(new CustomAuthException(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED))
-			.when(loginAttemptLimiter).checkAttempt(LoginAttemptLimiter.Policy.BACKOFFICE, EMAIL);
+			.when(loginAttemptLimiter).checkAttempt(EMAIL);
 
 		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -93,7 +93,7 @@ class BackofficeAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.NO_BACKOFFICE_TYPE, exception.getCode());
-		verify(loginAttemptLimiter).checkAttempt(LoginAttemptLimiter.Policy.BACKOFFICE, EMAIL);
-		verify(loginAttemptLimiter, never()).reset(any(), any());
+		verify(loginAttemptLimiter).checkAttempt(EMAIL);
+		verify(loginAttemptLimiter, never()).reset(any());
 	}
 }

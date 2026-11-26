@@ -71,7 +71,6 @@ public enum SwaggerErrorCodes {
             ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED,
             ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.MEMBER_PENDING_APPROVAL,
-            ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN,
             ErrorStatus.AUTHORIZATION_EXCEPTION
     )),
     AUTH_LOGIN_STUDENT(Set.of(
