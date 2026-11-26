@@ -89,7 +89,10 @@ class PhoneAuthServiceImplTest {
 		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
 	}
 
-	private static final List<String> SEND_KEYS = List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE, VERIFY_FAILURE_KEY);
+	private static final String SEND_WINDOW_KEY = "phone-send-window:" + PHONE;
+	private static final List<String> SEND_KEYS = List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE, VERIFY_FAILURE_KEY, SEND_WINDOW_KEY);
+	private static final List<String> RELEASE_KEYS = List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE, SEND_WINDOW_KEY);
+	private static final String WINDOW_ID = "window-1";
 
 	private void givenReservation(List<String> keys, String result) {
 		when(redisTemplate.execute(any(RedisScript.class), eq(keys),
@@ -105,15 +108,15 @@ class PhoneAuthServiceImplTest {
 	}
 
 	private void verifyReleased(String[] reserved) {
-		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)),
-			eq(reserved[0]), eq(reserved[1]));
+		verify(redisTemplate).execute(any(RedisScript.class), eq(RELEASE_KEYS),
+			eq(reserved[0]), eq(reserved[1]), eq(WINDOW_ID));
 	}
 
 	@Test
 	@DisplayName("발송 전에 한도 확인·쿨다운 선점·횟수 예약·인증번호 저장을 한 번의 스크립트로 처리하고 그 인증번호를 SMS로 보낸다")
 	void checkAndSendAuthNumber_whenReserved_thenSendsReservedCode() {
 		// given
-		givenReservation(SEND_KEYS, "RESERVED");
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// when
@@ -123,7 +126,7 @@ class PhoneAuthServiceImplTest {
 		String authNumber = reservedAuthNumberAndId(SEND_KEYS)[0];
 		assertTrue(authNumber.matches("\\d{6}"));
 		verify(aligoSmsClient).sendSms(eq(PHONE), eq("[ASSU] 인증번호: " + authNumber), anyString());
-		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), anyString(), anyString());
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(RELEASE_KEYS), anyString(), anyString(), anyString());
 		verify(redisTemplate, never()).opsForValue();
 	}
 
@@ -163,7 +166,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("SMS 발송 결과가 실패면 이 요청의 예약을 되돌리고 FAILED_TO_SEND_SMS 예외가 발생한다")
 	void checkAndSendAuthNumber_whenSmsResultFailed_thenReleasesReservation() {
 		// given
-		givenReservation(SEND_KEYS, "RESERVED");
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("-101"));
 
 		// when
@@ -179,7 +182,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("SMS 발송 중 알리고 예외가 발생하면 이 요청의 예약을 되돌리고 예외를 전파한다")
 	void checkAndSendAuthNumber_whenAligoThrows_thenReleasesReservationAndRethrows() {
 		// given
-		givenReservation(SEND_KEYS, "RESERVED");
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
 			.thenThrow(new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO));
 
@@ -196,7 +199,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("SMS 발송 중 연결 실패·타임아웃 같은 런타임 예외가 나도 이 요청의 예약을 되돌리고 예외를 전파한다")
 	void checkAndSendAuthNumber_whenClientThrowsRuntimeException_thenReleasesReservation() {
 		// given
-		givenReservation(SEND_KEYS, "RESERVED");
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
 			.thenThrow(new IllegalStateException("timeout"));
 
@@ -318,7 +321,7 @@ class PhoneAuthServiceImplTest {
 	void checkAndSendAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
 		// 1. Given
 		givenReservation(List.of("phone-send-count:" + MASTER_PHONE, "phone-send-cooldown:" + MASTER_PHONE,
-			MASTER_PHONE, "phone-verify-fail:" + MASTER_PHONE), "RESERVED");
+			MASTER_PHONE, "phone-verify-fail:" + MASTER_PHONE, "phone-send-window:" + MASTER_PHONE), "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(MASTER_PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// 2. When
