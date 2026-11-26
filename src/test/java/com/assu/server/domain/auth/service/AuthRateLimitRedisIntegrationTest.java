@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -28,21 +29,28 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
+import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.partner.repository.PartnerRepository;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.config.IpRateLimitInterceptor;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
@@ -50,8 +58,14 @@ import com.assu.server.infra.aligo.dto.AligoSendResponse;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
-@Testcontainers(disabledWithoutDocker = true)
+// CI(GitHub Actions가 CI 환경 변수를 설정)에서는 Docker가 없으면 건너뛰지 않고 실패시켜, 테스트가 조용히 빠지지 않게 한다
+@Testcontainers
+@EnabledIf("dockerAvailableOrCi")
 class AuthRateLimitRedisIntegrationTest {
+
+	static boolean dockerAvailableOrCi() {
+		return System.getenv("CI") != null || DockerClientFactory.instance().isDockerAvailable();
+	}
 
 	@Container
 	private static final GenericContainer<?> REDIS =
@@ -182,6 +196,41 @@ class AuthRateLimitRedisIntegrationTest {
 		assertTrue(ttlSeconds(LOGIN_KEY) <= 100);
 		loginAttemptLimiter.reset(EMAIL);
 		assertFalse(Boolean.TRUE.equals(redisTemplate.hasKey(LOGIN_KEY)));
+	}
+
+	@Test
+	@DisplayName("백오피스 계정을 공통 로그인과 백오피스 로그인으로 번갈아 시도하면 어느 경로로 5번째가 오든 30분 차단이 걸리고 6번째는 두 경로 모두 막힌다")
+	void login_whenAlternatingCommonAndBackofficeEndpoints_thenSharesBudgetWithBackofficeBlock() {
+		for (boolean fifthViaCommon : new boolean[] {true, false}) {
+			// given
+			redisTemplate.delete(LOGIN_KEY);
+			when(commonAuthRepository.findRoleByEmail(EMAIL)).thenReturn(Optional.of(UserRole.BACKOFFICE));
+			AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
+			when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+			LoginServiceImpl commonLogin = new LoginServiceImpl(authenticationManager, mock(JwtUtil.class),
+				mock(StudentRepository.class), new SimpleMeterRegistry(), loginAttemptLimiter, List.of());
+			BackofficeAuthServiceImpl backofficeLogin = new BackofficeAuthServiceImpl(authenticationManager,
+				mock(JwtUtil.class), loginAttemptLimiter, List.of());
+			CommonLoginRequestDTO request = new CommonLoginRequestDTO(EMAIL, "wrong-password1!");
+
+			// when
+			for (int attempt = 1; attempt <= 5; attempt++) {
+				boolean viaCommon = attempt == 5 ? fifthViaCommon : attempt % 2 == 1;
+				if (viaCommon) {
+					assertThrows(BadCredentialsException.class, () -> commonLogin.loginCommon(request));
+				} else {
+					assertThrows(BadCredentialsException.class, () -> backofficeLogin.login(request));
+				}
+			}
+
+			// then
+			long ttl = ttlSeconds(LOGIN_KEY);
+			assertTrue(ttl > 1790 && ttl <= 1800, "fifthViaCommon=" + fifthViaCommon + " ttl=" + ttl);
+			CustomAuthException viaCommon = assertThrows(CustomAuthException.class, () -> commonLogin.loginCommon(request));
+			CustomAuthException viaBackoffice = assertThrows(CustomAuthException.class, () -> backofficeLogin.login(request));
+			assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, viaCommon.getCode());
+			assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, viaBackoffice.getCode());
+		}
 	}
 
 	// ===== 인증번호 검증 =====
