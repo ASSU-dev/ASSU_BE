@@ -199,37 +199,40 @@ class AuthRateLimitRedisIntegrationTest {
 	}
 
 	@Test
-	@DisplayName("백오피스 계정을 공통 로그인과 백오피스 로그인으로 번갈아 시도하면 어느 경로로 5번째가 오든 30분 차단이 걸리고 6번째는 두 경로 모두 막힌다")
+	@DisplayName("백오피스 계정을 공통 로그인과 백오피스 로그인으로 번갈아 시도하면 5번째·6번째가 어느 경로로 오든 30분 차단이 걸리고 6번째는 막힌다")
 	void login_whenAlternatingCommonAndBackofficeEndpoints_thenSharesBudgetWithBackofficeBlock() {
 		for (boolean fifthViaCommon : new boolean[] {true, false}) {
-			// given
-			redisTemplate.delete(LOGIN_KEY);
-			when(commonAuthRepository.findRoleByEmail(EMAIL)).thenReturn(Optional.of(UserRole.BACKOFFICE));
-			AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
-			when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
-			LoginServiceImpl commonLogin = new LoginServiceImpl(authenticationManager, mock(JwtUtil.class),
-				mock(StudentRepository.class), new SimpleMeterRegistry(), loginAttemptLimiter, List.of());
-			BackofficeAuthServiceImpl backofficeLogin = new BackofficeAuthServiceImpl(authenticationManager,
-				mock(JwtUtil.class), loginAttemptLimiter, List.of());
-			CommonLoginRequestDTO request = new CommonLoginRequestDTO(EMAIL, "wrong-password1!");
+			for (boolean sixthViaCommon : new boolean[] {true, false}) {
+				// given
+				redisTemplate.delete(LOGIN_KEY);
+				when(commonAuthRepository.findRoleByEmail(EMAIL)).thenReturn(Optional.of(UserRole.BACKOFFICE));
+				AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
+				when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+				LoginServiceImpl commonLogin = new LoginServiceImpl(authenticationManager, mock(JwtUtil.class),
+					mock(StudentRepository.class), new SimpleMeterRegistry(), loginAttemptLimiter, List.of());
+				BackofficeAuthServiceImpl backofficeLogin = new BackofficeAuthServiceImpl(authenticationManager,
+					mock(JwtUtil.class), loginAttemptLimiter, List.of());
+				CommonLoginRequestDTO request = new CommonLoginRequestDTO(EMAIL, "wrong-password1!");
 
-			// when
-			for (int attempt = 1; attempt <= 5; attempt++) {
-				boolean viaCommon = attempt == 5 ? fifthViaCommon : attempt % 2 == 1;
-				if (viaCommon) {
-					assertThrows(BadCredentialsException.class, () -> commonLogin.loginCommon(request));
-				} else {
-					assertThrows(BadCredentialsException.class, () -> backofficeLogin.login(request));
+				// when
+				for (int attempt = 1; attempt <= 5; attempt++) {
+					boolean viaCommon = attempt == 5 ? fifthViaCommon : attempt % 2 == 1;
+					if (viaCommon) {
+						assertThrows(BadCredentialsException.class, () -> commonLogin.loginCommon(request));
+					} else {
+						assertThrows(BadCredentialsException.class, () -> backofficeLogin.login(request));
+					}
 				}
-			}
+				long ttl = ttlSeconds(LOGIN_KEY);
+				CustomAuthException sixth = sixthViaCommon
+					? assertThrows(CustomAuthException.class, () -> commonLogin.loginCommon(request))
+					: assertThrows(CustomAuthException.class, () -> backofficeLogin.login(request));
 
-			// then
-			long ttl = ttlSeconds(LOGIN_KEY);
-			assertTrue(ttl > 1790 && ttl <= 1800, "fifthViaCommon=" + fifthViaCommon + " ttl=" + ttl);
-			CustomAuthException viaCommon = assertThrows(CustomAuthException.class, () -> commonLogin.loginCommon(request));
-			CustomAuthException viaBackoffice = assertThrows(CustomAuthException.class, () -> backofficeLogin.login(request));
-			assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, viaCommon.getCode());
-			assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, viaBackoffice.getCode());
+				// then
+				String scenario = "fifthViaCommon=" + fifthViaCommon + " sixthViaCommon=" + sixthViaCommon;
+				assertTrue(ttl > 1790 && ttl <= 1800, scenario + " ttl=" + ttl);
+				assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, sixth.getCode(), scenario);
+			}
 		}
 	}
 
