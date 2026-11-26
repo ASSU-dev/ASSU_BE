@@ -117,7 +117,7 @@ public class CertificationServiceImpl implements CertificationService {
 			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
 		}
 
-		webSocketBroadcaster.send("/certification/progress/" + sessionId,
+		webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId,
 			new CertificationProgressResponseDTO(
 				"expired",
 				certifiedUserIds.size(),
@@ -153,7 +153,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"학생과 매치되지 않는 정보입니다.",
 				currentCertifiedUserIds
 			);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupFailure("mismatch");
 			return response;
 		}
@@ -168,7 +168,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"doubled member",
 				currentCertifiedUserIds
 			);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
@@ -207,11 +207,11 @@ public class CertificationServiceImpl implements CertificationService {
 			associateCertificationRepository.save(certification);
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupSuccess("completed");
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupSuccess("success");
 		}
 		return response;

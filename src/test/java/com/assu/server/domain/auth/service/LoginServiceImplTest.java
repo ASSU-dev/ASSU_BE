@@ -16,6 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.assu.server.domain.auth.dto.common.TokensDTO;
 import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
@@ -56,11 +58,16 @@ class LoginServiceImplTest {
 	@Mock
 	private LoginAttemptLimiter loginAttemptLimiter;
 
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
 	@BeforeEach
 	void setUp() {
 		loginService = new LoginServiceImpl(
 			authenticationManager, jwtUtil, studentRepository, new SimpleMeterRegistry(),
-			loginAttemptLimiter, List.of(commonAdapter));
+			loginAttemptLimiter, List.of(commonAdapter), transactionTemplate);
+		lenient().when(transactionTemplate.execute(any()))
+			.thenAnswer(inv -> inv.<TransactionCallback<Object>>getArgument(0).doInTransaction(null));
 	}
 
 	@Test

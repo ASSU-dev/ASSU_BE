@@ -28,6 +28,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
@@ -43,6 +44,7 @@ public class LoginServiceImpl implements LoginService {
     private final LoginAttemptLimiter loginAttemptLimiter;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
+    private final TransactionTemplate transactionTemplate;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -57,6 +59,7 @@ public class LoginServiceImpl implements LoginService {
      * 2) JWT 발급: username=email, authRealm=COMMON
      */
     @Override
+    @Transactional(propagation = Propagation.SUPPORTS)
     public LoginResponseDTO loginCommon(CommonLoginRequestDTO request) {
         loginAttemptLimiter.checkAttempt(request.email());
 
@@ -83,17 +86,21 @@ public class LoginServiceImpl implements LoginService {
             throw new CustomAuthException(ErrorStatus.MEMBER_PENDING_APPROVAL);
         }
 
-        Member member = adapter.loadMember(authentication.getName());
-        TokensDTO tokens = jwtUtil.issueTokens(
-                member.getId(),
-                authentication.getName(),
-                member.getRole(),
-                adapter.authRealmValue()
-        );
+        // BCrypt 검증 동안 DB 커넥션을 잡지 않도록 인증이 끝난 뒤에만 트랜잭션을 연다
+        LoginResponseDTO response = transactionTemplate.execute(status -> {
+            Member member = adapter.loadMember(authentication.getName());
+            TokensDTO tokens = jwtUtil.issueTokens(
+                    member.getId(),
+                    authentication.getName(),
+                    member.getRole(),
+                    adapter.authRealmValue()
+            );
+            return LoginResponseDTO.from(member, tokens);
+        });
 
         meterRegistry.counter("auth.login.result", "result", "success").increment();
 
-        return LoginResponseDTO.from(member, tokens);
+        return response;
     }
 
     /**

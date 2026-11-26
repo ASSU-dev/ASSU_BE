@@ -29,6 +29,7 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.util.TransactionCallbacks;
 import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,6 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -123,7 +122,7 @@ public class SignUpServiceImpl implements SignUpService {
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
         // 커밋 전 Student는 REQUIRES_NEW 트랜잭션에서 조회되지 않으므로 커밋 이후 실행
         Long studentId = student.getId();
-        runAfterCommit(() -> syncUserPapersSafely(studentId));
+        TransactionCallbacks.runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         // 7) JWT 토큰 발급
         TokensDTO tokens = jwtUtil.issueTokens(
@@ -161,7 +160,7 @@ public class SignUpServiceImpl implements SignUpService {
 
         // 탈퇴 기간 중 변동된 제휴를 반영한다 (갱신된 학과 정보 기준으로 커밋 이후 실행)
         Long studentId = student.getId();
-        runAfterCommit(() -> syncUserPapersSafely(studentId));
+        TransactionCallbacks.runAfterCommit(() -> syncUserPapersSafely(studentId));
 
         TokensDTO tokens = jwtUtil.issueTokens(
                 member.getId(),
@@ -175,6 +174,7 @@ public class SignUpServiceImpl implements SignUpService {
     @Override
     public SignUpResponseDTO signupPartner(PartnerSignUpRequestDTO req, MultipartFile licenseImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
+        TransactionCallbacks.runAfterRollback(() -> phoneAuthService.restoreVerification(req.phoneNumber()));
 
         if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
                 && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
@@ -230,7 +230,7 @@ public class SignUpServiceImpl implements SignUpService {
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
 
-        runAfterCommit(() -> discordNotifier.send("🔔 새 제휴업체 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
+        TransactionCallbacks.runAfterCommit(() -> discordNotifier.send("🔔 새 제휴업체 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 
         return SignUpResponseDTO.from(member, null);
     }
@@ -299,7 +299,9 @@ public class SignUpServiceImpl implements SignUpService {
     private String uploadPartnerLicense(Long memberId, MultipartFile licenseImage) {
         String keyName = amazonS3Manager.generateKeyName(
                 "partners/" + memberId + "/license", getFileExtension(licenseImage.getOriginalFilename()));
-        return amazonS3Manager.uploadFile(keyName, licenseImage);
+        String uploadedKey = amazonS3Manager.uploadFile(keyName, licenseImage);
+        amazonS3Manager.deleteFileOnRollback(uploadedKey);
+        return uploadedKey;
     }
 
     private void linkStore(Partner partner, String name, String address, String detailAddress,
@@ -380,6 +382,7 @@ public class SignUpServiceImpl implements SignUpService {
     @Override
     public SignUpResponseDTO signupAdmin(AdminSignUpRequestDTO req, MultipartFile signImage) {
         phoneAuthService.consumeVerification(req.phoneNumber());
+        TransactionCallbacks.runAfterRollback(() -> phoneAuthService.restoreVerification(req.phoneNumber()));
 
         if (!phoneAuthService.isMasterPhoneNumber(req.phoneNumber())
                 && (partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(req.phoneNumber())
@@ -435,7 +438,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .build());
         member.setProfile(admin);
 
-        runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
+        TransactionCallbacks.runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 
         return SignUpResponseDTO.from(member, null);
     }
@@ -481,7 +484,9 @@ public class SignUpServiceImpl implements SignUpService {
     private String uploadAdminSign(Long memberId, MultipartFile signImage) {
         String keyName = amazonS3Manager.generateKeyName(
                 "admins/" + memberId + "/sign", getFileExtension(signImage.getOriginalFilename()));
-        return amazonS3Manager.uploadFile(keyName, signImage);
+        String uploadedKey = amazonS3Manager.uploadFile(keyName, signImage);
+        amazonS3Manager.deleteFileOnRollback(uploadedKey);
+        return uploadedKey;
     }
 
     private String getFileExtension(String filename) {
@@ -537,18 +542,5 @@ public class SignUpServiceImpl implements SignUpService {
         } catch (Exception e) {
             log.error("[SignUp] UserPaper 동기화 실패 studentId={}", studentId, e);
         }
-    }
-
-    private void runAfterCommit(Runnable task) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            task.run();
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                task.run();
-            }
-        });
     }
 }
