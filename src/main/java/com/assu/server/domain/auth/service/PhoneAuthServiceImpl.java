@@ -39,24 +39,33 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final int MAX_SENDS_PER_WINDOW = 10;
     private static final Duration SEND_COUNT_WINDOW = Duration.ofHours(24);
     private static final String SEND_COUNT_KEY_PREFIX = "phone-send-count:";
+    private static final String SEND_WINDOW_KEY_PREFIX = "phone-send-window:";
+    private static final String RESERVED_PREFIX = "RESERVED:";
 
     // 한도 확인·쿨다운 선점·발송 횟수 예약·인증번호 저장을 한 스크립트로 묶어, 동시 요청이 같은 횟수를 보고 한도를 넘겨 발송하지 못하게 한다
+    // 횟수 키와 같은 만료로 집계 창 식별자를 두고 돌려줘, 해제할 때 예약한 창과 지금 창이 같은지 비교할 수 있게 한다
     private static final RedisScript<String> RESERVE_SEND_SCRIPT = RedisScript.of("""
             local count = tonumber(redis.call('GET', KEYS[1]) or '0')
             if count >= tonumber(ARGV[1]) then return 'LIMIT' end
             if not redis.call('SET', KEYS[2], ARGV[6], 'NX', 'EX', ARGV[2]) then return 'COOLDOWN' end
             if redis.call('INCR', KEYS[1]) == 1 then redis.call('EXPIRE', KEYS[1], ARGV[3]) end
+            if redis.call('EXISTS', KEYS[5]) == 0 then
+              local ttl = redis.call('PTTL', KEYS[1])
+              if ttl > 0 then redis.call('SET', KEYS[5], ARGV[6], 'PX', ttl)
+              else redis.call('SET', KEYS[5], ARGV[6], 'EX', ARGV[3]) end
+            end
             redis.call('SET', KEYS[3], ARGV[4], 'EX', ARGV[5])
             redis.call('DEL', KEYS[4])
-            return 'RESERVED'
+            return 'RESERVED:' .. redis.call('GET', KEYS[5])
             """, String.class);
 
-    // 쿨다운이 아직 이 요청의 것일 때만 예약을 되돌린다. 발송이 쿨다운보다 오래 걸려 다른 요청이 새로 예약했다면 그 요청의 쿨다운·횟수를 건드리지 않는다
+    // 발송 실패 시 이 요청의 몫만 되돌린다. 쿨다운은 아직 이 요청의 것일 때만, 횟수는 예약한 집계 창이 아직 유지될 때만 되돌리고, 인증번호는 그사이 바뀌지 않았을 때만 지운다
     private static final RedisScript<Long> RELEASE_SEND_SCRIPT = RedisScript.of("""
             if redis.call('GET', KEYS[3]) == ARGV[1] then redis.call('DEL', KEYS[3]) end
-            if redis.call('GET', KEYS[2]) ~= ARGV[2] then return 0 end
-            redis.call('DEL', KEYS[2])
-            if tonumber(redis.call('GET', KEYS[1]) or '0') > 0 then redis.call('DECR', KEYS[1]) end
+            if redis.call('GET', KEYS[2]) == ARGV[2] then redis.call('DEL', KEYS[2]) end
+            if redis.call('GET', KEYS[4]) == ARGV[3] and tonumber(redis.call('GET', KEYS[1]) or '0') > 0 then
+              redis.call('DECR', KEYS[1])
+            end
             return 1
             """, Long.class);
 
@@ -106,9 +115,10 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         if ("LIMIT".equals(reservation)) {
             rejectSend("send-limit", ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED);
         }
-        if (!"RESERVED".equals(reservation)) {
+        if (reservation == null || !reservation.startsWith(RESERVED_PREFIX)) {
             rejectSend("cooldown", ErrorStatus.PHONE_AUTH_SEND_COOLDOWN);
         }
+        String windowId = reservation.substring(RESERVED_PREFIX.length());
 
         String message = "[ASSU] 인증번호: " + authNumber;
 
@@ -116,19 +126,24 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
         try {
             response = aligoSmsClient.sendSms(phoneNumber, message, "사용자");
         } catch (RuntimeException e) {
-            releaseFailedSend(phoneNumber, authNumber, reservationId);
+            releaseFailedSend(phoneNumber, authNumber, reservationId, windowId);
             throw e;
         }
 
         if (!"1".equals(response.getResult_code())) {
-            releaseFailedSend(phoneNumber, authNumber, reservationId);
+            releaseFailedSend(phoneNumber, authNumber, reservationId, windowId);
             throw new CustomAuthException(ErrorStatus.FAILED_TO_SEND_SMS);
         }
     }
 
     private List<String> sendKeys(String phoneNumber) {
         return List.of(SEND_COUNT_KEY_PREFIX + phoneNumber, SEND_COOLDOWN_KEY_PREFIX + phoneNumber,
-                phoneNumber, VERIFY_FAILURE_KEY_PREFIX + phoneNumber);
+                phoneNumber, VERIFY_FAILURE_KEY_PREFIX + phoneNumber, SEND_WINDOW_KEY_PREFIX + phoneNumber);
+    }
+
+    private List<String> releaseKeys(String phoneNumber) {
+        return List.of(SEND_COUNT_KEY_PREFIX + phoneNumber, SEND_COOLDOWN_KEY_PREFIX + phoneNumber,
+                phoneNumber, SEND_WINDOW_KEY_PREFIX + phoneNumber);
     }
 
     private void rejectSend(String reason, ErrorStatus errorStatus) {
@@ -137,8 +152,8 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     }
 
     // 발송 실패가 사용자의 발송 한도와 쿨다운을 깎지 않도록 예약을 되돌린다
-    private void releaseFailedSend(String phoneNumber, String authNumber, String reservationId) {
-        redisTemplate.execute(RELEASE_SEND_SCRIPT, sendKeys(phoneNumber).subList(0, 3), authNumber, reservationId);
+    private void releaseFailedSend(String phoneNumber, String authNumber, String reservationId, String windowId) {
+        redisTemplate.execute(RELEASE_SEND_SCRIPT, releaseKeys(phoneNumber), authNumber, reservationId, windowId);
     }
 
     @Override
