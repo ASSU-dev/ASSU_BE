@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -108,13 +107,8 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> exception(Exception e, WebRequest request) {
         log.error("처리되지 않은 예외 발생", e);
 
-        return handleExceptionInternalFalse(
-                e,
-                ErrorStatus._INTERNAL_SERVER_ERROR,
-                HttpHeaders.EMPTY,
-                ErrorStatus._INTERNAL_SERVER_ERROR.getHttpStatus(),
-                request,
-                e.getMessage());
+        return handleExceptionInternalConstraint(
+                e, ErrorStatus._INTERNAL_SERVER_ERROR, HttpHeaders.EMPTY, request);
     }
 
     @ExceptionHandler(value = GeneralException.class)
@@ -151,19 +145,6 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
 
         WebRequest webRequest = new ServletWebRequest(request);
         return super.handleExceptionInternal(e, body, headers, reason.getHttpStatus(), webRequest);
-    }
-
-    private ResponseEntity<Object> handleExceptionInternalFalse(
-            Exception e,
-            ErrorStatus errorCommonStatus,
-            HttpHeaders headers,
-            HttpStatus status,
-            WebRequest request,
-            String errorPoint) {
-        BaseResponse<Object> body =
-                BaseResponse.onFailure(
-                        errorCommonStatus.getCode(), errorCommonStatus.getMessage(), errorPoint);
-        return super.handleExceptionInternal(e, body, headers, status, request);
     }
 
     private ResponseEntity<Object> handleExceptionInternalArgs(

@@ -7,16 +7,18 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import java.time.Duration;
+import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.assu.server.domain.admin.repository.AdminRepository;
@@ -27,11 +29,15 @@ import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import com.assu.server.infra.aligo.exception.AligoException;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 @ExtendWith(MockitoExtension.class)
 class PhoneAuthServiceImplTest {
 
-	@InjectMocks
 	private PhoneAuthServiceImpl phoneAuthService;
+
+	private MeterRegistry meterRegistry;
 
 	@Mock
 	private StringRedisTemplate redisTemplate;
@@ -51,6 +57,16 @@ class PhoneAuthServiceImplTest {
 	private static final String PHONE = "01012345678";
 	private static final String MASTER_PHONE = "01000000000";
 	private static final String MASTER_AUTH_NUMBER = "123456";
+	private static final String VERIFY_FAILURE_KEY = "phone-verify-fail:" + PHONE;
+	private static final String SEND_COOLDOWN_KEY = "phone-send-cooldown:" + PHONE;
+	private static final String SEND_COUNT_KEY = "phone-send-count:" + PHONE;
+
+	@BeforeEach
+	void setUp() {
+		meterRegistry = new SimpleMeterRegistry();
+		phoneAuthService = new PhoneAuthServiceImpl(
+			redisTemplate, aligoSmsClient, partnerRepository, adminRepository, meterRegistry);
+	}
 
 	private AligoSendResponse aligoResponse(String resultCode) {
 		AligoSendResponse response = new AligoSendResponse();
@@ -73,126 +89,189 @@ class PhoneAuthServiceImplTest {
 		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
 	}
 
-	@Test
-	@DisplayName("인증번호 발송 성공 시 6자리 인증번호가 5분 TTL로 Redis에 저장되고 SMS로 전송된다")
-	void checkAndSendAuthNumber_Success_StoresCodeAndSendsSms() {
-		// 1. Given
-		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
+	private static final String SEND_WINDOW_KEY = "phone-send-window:" + PHONE;
+	private static final List<String> SEND_KEYS = List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE, VERIFY_FAILURE_KEY, SEND_WINDOW_KEY);
+	private static final List<String> RELEASE_KEYS = List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE, SEND_WINDOW_KEY);
+	private static final String WINDOW_ID = "window-1";
 
-		// 2. When
-		phoneAuthService.checkAndSendAuthNumber(PHONE);
+	private void givenReservation(List<String> keys, String result) {
+		when(redisTemplate.execute(any(RedisScript.class), eq(keys),
+			eq("10"), eq("60"), eq("86400"), anyString(), eq("300"), anyString())).thenReturn(result);
+	}
 
-		// 3. Then (저장된 인증번호와 SMS 메시지의 인증번호가 일치하는지 검증)
+	private String[] reservedAuthNumberAndId(List<String> keys) {
 		ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
-		verify(valueOperations).set(eq(PHONE), codeCaptor.capture(), eq(Duration.ofMinutes(5)));
+		ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
+		verify(redisTemplate).execute(any(RedisScript.class), eq(keys),
+			eq("10"), eq("60"), eq("86400"), codeCaptor.capture(), eq("300"), idCaptor.capture());
+		return new String[] {codeCaptor.getValue(), idCaptor.getValue()};
+	}
 
-		String authNumber = codeCaptor.getValue();
-		assertEquals(6, authNumber.length());
-		assertTrue(authNumber.chars().allMatch(Character::isDigit));
-
-		verify(aligoSmsClient).sendSms(eq(PHONE), eq("[ASSU] 인증번호: " + authNumber), anyString());
-		verify(redisTemplate, never()).delete(PHONE);
+	private void verifyReleased(String[] reserved) {
+		verify(redisTemplate).execute(any(RedisScript.class), eq(RELEASE_KEYS),
+			eq(reserved[0]), eq(reserved[1]), eq(WINDOW_ID));
 	}
 
 	@Test
-	@DisplayName("SMS 발송이 실패하면 저장했던 인증번호를 삭제하고 FAILED_TO_SEND_SMS 예외가 발생한다")
-	void checkAndSendAuthNumber_SmsFailed_DeletesCodeAndThrows() {
-		// 1. Given
-		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("-101"));
+	@DisplayName("발송 전에 한도 확인·쿨다운 선점·횟수 예약·인증번호 저장을 한 번의 스크립트로 처리하고 그 인증번호를 SMS로 보낸다")
+	void checkAndSendAuthNumber_whenReserved_thenSendsReservedCode() {
+		// given
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
-		// 2. When
+		// when
+		phoneAuthService.checkAndSendAuthNumber(PHONE);
+
+		// then
+		String authNumber = reservedAuthNumberAndId(SEND_KEYS)[0];
+		assertTrue(authNumber.matches("\\d{6}"));
+		verify(aligoSmsClient).sendSms(eq(PHONE), eq("[ASSU] 인증번호: " + authNumber), anyString());
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(RELEASE_KEYS), anyString(), anyString(), anyString());
+		verify(redisTemplate, never()).opsForValue();
+	}
+
+	@Test
+	@DisplayName("60초 안에 다시 요청하면 SMS를 보내지 않고 PHONE_AUTH_SEND_COOLDOWN 예외가 발생한다")
+	void checkAndSendAuthNumber_whenWithinCooldown_thenThrowsWithoutSending() {
+		// given
+		givenReservation(SEND_KEYS, "COOLDOWN");
+
+		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
 			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
 
-		// 3. Then
-		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
-		verify(redisTemplate, times(1)).delete(PHONE);
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_SEND_COOLDOWN, exception.getCode());
+		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "cooldown").count());
 	}
 
 	@Test
-	@DisplayName("SMS 발송 중 알리고 예외가 발생하면 저장했던 인증번호를 삭제하고 예외를 전파한다")
-	void checkAndSendAuthNumber_SmsThrowsAligoException_DeletesCodeAndRethrows() {
-		// 1. Given
-		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(PHONE)).thenReturn(false);
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+	@DisplayName("24시간 동안 10번 발송한 번호는 SMS를 보내지 않고 PHONE_AUTH_SEND_LIMIT_EXCEEDED 예외가 발생한다")
+	void checkAndSendAuthNumber_whenSendLimitReached_thenThrowsWithoutSending() {
+		// given
+		givenReservation(SEND_KEYS, "LIMIT");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED, exception.getCode());
+		verify(aligoSmsClient, never()).sendSms(anyString(), anyString(), anyString());
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "send-limit").count());
+	}
+
+	@Test
+	@DisplayName("SMS 발송 결과가 실패면 이 요청의 예약을 되돌리고 FAILED_TO_SEND_SMS 예외가 발생한다")
+	void checkAndSendAuthNumber_whenSmsResultFailed_thenReleasesReservation() {
+		// given
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString())).thenReturn(aligoResponse("-101"));
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
+	}
+
+	@Test
+	@DisplayName("SMS 발송 중 알리고 예외가 발생하면 이 요청의 예약을 되돌리고 예외를 전파한다")
+	void checkAndSendAuthNumber_whenAligoThrows_thenReleasesReservationAndRethrows() {
+		// given
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
 			.thenThrow(new AligoException(ErrorStatus.FAILED_TO_PARSE_ALIGO));
 
-		// 2. When
+		// when
 		AligoException exception = assertThrows(AligoException.class,
 			() -> phoneAuthService.checkAndSendAuthNumber(PHONE));
 
-		// 3. Then
+		// then
 		assertEquals(ErrorStatus.FAILED_TO_PARSE_ALIGO, exception.getCode());
-		verify(redisTemplate, times(1)).delete(PHONE);
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
+	}
+
+	@Test
+	@DisplayName("SMS 발송 중 연결 실패·타임아웃 같은 런타임 예외가 나도 이 요청의 예약을 되돌리고 예외를 전파한다")
+	void checkAndSendAuthNumber_whenClientThrowsRuntimeException_thenReleasesReservation() {
+		// given
+		givenReservation(SEND_KEYS, "RESERVED:" + WINDOW_ID);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
+			.thenThrow(new IllegalStateException("timeout"));
+
+		// when
+		assertThrows(IllegalStateException.class, () -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
+	}
+
+	private void givenVerifyResult(String phone, String authNumber, String result) {
+		when(redisTemplate.execute(any(RedisScript.class),
+			eq(List.of(phone, "phone-verify-fail:" + phone, "phone-verified:" + phone)),
+			eq(authNumber), eq("5"), eq("300"), eq("1800"))).thenReturn(result);
 	}
 
 	@Test
 	@DisplayName("저장된 인증번호가 없으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
-	void verifyAuthNumber_NoStoredCode_ThrowsException() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn(null);
+	void verifyAuthNumber_whenNoStoredCode_thenThrowsNotVerified() {
+		// given
+		givenVerifyResult(PHONE, "123456", "MISSING");
 
-		// 2. When
+		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
 			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
 
-		// 3. Then
+		// then
 		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate, never()).delete(anyString());
 	}
 
 	@Test
 	@DisplayName("인증번호가 일치하지 않으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
-	void verifyAuthNumber_CodeMismatch_ThrowsException() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("654321");
+	void verifyAuthNumber_whenMismatch_thenThrowsNotVerified() {
+		// given
+		givenVerifyResult(PHONE, "123456", "MISMATCH");
 
-		// 2. When
+		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
 			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
 
-		// 3. Then
+		// then
 		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate, never()).delete(anyString());
+		assertEquals(0.0, meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").count());
 	}
 
 	@Test
-	@DisplayName("인증번호가 일치하면 검증에 성공하고 Redis에서 인증번호를 삭제한다")
-	void verifyAuthNumber_Success_DeletesCode() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("123456");
+	@DisplayName("인증번호를 5번 틀려 폐기되면 PHONE_AUTH_ATTEMPTS_EXCEEDED 예외와 차단 지표를 남긴다")
+	void verifyAuthNumber_whenExhausted_thenThrowsAttemptsExceeded() {
+		// given
+		givenVerifyResult(PHONE, "123456", "EXHAUSTED");
 
-		// 2. When
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
+
+		// then
+		assertEquals(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED, exception.getCode());
+		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").count());
+	}
+
+	@Test
+	@DisplayName("비교·실패 집계·폐기·인증 완료 표식 저장을 한 번의 스크립트로 처리하고 개별 Redis 명령은 쓰지 않는다")
+	void verifyAuthNumber_whenVerified_thenHandlesAllStateInSingleScript() {
+		// given
+		givenVerifyResult(PHONE, "123456", "VERIFIED");
+
+		// when
 		assertDoesNotThrow(() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
 
-		// 3. Then
-		verify(redisTemplate, times(1)).delete(PHONE);
-	}
-
-	@Test
-	@DisplayName("인증번호 검증에 성공하면 가입 시 확인할 인증 표식을 30분 TTL로 저장한다")
-	void verifyAuthNumber_Success_StoresVerificationMarker() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("123456");
-
-		// 2. When
-		phoneAuthService.verifyAuthNumber(PHONE, "123456");
-
-		// 3. Then
-		verify(valueOperations, times(1))
-			.set("phone-verified:" + PHONE, "1", Duration.ofMinutes(30));
+		// then
+		verify(redisTemplate, never()).opsForValue();
+		verify(redisTemplate, never()).delete(anyString());
 	}
 
 	@Test
@@ -241,9 +320,8 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("마스터키가 비활성화 상태면 마스터 번호도 일반 번호와 동일하게 처리된다")
 	void checkAndSendAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
 		// 1. Given
-		when(partnerRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
-		when(adminRepository.existsByPhoneNumAndMember_DeletedAtIsNull(MASTER_PHONE)).thenReturn(false);
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		givenReservation(List.of("phone-send-count:" + MASTER_PHONE, "phone-send-cooldown:" + MASTER_PHONE,
+			MASTER_PHONE, "phone-verify-fail:" + MASTER_PHONE, "phone-send-window:" + MASTER_PHONE), "RESERVED:" + WINDOW_ID);
 		when(aligoSmsClient.sendSms(eq(MASTER_PHONE), anyString(), anyString())).thenReturn(aligoResponse("1"));
 
 		// 2. When
@@ -286,8 +364,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("마스터키가 비활성화 상태면 고정 인증번호를 넣어도 Redis에 저장된 값과 비교한다")
 	void verifyAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
 		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(MASTER_PHONE)).thenReturn(null);
+		givenVerifyResult(MASTER_PHONE, MASTER_AUTH_NUMBER, "MISSING");
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 
 import com.assu.server.domain.auth.dto.common.TokensDTO;
@@ -52,17 +53,20 @@ class LoginServiceImplTest {
 	@Mock
 	private RealmAuthAdapter commonAdapter;
 
+	@Mock
+	private LoginAttemptLimiter loginAttemptLimiter;
+
 	@BeforeEach
 	void setUp() {
 		loginService = new LoginServiceImpl(
 			authenticationManager, jwtUtil, studentRepository, new SimpleMeterRegistry(),
-			List.of(commonAdapter));
+			loginAttemptLimiter, List.of(commonAdapter));
 	}
 
 	@Test
-	@DisplayName("백오피스 계정이 공통 로그인을 시도하면 BACKOFFICE_USE_DEDICATED_LOGIN 예외가 발생한다")
-	void loginCommon_BackofficeAccount_ThrowsException() {
-		// 1. Given
+	@DisplayName("백오피스 계정이 공통 로그인을 시도하면 비밀번호가 맞아도 일반 로그인 실패로 응답하고 시도 횟수를 초기화하지 않는다")
+	void loginCommon_whenBackofficeAccount_thenFailsLikeBadCredentialsWithoutReset() {
+		// given
 		CommonLoginRequestDTO request = new CommonLoginRequestDTO("back@assu.com", "password1!");
 
 		CommonUserDetails userDetails = new CommonUserDetails(
@@ -74,12 +78,10 @@ class LoginServiceImplTest {
 
 		when(commonAdapter.supports(AuthRealm.COMMON)).thenReturn(true);
 
-		// 2. When
-		GeneralException exception = assertThrows(GeneralException.class,
-			() -> loginService.loginCommon(request));
-
-		// 3. Then
-		assertEquals(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN, exception.getCode());
+		// when & then
+		assertThrows(BadCredentialsException.class, () -> loginService.loginCommon(request));
+		verify(loginAttemptLimiter).checkAttempt("back@assu.com");
+		verify(loginAttemptLimiter, never()).reset(any());
 		verify(jwtUtil, never()).issueTokens(any(), any(), any(), any());
 	}
 
@@ -118,6 +120,39 @@ class LoginServiceImplTest {
 		assertEquals(ActivationStatus.ACTIVE, response.status());
 		assertEquals("access-token", response.tokens().accessToken());
 		assertEquals("refresh-token", response.tokens().refreshToken());
+		verify(loginAttemptLimiter).reset("partner@assu.com");
+	}
+
+	@Test
+	@DisplayName("로그인 시도가 차단된 계정은 비밀번호를 확인하지 않고 LOGIN_ATTEMPTS_EXCEEDED 예외가 발생한다")
+	void loginCommon_whenAttemptsExceeded_thenRejectsBeforeAuthentication() {
+		// given
+		CommonLoginRequestDTO request = new CommonLoginRequestDTO("partner@assu.com", "password1!");
+		doThrow(new CustomAuthException(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED))
+			.when(loginAttemptLimiter).checkAttempt("partner@assu.com");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> loginService.loginCommon(request));
+
+		// then
+		assertEquals(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED, exception.getCode());
+		verify(authenticationManager, never()).authenticate(any());
+	}
+
+	@Test
+	@DisplayName("비밀번호가 틀리면 시도 횟수를 초기화하지 않는다")
+	void loginCommon_whenBadCredentials_thenDoesNotResetAttempts() {
+		// given
+		CommonLoginRequestDTO request = new CommonLoginRequestDTO("partner@assu.com", "wrong-password1!");
+		when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+
+		// when
+		assertThrows(BadCredentialsException.class, () -> loginService.loginCommon(request));
+
+		// then
+		verify(loginAttemptLimiter).checkAttempt("partner@assu.com");
+		verify(loginAttemptLimiter, never()).reset(any());
 	}
 
 	@Test

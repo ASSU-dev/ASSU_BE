@@ -32,11 +32,15 @@ public enum SwaggerErrorCodes {
     )),
     AUTH_PHONE_SEND_CODE(Set.of(
             ErrorStatus.EXISTED_PHONE,
+            ErrorStatus.PHONE_AUTH_SEND_COOLDOWN,
+            ErrorStatus.PHONE_AUTH_SEND_LIMIT_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.FAILED_TO_SEND_SMS,
             ErrorStatus.FAILED_TO_PARSE_ALIGO
     )),
     AUTH_PHONE_VERIFY_CODE(Set.of(
-            ErrorStatus.NOT_VERIFIED_PHONE_NUMBER
+            ErrorStatus.NOT_VERIFIED_PHONE_NUMBER,
+            ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED
     )),
     AUTH_EMAIL_CHECK(Set.of(
             ErrorStatus.EXISTED_EMAIL
@@ -64,8 +68,9 @@ public enum SwaggerErrorCodes {
             ErrorStatus.AUTHORIZATION_EXCEPTION
     )),
     AUTH_LOGIN_COMMON(Set.of(
+            ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.MEMBER_PENDING_APPROVAL,
-            ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN,
             ErrorStatus.AUTHORIZATION_EXCEPTION
     )),
     AUTH_LOGIN_STUDENT(Set.of(
@@ -97,6 +102,8 @@ public enum SwaggerErrorCodes {
             ErrorStatus.MEMBER_ALREADY_WITHDRAWN
     )),
     BACKOFFICE_AUTH_LOGIN(Set.of(
+            ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED,
+            ErrorStatus.AUTH_REQUESTS_EXCEEDED,
             ErrorStatus.NO_BACKOFFICE_TYPE,
             ErrorStatus.AUTHORIZATION_EXCEPTION
     )),

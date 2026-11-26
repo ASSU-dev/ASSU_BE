@@ -25,6 +25,7 @@ public enum ErrorStatus implements BaseErrorCode {
     REFRESH_TOKEN_NOT_EQUAL(HttpStatus.UNAUTHORIZED, "AUTH4007", "Refreash 토큰이 일치하지 않습니다."),
     JWT_ACCESS_TOKEN_REVOKED(HttpStatus.UNAUTHORIZED, "AUTH4009", "탈퇴 등의 이유로 무효화된 AccessToken입니다."),
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH4010", "이메일 또는 비밀번호가 올바르지 않습니다."),
+    LOGIN_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4290", "로그인 시도 횟수를 초과했습니다. 잠시 후 다시 시도해주세요."),
 
     // 숭실대 관련 에러
     SSU_SAINT_SSO_FAILED(HttpStatus.UNAUTHORIZED, "SSU4000", "숭실대학교 유세인트 SSO 로그인에 실패했습니다."),
@@ -38,6 +39,10 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // 인증 에러
     NOT_VERIFIED_PHONE_NUMBER(HttpStatus.BAD_REQUEST,"AUTH_4007","전화번호 인증에 실패했습니다."),
+    PHONE_AUTH_ATTEMPTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4291", "인증번호 입력 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."),
+    PHONE_AUTH_SEND_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "AUTH4292", "인증번호는 1분에 한 번만 요청할 수 있습니다. 잠시 후 다시 시도해주세요."),
+    PHONE_AUTH_SEND_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4293", "인증번호 요청 횟수를 초과했습니다. 24시간 후 다시 시도해주세요."),
+    AUTH_REQUESTS_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AUTH4294", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     //페이징 에러
     PAGE_UNDER_ONE(HttpStatus.BAD_REQUEST,"PAGE_4001","페이지는 1이상이여야 합니다."),
