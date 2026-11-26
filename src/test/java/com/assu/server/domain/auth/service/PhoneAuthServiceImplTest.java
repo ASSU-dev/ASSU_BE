@@ -93,14 +93,20 @@ class PhoneAuthServiceImplTest {
 
 	private void givenReservation(List<String> keys, String result) {
 		when(redisTemplate.execute(any(RedisScript.class), eq(keys),
-			eq("10"), eq("60"), eq("86400"), anyString(), eq("300"))).thenReturn(result);
+			eq("10"), eq("60"), eq("86400"), anyString(), eq("300"), anyString())).thenReturn(result);
 	}
 
-	private String reservedAuthNumber(List<String> keys) {
+	private String[] reservedAuthNumberAndId(List<String> keys) {
 		ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
 		verify(redisTemplate).execute(any(RedisScript.class), eq(keys),
-			eq("10"), eq("60"), eq("86400"), codeCaptor.capture(), eq("300"));
-		return codeCaptor.getValue();
+			eq("10"), eq("60"), eq("86400"), codeCaptor.capture(), eq("300"), idCaptor.capture());
+		return new String[] {codeCaptor.getValue(), idCaptor.getValue()};
+	}
+
+	private void verifyReleased(String[] reserved) {
+		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)),
+			eq(reserved[0]), eq(reserved[1]));
 	}
 
 	@Test
@@ -114,10 +120,10 @@ class PhoneAuthServiceImplTest {
 		phoneAuthService.checkAndSendAuthNumber(PHONE);
 
 		// then
-		String authNumber = reservedAuthNumber(SEND_KEYS);
+		String authNumber = reservedAuthNumberAndId(SEND_KEYS)[0];
 		assertTrue(authNumber.matches("\\d{6}"));
 		verify(aligoSmsClient).sendSms(eq(PHONE), eq("[ASSU] 인증번호: " + authNumber), anyString());
-		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), anyString());
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), anyString(), anyString());
 		verify(redisTemplate, never()).opsForValue();
 	}
 
@@ -166,8 +172,7 @@ class PhoneAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.FAILED_TO_SEND_SMS, exception.getCode());
-		String authNumber = reservedAuthNumber(SEND_KEYS);
-		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), eq(authNumber));
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
 	}
 
 	@Test
@@ -184,8 +189,7 @@ class PhoneAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.FAILED_TO_PARSE_ALIGO, exception.getCode());
-		String authNumber = reservedAuthNumber(SEND_KEYS);
-		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), eq(authNumber));
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
 	}
 
 	@Test
@@ -200,8 +204,7 @@ class PhoneAuthServiceImplTest {
 		assertThrows(IllegalStateException.class, () -> phoneAuthService.checkAndSendAuthNumber(PHONE));
 
 		// then
-		String authNumber = reservedAuthNumber(SEND_KEYS);
-		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY, SEND_COOLDOWN_KEY, PHONE)), eq(authNumber));
+		verifyReleased(reservedAuthNumberAndId(SEND_KEYS));
 	}
 
 	private void givenVerifyResult(String phone, String authNumber, String result) {
