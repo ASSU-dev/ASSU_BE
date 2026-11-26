@@ -117,13 +117,11 @@ class JwtUtilTest {
 	}
 
 	@Test
-	@DisplayName("탈퇴 회원의 Refresh 토큰은 회전하지 않는다")
+	@DisplayName("탈퇴 회원의 Refresh 토큰은 Redis에서 꺼내기 전에 거절해 회전하지 않는다")
 	void rotateRefreshToken_WithdrawnMember_ThrowsRevoked() {
 		// 1. Given
 		String jti = UUID.randomUUID().toString();
 		String refreshToken = buildAccessToken(jti);
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get("refresh:1:" + jti)).thenReturn(refreshToken);
 		Member member = withdrawnMember();
 		when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
 
@@ -133,7 +131,7 @@ class JwtUtilTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED, exception.getCode());
-		verify(redisTemplate, never()).delete(anyString());
+		verify(redisTemplate, never()).opsForValue();
 	}
 
 	@Test

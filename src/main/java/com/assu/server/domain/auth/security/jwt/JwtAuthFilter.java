@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -30,7 +29,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Value("${jwt.header}")
     private String jwtHeader;
     private final JwtUtil jwtUtil;
-    private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
@@ -135,13 +133,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             jwtUtil.validateRefreshToken(refreshToken);
             Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
-            Long memberIdFromRefresh = ((Number) refreshClaims.get("userId")).longValue();
-            String refreshJti = refreshClaims.getId();
-            String refreshKey = String.format("refresh:%d:%s", memberIdFromRefresh, refreshJti);
-            Boolean refreshExists = redisTemplate.hasKey(refreshKey);
-            if (Boolean.FALSE.equals(refreshExists)) {
-                throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
-            }
+            // Redis에 저장된 RT와의 대조는 회전 유예 처리까지 포함해 JwtUtil.rotateRefreshToken에서 원자적으로 한다
 
             boolean backofficeRefresh = PATH.match("/auth/backoffice/tokens/refresh", requestUri);
             if (backofficeRefresh) {
