@@ -4,12 +4,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.assu.server.domain.admin.entity.Admin;
@@ -81,6 +85,11 @@ public class StudentServiceImpl implements StudentService {
 	private final TransactionTemplate transactionTemplate;
 	private final EntityManager entityManager;
 	private final DiscordNotifier discordNotifier;
+
+	private static final int HOME_RECOMMEND_STORE_COUNT = 5;
+	private static final int USABLE_PARTNERSHIP_PREVIEW_SIZE = 2;
+	private static final String DEFAULT_DISCOUNT_DESCRIPTION = "제휴 혜택 제공";
+
     @Override
     @Transactional
     public StudentResponseDTO.CheckStampResponseDTO getStamp(Long memberId) {
@@ -94,36 +103,17 @@ public class StudentServiceImpl implements StudentService {
 	@Override
 	@Transactional(readOnly=true)
 	public StudentResponseDTO.MyPartnership getMyPartnership(Long studentId, int year, int month) {
-
+		if (month < 1 || month > 12) {
+			return new StudentResponseDTO.MyPartnership(0, List.of());
+		}
+		LocalDate from = LocalDate.of(year, month, 1);
 		List<PartnershipUsage> usages =
-			partnershipUsageRepository.findByYearAndMonth(studentId, year, month);
+			partnershipUsageRepository.findByStudentIdAndDateRange(studentId, from, from.plusMonths(1));
 
-		List<StudentResponseDTO.UsageDetail> details =
-			usages.stream()
-				.map(u -> {
-					PaperContent paperContent = paperContentRepository
-						.findById(u.getContentId())
-						.orElse(null);
-
-					Store store = paperContent != null
-						? paperContent.getPaper().getStore()
-						: null;
-
-					String formatDate = u.getCreatedAt()
-						.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-
-					return new StudentResponseDTO.UsageDetail(
-						u.getAdminName(),
-						u.getId(),
-						u.getPlace(),
-						store != null ? store.getPartner().getId() : null,
-						store != null ? store.getId() : null,
-						formatDate,
-						u.getPartnershipContent(),
-						u.getIsReviewed()
-					);
-				})
-				.toList();
+		Map<Long, Store> storeByContentId = loadStoresByContentId(usages);
+		List<StudentResponseDTO.UsageDetail> details = usages.stream()
+			.map(u -> toUsageDetail(u, storeByContentId.get(u.getContentId())))
+			.toList();
 
 		return new StudentResponseDTO.MyPartnership(
 			usages.size(),
@@ -145,31 +135,45 @@ public class StudentServiceImpl implements StudentService {
 		Page<PartnershipUsage> contentList =
 			partnershipUsageRepository.findByUnreviewedUsage(memberId, pageable);
 
-		return contentList.map(u -> {
-			PaperContent paperContent = paperContentRepository.findById(u.getContentId())
-				.orElse(null);
+		Map<Long, Store> storeByContentId = loadStoresByContentId(contentList.getContent());
+		return contentList.map(u -> toUsageDetail(u, storeByContentId.get(u.getContentId())));
+	}
 
-			Store store = (paperContent != null) ? paperContent.getPaper().getStore() : null;
+	private Map<Long, Store> loadStoresByContentId(List<PartnershipUsage> usages) {
+		Set<Long> contentIds = usages.stream()
+			.map(PartnershipUsage::getContentId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+		if (contentIds.isEmpty()) {
+			return Map.of();
+		}
+		Map<Long, Store> storeByContentId = new HashMap<>();
+		for (PaperContent content : paperContentRepository.findAllWithPaperAndStoreByIdIn(contentIds)) {
+			if (content.getPaper() != null && content.getPaper().getStore() != null) {
+				storeByContentId.put(content.getId(), content.getPaper().getStore());
+			}
+		}
+		return storeByContentId;
+	}
 
-			LocalDateTime ld = u.getCreatedAt();
-			String formatDate = ld.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-
-			return new StudentResponseDTO.UsageDetail(
-				u.getAdminName(),
-				u.getId(),
-				u.getPlace(),
-				(store != null && store.getPartner() != null) ? store.getPartner().getId() : null,
-				 (store!= null)? store.getId(): null, formatDate,
-				u.getPartnershipContent(),
-				u.getIsReviewed());
-
-		});
+	private StudentResponseDTO.UsageDetail toUsageDetail(PartnershipUsage usage, Store store) {
+		String formatDate = usage.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+		return new StudentResponseDTO.UsageDetail(
+			usage.getAdminName(),
+			usage.getId(),
+			usage.getPlace(),
+			(store != null && store.getPartner() != null) ? store.getPartner().getId() : null,
+			store != null ? store.getId() : null,
+			formatDate,
+			usage.getPartnershipContent(),
+			usage.getIsReviewed()
+		);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<StudentResponseDTO.UsablePartnershipDTO> getUsablePartnership(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId) {
-		List<UserPaper> userPapers = userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
+		List<UserPaper> userPapers = loadUsableUserPapers(memberId, all, storeCategory, adminId);
 
 		Map<Long, Long> countByPaperId = userPapers.stream()
 				.collect(Collectors.groupingBy(up -> up.getPaper().getId(), Collectors.counting()));
@@ -182,7 +186,7 @@ public class StudentServiceImpl implements StudentService {
 						LinkedHashMap::new
 				))
 				.values().stream()
-				.limit(Boolean.FALSE.equals(all) ? 2 : Long.MAX_VALUE)
+				.limit(Boolean.FALSE.equals(all) ? USABLE_PARTNERSHIP_PREVIEW_SIZE : Long.MAX_VALUE)
 				.toList();
 
 		return representatives.stream().map(up -> {
@@ -210,21 +214,20 @@ public class StudentServiceImpl implements StudentService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<StudentResponseDTO.RecommendCarouselDTO> getRecommendCarouselPartnership(Long memberId) {
-		List<Store> stores = storeRepository.findDistinctActiveStoresByStudentId(memberId);
-		List<Store> shuffled = new ArrayList<>(stores);
-		Collections.shuffle(shuffled);
-		List<Store> randomStores = shuffled.subList(0, Math.min(10, shuffled.size()));
+		List<Long> shuffledStoreIds = new ArrayList<>(storeRepository.findDistinctActiveStoreIdsByStudentId(memberId));
+		Collections.shuffle(shuffledStoreIds);
+		List<Long> storeIds = shuffledStoreIds.subList(0, Math.min(10, shuffledStoreIds.size()));
+		if (storeIds.isEmpty()) {
+			return List.of();
+		}
 
-		List<Long> storeIds = randomStores.stream()
-				.map(Store::getId)
+		Map<Long, Store> storeById = storeRepository.findAllWithPartnerByIdIn(storeIds).stream()
+				.collect(Collectors.toMap(Store::getId, Function.identity()));
+		List<Store> randomStores = storeIds.stream()
+				.map(storeById::get)
+				.filter(Objects::nonNull)
 				.toList();
-		Map<Long, PaperContent> contentByStoreId = paperContentRepository.findTopByStoreIdIn(storeIds).stream()
-				.collect(Collectors.toMap(
-						content -> content.getPaper().getStore().getId(),
-						content -> content,
-						(first, ignored) -> first,
-						LinkedHashMap::new
-				));
+		Map<Long, PaperContent> contentByStoreId = findLatestContentByStoreId(storeIds);
 		return randomStores.stream().map(store -> {
 			PaperContent content = contentByStoreId.get(store.getId());
 
@@ -384,16 +387,16 @@ public class StudentServiceImpl implements StudentService {
 		String studentName = (student.getName() != null && !student.getName().isBlank()) ? student.getName() : "학생";
 
 		if (curation == null) {
-			List<Store> activeStores = storeRepository.findAllExcludingWithdrawnPartner().stream()
-					.sorted(Comparator.comparing(Store::getRate, Comparator.nullsLast(Comparator.reverseOrder())))
-					.limit(5)
-					.toList();
+			List<Store> activeStores = storeRepository.findTopRatedExcludingWithdrawnPartner(
+					PageRequest.of(0, HOME_RECOMMEND_STORE_COUNT));
+			Map<Long, String> discountByStoreId = resolveStoreDiscountDescriptions(
+					activeStores.stream().map(Store::getId).toList());
 
 			StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
 			if (!activeStores.isEmpty()) {
 				Store fs = activeStores.get(0);
 				String fsImg = getStoreProfileImageUrl(fs, ImageSize.MEDIUM);
-				String fsDiscount = resolveStoreDiscountDescription(fs.getId());
+				String fsDiscount = discountByStoreId.get(fs.getId());
 				featuredDTO = StudentHomeResponseDTO.FeaturedRecommendationDTO.of(
 						fs.getId(),
 						fs.getName(),
@@ -410,7 +413,7 @@ public class StudentServiceImpl implements StudentService {
 				for (int i = 0; i < rem.size(); i++) {
 					Store s = rem.get(i);
 					String sImg = getStoreProfileImageUrl(s, ImageSize.MEDIUM);
-					String discount = resolveStoreDiscountDescription(s.getId());
+					String discount = discountByStoreId.get(s.getId());
 					var storeDTO = StudentHomeResponseDTO.CurationStoreDTO.of(
 							s.getId(),
 							s.getName(),
@@ -439,13 +442,17 @@ public class StudentServiceImpl implements StudentService {
 		String rawTitle = curation.getTitle();
 		String formattedTitle = rawTitle != null ? rawTitle.replace("{name}", studentName) : studentName + "님을 위한 제휴";
 
+		List<HomeCurationItem> items = homeCurationItemRepository.findByHomeCurationIdWithStoreAndPartner(curation.getId());
+		Map<Long, String> discountByStoreId = resolveStoreDiscountDescriptions(
+				collectStoreIdsWithoutCustomDiscount(curation, items));
+
 		StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
 		if (curation.getFeaturedStore() != null) {
 			Store fs = curation.getFeaturedStore();
 			String fsImg = getStoreProfileImageUrl(fs, ImageSize.MEDIUM);
 			String discount = curation.getFeaturedDiscountContent();
 			if (discount == null || discount.isBlank()) {
-				discount = resolveStoreDiscountDescription(fs.getId());
+				discount = discountByStoreId.get(fs.getId());
 			}
 			featuredDTO = StudentHomeResponseDTO.FeaturedRecommendationDTO.of(
 					fs.getId(),
@@ -456,7 +463,6 @@ public class StudentServiceImpl implements StudentService {
 			);
 		}
 
-		List<HomeCurationItem> items = homeCurationItemRepository.findByHomeCurationIdWithStoreAndPartner(curation.getId());
 		Map<Integer, List<HomeCurationItem>> itemsByGroup = items.stream()
 				.collect(Collectors.groupingBy(HomeCurationItem::getGroupIndex));
 
@@ -471,7 +477,7 @@ public class StudentServiceImpl implements StudentService {
 						String sImg = getStoreProfileImageUrl(s, ImageSize.MEDIUM);
 						String discount = item.getCustomDiscountContent();
 						if (discount == null || discount.isBlank()) {
-							discount = resolveStoreDiscountDescription(s.getId());
+							discount = discountByStoreId.get(s.getId());
 						}
 						return StudentHomeResponseDTO.CurationStoreDTO.of(
 								s.getId(),
@@ -489,6 +495,24 @@ public class StudentServiceImpl implements StudentService {
 		return StudentHomeResponseDTO.of(featuredDTO, formattedTitle, curationLists);
 	}
 
+	private Set<Long> collectStoreIdsWithoutCustomDiscount(HomeCuration curation, List<HomeCurationItem> items) {
+		Set<Long> storeIds = new HashSet<>();
+		Store featuredStore = curation.getFeaturedStore();
+		if (featuredStore != null && isBlank(curation.getFeaturedDiscountContent())) {
+			storeIds.add(featuredStore.getId());
+		}
+		for (HomeCurationItem item : items) {
+			if (isBlank(item.getCustomDiscountContent())) {
+				storeIds.add(item.getStore().getId());
+			}
+		}
+		return storeIds;
+	}
+
+	private boolean isBlank(String value) {
+		return value == null || value.isBlank();
+	}
+
 	private String getStoreProfileImageUrl(Store store, ImageSize size) {
 		return store == null ? null : getPartnerProfileImageUrl(store.getPartner(), size);
 	}
@@ -500,17 +524,39 @@ public class StudentServiceImpl implements StudentService {
 		return imageCdnManager.generateUrl(partner.getMember().getProfileUrl(), size);
 	}
 
-	private String resolveStoreDiscountDescription(Long storeId) {
-		if (storeId == null) {
-			return "";
+	private List<UserPaper> loadUsableUserPapers(Long memberId, Boolean all, StoreCategory storeCategory, Long adminId) {
+		if (!Boolean.FALSE.equals(all)) {
+			return userPaperRepository.findActivePartnershipsByStudentId(memberId, storeCategory, adminId);
 		}
-		List<PaperContent> contents = paperContentRepository.findTopByStoreIdIn(List.of(storeId));
-		if (!contents.isEmpty()) {
-			PaperContent pc = contents.get(0);
-			return PaperContentResponseDTO.toContentResponse(pc).paperContent();
+		List<Long> paperIds = userPaperRepository.findActivePaperIdsByStudentId(
+				memberId, storeCategory, adminId, PageRequest.of(0, USABLE_PARTNERSHIP_PREVIEW_SIZE));
+		if (paperIds.isEmpty()) {
+			return List.of();
 		}
-		return "제휴 혜택 제공";
+		return userPaperRepository.findByStudentIdAndPaperIdIn(memberId, paperIds);
+	}
+
+	private Map<Long, PaperContent> findLatestContentByStoreId(Collection<Long> storeIds) {
+		if (storeIds.isEmpty()) {
+			return Map.of();
+		}
+		return paperContentRepository.findLatestByStoreIdIn(storeIds).stream()
+				.collect(Collectors.toMap(
+						content -> content.getPaper().getStore().getId(),
+						Function.identity(),
+						(first, ignored) -> first
+				));
+	}
+
+	private Map<Long, String> resolveStoreDiscountDescriptions(Collection<Long> storeIds) {
+		Map<Long, PaperContent> contentByStoreId = findLatestContentByStoreId(storeIds);
+		Map<Long, String> descriptions = new HashMap<>();
+		for (Long storeId : storeIds) {
+			PaperContent content = contentByStoreId.get(storeId);
+			descriptions.put(storeId, content != null
+					? PaperContentResponseDTO.toContentResponse(content).paperContent()
+					: DEFAULT_DISCOUNT_DESCRIPTION);
+		}
+		return descriptions;
 	}
 }
-
-

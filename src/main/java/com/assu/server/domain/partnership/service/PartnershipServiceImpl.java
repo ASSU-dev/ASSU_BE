@@ -134,26 +134,16 @@ public class PartnershipServiceImpl implements PartnershipService {
     @Override
     @Transactional(readOnly = true)
     public Page<WritePartnershipResponseDTO> listPartnershipsForAdmin(Pageable pageable, Long adminId) {
-        Page<Paper> paperPage = paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, pageable);
-
-        List<Paper> papers = paperPage.getContent().stream()
-                .filter(p -> p.getStore() != null)
-                .toList();
-
-        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        Page<Paper> paperPage = paperRepository.findWithStoreByAdminIdAndStatus(adminId, ActivationStatus.ACTIVE, pageable);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(paperPage.getContent());
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<WritePartnershipResponseDTO> listPartnershipsForPartner(Pageable pageable, Long partnerId) {
-        Page<Paper> paperPage = paperRepository.findByPartner_IdAndIsActivated(partnerId, ActivationStatus.ACTIVE, pageable);
-
-        List<Paper> papers = paperPage.getContent().stream()
-                .filter(p -> p.getAdmin() != null)
-                .toList();
-
-        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        Page<Paper> paperPage = paperRepository.findWithAdminByPartnerIdAndStatus(partnerId, ActivationStatus.ACTIVE, pageable);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(paperPage.getContent());
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 

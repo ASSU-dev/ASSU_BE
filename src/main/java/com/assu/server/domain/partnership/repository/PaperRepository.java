@@ -33,7 +33,25 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     // Admin 기준 (ACTIVE)
     List<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Sort sort);
-    Page<Paper> findByAdmin_IdAndIsActivated(Long adminId, ActivationStatus status, Pageable pageable);
+
+    @Query(value = """
+        SELECT p FROM Paper p
+        JOIN FETCH p.admin a
+        JOIN FETCH p.store s
+        WHERE a.id = :adminId
+          AND p.isActivated = :status
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM Paper p
+        WHERE p.admin.id = :adminId
+          AND p.isActivated = :status
+          AND p.store IS NOT NULL
+        """)
+    Page<Paper> findWithStoreByAdminIdAndStatus(
+            @Param("adminId") Long adminId,
+            @Param("status") ActivationStatus status,
+            Pageable pageable
+    );
 
     boolean existsByAdmin_Id(Long adminId);
     boolean existsByPartner_Id(Long partnerId);
@@ -50,15 +68,57 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
 
     // Partner 기준 (ACTIVE)
     List<Paper> findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Sort sort);
-    Page<Paper>  findByPartner_IdAndIsActivated(Long partnerId, ActivationStatus status, Pageable pageable);
+
+    @Query(value = """
+        SELECT p FROM Paper p
+        JOIN FETCH p.admin a
+        LEFT JOIN FETCH p.store s
+        WHERE p.partner.id = :partnerId
+          AND p.isActivated = :status
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM Paper p
+        WHERE p.partner.id = :partnerId
+          AND p.isActivated = :status
+          AND p.admin IS NOT NULL
+        """)
+    Page<Paper> findWithAdminByPartnerIdAndStatus(
+            @Param("partnerId") Long partnerId,
+            @Param("status") ActivationStatus status,
+            Pageable pageable
+    );
     long countByStore_Id(Long storeId);
 
-    @Query("SELECT p FROM Paper p WHERE p.store.id = :storeId AND p.isActivated = :status")
-    Page<Paper> findByStore_IdAndActivationStatus(
+    @Query(value = """
+        SELECT p FROM Paper p
+        JOIN FETCH p.admin a
+        JOIN FETCH p.store s
+        WHERE s.id = :storeId
+          AND p.isActivated = :status
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM Paper p
+        WHERE p.store.id = :storeId
+          AND p.isActivated = :status
+          AND p.admin IS NOT NULL
+        """)
+    Page<Paper> findWithAdminByStoreIdAndStatus(
             @Param("storeId") Long storeId,
             @Param("status") ActivationStatus status,
             Pageable pageable
     );
+
+    @Query(value = """
+        SELECT p FROM Paper p
+        JOIN FETCH p.admin a
+        JOIN FETCH p.store s
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM Paper p
+        WHERE p.admin IS NOT NULL
+          AND p.store IS NOT NULL
+        """)
+    Page<Paper> findAllWithAdminAndStore(Pageable pageable);
 
 
     @Query("""

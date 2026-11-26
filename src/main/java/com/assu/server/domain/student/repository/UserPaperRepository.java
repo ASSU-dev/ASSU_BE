@@ -2,6 +2,7 @@ package com.assu.server.domain.student.repository;
 
 import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.student.entity.UserPaper;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -33,6 +34,42 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
             @Param("studentId") Long studentId,
             @Param("storeCategory") StoreCategory storeCategory,
             @Param("adminId") Long adminId
+    );
+
+    @Query("""
+        SELECT DISTINCT p.id FROM UserPaper up
+        JOIN up.paper p
+        JOIN up.paperContent pc
+        LEFT JOIN p.store s
+        LEFT JOIN p.admin a
+        WHERE up.student.id = :studentId
+          AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
+          AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
+          AND (:adminId IS NULL OR a.id = :adminId)
+        ORDER BY p.id DESC
+    """)
+    List<Long> findActivePaperIdsByStudentId(
+            @Param("studentId") Long studentId,
+            @Param("storeCategory") StoreCategory storeCategory,
+            @Param("adminId") Long adminId,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT up FROM UserPaper up
+        JOIN FETCH up.paper p
+        JOIN FETCH up.paperContent pc
+        LEFT JOIN FETCH p.store s
+        LEFT JOIN FETCH p.admin a
+        LEFT JOIN FETCH p.partner pt
+        LEFT JOIN FETCH pt.member pm
+        WHERE up.student.id = :studentId
+          AND p.id IN :paperIds
+        ORDER BY p.id DESC
+    """)
+    List<UserPaper> findByStudentIdAndPaperIdIn(
+            @Param("studentId") Long studentId,
+            @Param("paperIds") Collection<Long> paperIds
     );
 
     @Query("""

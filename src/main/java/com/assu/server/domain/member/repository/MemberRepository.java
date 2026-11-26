@@ -37,6 +37,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m.id FROM Member m WHERE m.role = :role")
     List<Long> findIdsByRole(@Param("role") UserRole role);
 
+    @EntityGraph(attributePaths = {"studentProfile", "adminProfile", "partnerProfile", "backofficeProfile", "ssuAuth", "commonAuth"})
     @Query(
             value = """
                     SELECT m FROM Member m

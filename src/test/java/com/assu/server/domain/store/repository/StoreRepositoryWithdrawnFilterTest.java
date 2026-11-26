@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,14 +36,14 @@ class StoreRepositoryWithdrawnFilterTest {
     private PartnerRepository partnerRepository;
 
     @Test
-    void findAllExcludingWithdrawnPartner_whenPartnerWithdrawn_thenExcludesOnlyThatStore() {
+    void findTopRatedExcludingWithdrawnPartner_whenPartnerWithdrawn_thenExcludesOnlyThatStore() {
         // given
         Store activePartnerStore = createStore(createPartner("01011112222", false));
         Store withdrawnPartnerStore = createStore(createPartner("01033334444", true));
         Store partnerlessStore = createStore(null);
 
         // when
-        List<Store> stores = storeRepository.findAllExcludingWithdrawnPartner();
+        List<Store> stores = storeRepository.findTopRatedExcludingWithdrawnPartner(PageRequest.of(0, 100));
 
         // then
         assertThat(stores)

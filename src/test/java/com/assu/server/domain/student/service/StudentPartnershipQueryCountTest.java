@@ -11,6 +11,7 @@ import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.store.entity.Store;
+import com.assu.server.domain.student.dto.StudentResponseDTO;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.support.CommonMockConfig;
@@ -24,6 +25,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -120,6 +123,30 @@ class StudentPartnershipQueryCountTest {
 
         // then
         assertThat(executedQueries("getRecommendCarouselPartnership")).isLessThanOrEqualTo(4);
+    }
+
+    @Test
+    void getUsablePartnership_whenNotAll_thenReturnsFirstTwoOfAll() {
+        // given
+        List<StudentResponseDTO.UsablePartnershipDTO> all = studentService.getUsablePartnership(studentId, true, null, null);
+        em.clear();
+
+        // when
+        List<StudentResponseDTO.UsablePartnershipDTO> preview = studentService.getUsablePartnership(studentId, false, null, null);
+
+        // then
+        assertThat(preview).usingRecursiveComparison().isEqualTo(all.subList(0, 2));
+    }
+
+    @Test
+    void getRecommendCarouselPartnership_returnsEachActiveStoreOnceWithLatestBenefit() {
+        // when
+        List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(studentId);
+
+        // then
+        assertThat(result).hasSize(PARTNER_COUNT);
+        assertThat(result).extracting(StudentResponseDTO.RecommendCarouselDTO::storeId).doesNotHaveDuplicates();
+        assertThat(result).extracting(StudentResponseDTO.RecommendCarouselDTO::benefit).containsOnly("혜택");
     }
 
     private long executedQueries(String label) {
