@@ -191,7 +191,7 @@ class PartnershipServiceImplTest {
 	void updatePartnershipStatus_NoAccess_ThrowsException() {
 		// 1. Given (다른 관리자의 paper)
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(partner()).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		// 2. When
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -207,7 +207,7 @@ class PartnershipServiceImplTest {
 	void updatePartnershipStatus_InvalidStatus_ThrowsException() {
 		// 1. Given
 		Paper paper = Paper.builder().id(PAPER_ID).admin(admin()).partner(partner()).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 
 		// 2. When
 		DatabaseException exception = assertThrows(DatabaseException.class,
@@ -226,7 +226,7 @@ class PartnershipServiceImplTest {
 		Partner partner = partner();
 		Paper paper = Paper.builder()
 			.id(PAPER_ID).admin(admin).partner(partner).isActivated(ActivationStatus.SUSPEND).build();
-		when(paperRepository.findById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
 		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
 		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
 
@@ -245,6 +245,25 @@ class PartnershipServiceImplTest {
 		verify(chatService, times(1)).sendGuideMessage(any());
 		verify(notificationService, times(1))
 			.sendChat(eq(PARTNER_ID), eq(1L), eq("총학생회"), anyString());
+	}
+
+	@Test
+	@DisplayName("현재 상태와 같은 상태로 변경을 요청하면 안내 메시지와 알림을 다시 보내지 않는다")
+	void updatePartnershipStatus_SameStatus_DoesNotSendGuideMessageAgain() {
+		// 1. Given (이미 ACTIVE인 제안서)
+		Paper paper = Paper.builder()
+			.id(PAPER_ID).admin(admin()).partner(partner()).isActivated(ActivationStatus.ACTIVE).build();
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
+
+		// 2. When
+		PartnershipStatusUpdateResponseDTO response = partnershipService.updatePartnershipStatus(
+			PAPER_ID, new PartnershipStatusUpdateRequestDTO("ACTIVE"), ADMIN_ID, UserRole.ADMIN);
+
+		// 3. Then
+		assertEquals("ACTIVE", response.prevStatus());
+		assertEquals("ACTIVE", response.newStatus());
+		verify(chatService, never()).sendGuideMessage(any());
+		verify(notificationService, never()).sendChat(any(), any(), any(), any());
 	}
 
 	// ===== updatePartnership =====

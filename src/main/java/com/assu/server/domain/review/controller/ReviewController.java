@@ -98,8 +98,9 @@ public class ReviewController {
     @DeleteMapping("/{reviewId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<BaseResponse<ReviewResponseDTO.DeleteReviewResponseDTO>> deleteReview(
+            @AuthenticationPrincipal PrincipalDetails pd,
             @PathVariable Long reviewId) {
-        return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, reviewService.deleteReview(reviewId)));
+        return ResponseEntity.ok(BaseResponse.onSuccess(SuccessStatus._OK, reviewService.deleteReview(reviewId, pd.getId())));
     }
 
     @Operation(

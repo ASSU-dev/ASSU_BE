@@ -10,6 +10,7 @@ import com.assu.server.domain.chat.entity.enums.ChatEventType;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.repository.MessageRepository;
 import com.assu.server.domain.common.enums.ActivationStatus;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.service.NotificationCommandService;
@@ -31,6 +32,7 @@ import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +52,7 @@ public class ChatServiceImpl implements ChatService {
     private final PresenceTracker presenceTracker;
     private final BlockRepository blockRepository;
     private final MeterRegistry meterRegistry;
+    private final TransactionTemplate transactionTemplate;
 
 
     @Override
@@ -58,9 +61,24 @@ public class ChatServiceImpl implements ChatService {
         return ChatRoomListResultDTO.ofList(chatRoomList);
     }
 
+    // 제약 위반을 트랜잭션 안에서 잡으면 rollback-only가 되어 커밋에서 실패하므로, 롤백이 끝난 뒤 새 트랜잭션에서 기존 방을 조회한다.
     @Override
-    @Transactional
     public ChatResponseDTO.CreateChatRoomResponseDTO createChatRoom(ChatRequestDTO.CreateChatRoomRequestDTO request, Long memberId) {
+        try {
+            return transactionTemplate.execute(status -> findOrCreateChatRoom(request));
+        } catch (DataIntegrityViolationException e) {
+            ChatResponseDTO.CreateChatRoomResponseDTO existingRoom = transactionTemplate.execute(status -> {
+                ChattingRoom existing = chatRepository.findChattingRoomByAdminIdAndPartnerId(request.adminId(), request.partnerId());
+                return existing == null ? null : ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existing);
+            });
+            if (existingRoom == null) {
+                throw e;
+            }
+            return existingRoom;
+        }
+    }
+
+    private ChatResponseDTO.CreateChatRoomResponseDTO findOrCreateChatRoom(ChatRequestDTO.CreateChatRoomRequestDTO request) {
 
         Long adminId = request.adminId();
         Long partnerId = request.partnerId();
@@ -85,13 +103,8 @@ public class ChatServiceImpl implements ChatService {
         room.updateStatus(ActivationStatus.ACTIVE);
         room.updateMemberCount(2);
         room.updateName(partner.getName(), admin.getName());
-        try {
-            ChattingRoom savedRoom = chatRepository.save(room);
-            return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
-        } catch (DataIntegrityViolationException e) {
-            ChattingRoom existing = chatRepository.findChattingRoomByAdminIdAndPartnerId(admin.getId(), partner.getId());
-            return ChatResponseDTO.CreateChatRoomResponseDTO.fromExistingRoom(existing);
-        }
+        ChattingRoom savedRoom = chatRepository.save(room);
+        return ChatResponseDTO.CreateChatRoomResponseDTO.fromNewRoom(savedRoom);
     }
 
     @Override
@@ -217,13 +230,12 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
     public ChatResponseDTO.LeaveChattingRoomResponseDTO leaveChattingRoom(Long roomId, Long memberId) {
-        // 멤버 조회
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
-        // 채팅방 조회
-        ChattingRoom chattingRoom = chatRepository.findById(roomId)
+        ChattingRoom chattingRoom = chatRepository.findWithLockById(roomId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_MEMBER_IN_THE_ROOM));
 
         boolean isAdmin = chattingRoom.getAdmin() != null &&
@@ -231,42 +243,31 @@ public class ChatServiceImpl implements ChatService {
         boolean isPartner = chattingRoom.getPartner() != null &&
                 chattingRoom.getPartner().getMember().getId().equals(member.getId());
 
-        int memberCount = chattingRoom.getMemberCount();
-        boolean isRoomDeleted = false;
-        boolean isLeftSuccessfully = false;
-
-        if(memberCount == 2) {
-            if (isAdmin) {
-                chattingRoom.setAdmin(null);
-            } else if (isPartner) {
-                chattingRoom.setPartner(null);
-            } else {
-                throw new DatabaseException(ErrorStatus.NO_SUCH_MEMBER);
-            }
-            chattingRoom.updateMemberCount(1);
-            isLeftSuccessfully = true;
-            chatRepository.save(chattingRoom);
-        } else if(memberCount == 1) {
-            if (isAdmin) {
-                chattingRoom.setAdmin(null);
-            } else if (isPartner) {
-                chattingRoom.setPartner(null);
-            }
-            chattingRoom.updateMemberCount(0);
-            isLeftSuccessfully = true;
-
-            // ✅ 방에 아무도 안 남았을 때만 삭제
-            if (chattingRoom.getAdmin() == null && chattingRoom.getPartner() == null) {
-                isRoomDeleted = true;
-                chatRepository.delete(chattingRoom);
-            } else {
-                chatRepository.save(chattingRoom);
-            }
-
-        } else if(memberCount == 0) {
-            throw new DatabaseException(ErrorStatus.NO_MEMBER);
+        if (isAdmin) {
+            chattingRoom.setAdmin(null);
+        } else if (isPartner) {
+            chattingRoom.setPartner(null);
+        } else if (hasAlreadyLeft(chattingRoom, member)) {
+            return new ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, true, false);
+        } else {
+            throw new DatabaseException(ErrorStatus.NO_SUCH_MEMBER);
         }
-        return new  ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, isLeftSuccessfully,isRoomDeleted);
+
+        int remainingCount = (chattingRoom.getAdmin() != null ? 1 : 0) + (chattingRoom.getPartner() != null ? 1 : 0);
+        chattingRoom.updateMemberCount(remainingCount);
+
+        if (remainingCount == 0) {
+            chatRepository.delete(chattingRoom);
+            return new ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, true, true);
+        }
+        chatRepository.save(chattingRoom);
+        return new ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, true, false);
+    }
+
+    // 나간 쪽 FK는 null로 비워지므로, 요청자 역할의 자리가 비어 있으면 이미 나간 참여자의 재요청으로 본다.
+    private boolean hasAlreadyLeft(ChattingRoom chattingRoom, Member member) {
+        return (member.getRole() == UserRole.ADMIN && chattingRoom.getAdmin() == null)
+                || (member.getRole() == UserRole.PARTNER && chattingRoom.getPartner() == null);
     }
 
     private boolean isRoomParticipants(ChattingRoom room, Long senderId, Long receiverId) {

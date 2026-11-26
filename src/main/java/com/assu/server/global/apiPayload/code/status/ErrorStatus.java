@@ -62,6 +62,9 @@ public enum ErrorStatus implements BaseErrorCode {
     PARTNER_STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "STORE_4007", "파트너에 연결된 스토어가 없습니다."),
     STORE_ALREADY_LINKED(HttpStatus.CONFLICT, "STORE_4008", "이미 다른 제휴업체에 연결된 가게 주소입니다."),
     NO_SUCH_USAGE(HttpStatus.NOT_FOUND, "USAGE4001", "존재하지 않는 제휴 사용 내역입니다."),
+    FORBIDDEN_USAGE(HttpStatus.FORBIDDEN, "USAGE4002", "본인의 제휴 사용 내역이 아닙니다."),
+    ALREADY_REVIEWED_USAGE(HttpStatus.CONFLICT, "USAGE4003", "이미 리뷰를 작성한 제휴 사용 내역입니다."),
+    USAGE_STORE_MISMATCH(HttpStatus.BAD_REQUEST, "USAGE4004", "리뷰 대상 가게에서 사용한 제휴 내역이 아닙니다."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
     NO_SUCH_STORE_WITH_THAT_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4006","해당 store ID에 해당하는 partner ID가 존재하지 않습니다."),
@@ -97,6 +100,8 @@ public enum ErrorStatus implements BaseErrorCode {
     //리뷰 이미지 에러
     IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR,"REVIEW_4001", "리뷰 이미지 업로드에 실패했습니다"),
     IMAGE_NOT_FOUND(HttpStatus.NOT_FOUND,"REVIEW_4001", "존재하지 않는 리뷰이미지 입니다"),
+    NO_SUCH_REVIEW(HttpStatus.NOT_FOUND, "REVIEW_4002", "존재하지 않는 리뷰입니다."),
+    FORBIDDEN_REVIEW(HttpStatus.FORBIDDEN, "REVIEW_4003", "본인이 작성한 리뷰가 아닙니다."),
     // 채팅 에러
     NO_SUCH_ROOM(HttpStatus.NOT_FOUND, "CHATTING_5001", "존재하지 않는 채팅방 ID 입니다."),
     NO_MEMBER_IN_THE_ROOM(HttpStatus.NOT_FOUND, "CHATTING_5002", "해당 방에는 해당 사용자가 없습니다."),
@@ -108,10 +113,8 @@ public enum ErrorStatus implements BaseErrorCode {
 
     // 알림(Notification) 에러
     INVALID_NOTIFICATION_STATUS_FILTER(HttpStatus.BAD_REQUEST,"NOTIFICATION_4001","유효하지 않은 알림 status 필터입니다. (all | unread 만 허용)"),
-    INVALID_NOTIFICATION_TYPE(HttpStatus.BAD_REQUEST,"NOTIFICATION_4002","지원하지 않는 알림 타입입니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4003","존재하지 않는 알림입니다."),
     NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN,"NOTIFICATION_4004","해당 알림에 접근할 권한이 없습니다."),
-    MISSING_NOTIFICATION_FIELD(HttpStatus.BAD_REQUEST,"NOTIFICATION_4005","알림 생성에 필요한 필드가 누락되었습니다."),
     OUTBOX_NOT_FOUND(HttpStatus.NOT_FOUND,"NOTIFICATION_4006","존재하지 않는 알림 Outbox입니다."),
     OUTBOX_NOT_FAILED(HttpStatus.BAD_REQUEST,"NOTIFICATION_4007","FAILED 상태인 Outbox만 수동 재전송할 수 있습니다."),
 

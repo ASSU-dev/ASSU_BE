@@ -1,6 +1,6 @@
 package com.assu.server.domain.notification.controller;
 
-import com.assu.server.domain.notification.dto.*;
+import com.assu.server.domain.notification.dto.NotificationSettingsResponseDTO;
 import com.assu.server.domain.notification.entity.NotificationType;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.notification.service.NotificationQueryService;
@@ -11,7 +11,6 @@ import com.assu.server.global.exception.annotation.ApiErrorCodeExamples;
 import com.assu.server.global.util.PrincipalDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -75,28 +74,6 @@ public class NotificationController {
         notificationCommandService.markRead(notificationId, pd.getMemberId());
         return BaseResponse.onSuccess(SuccessStatus._OK,
                 "The notification has been marked as read successfully. id=" + notificationId);
-    }
-
-    @Operation(
-            summary = "알림 전송 테스트 API",
-            description = "# [v1.0 (2025-09-02)](https://www.notion.so/2511197c19ed8051bc93d95f0b216543?source=copy_link)\n" +
-                    "- 알림 전송 기능을 테스트합니다.\n" +
-                    "- 디바이스 토큰을 등록한 이후에 사용 가능합니다.\n\n" +
-                    "**Request Body:**\n" +
-                    "- `memberId` (Long, required): 대상 멤버 ID\n" +
-                    "- `title` (String, required): 알림 제목\n" +
-                    "- `body` (String, required): 알림 내용\n\n" +
-                    "**Response:**\n" +
-                    "- 성공 시 200(OK)과 성공 메시지 반환\n" +
-                    "- 400(BAD_REQUEST): 필수 필드 누락\n" +
-                    "- 404(NOT_FOUND): 존재하지 않는 멤버 ID 또는 디바이스 토큰 없음\n" +
-                    "- 500(INTERNAL_SERVER_ERROR): FCM 전송 실패"
-    )
-    @ApiErrorCodeExamples(SwaggerErrorCodes.NOTIFICATION_QUEUE)
-    @PostMapping("/queue")
-    public BaseResponse<String> queue(@Valid @RequestBody QueueNotificationRequestDTO req) {
-        notificationCommandService.queue(req);
-        return BaseResponse.onSuccess(SuccessStatus._OK, "Notification delivery succeeded.");
     }
 
     @Operation(
