@@ -5,12 +5,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -151,7 +157,7 @@ class StoreServiceImplTest {
 	@DisplayName("오늘의 베스트 매장 이름 목록을 그대로 반환한다")
 	void getTodayBestStore_ReturnsStoreNames() {
 		// 1. Given
-		when(storeRepository.findTodayBestStoreNames())
+		when(storeRepository.findTodayBestStoreNames(any(), any()))
 			.thenReturn(List.of("역전할머니 맥주", "숭실분식"));
 
 		// 2. When
@@ -160,7 +166,7 @@ class StoreServiceImplTest {
 		// 3. Then
 		assertNotNull(response);
 		assertEquals(List.of("역전할머니 맥주", "숭실분식"), response.bestStores());
-		verify(storeRepository, times(1)).findTodayBestStoreNames();
+		verify(storeRepository, times(1)).findTodayBestStoreNames(any(), any());
 	}
 
 	@Test
@@ -187,7 +193,7 @@ class StoreServiceImplTest {
 		Store store = Store.builder().id(500L).partner(partner).build();
 		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
 		when(storeRepository.findByPartner(partner)).thenReturn(Optional.of(store));
-		when(storeRepository.findGlobalWeeklyRankForStore(500L)).thenReturn(List.of());
+		when(storeRepository.findGlobalWeeklyRankForStore(eq(500L), any(), any())).thenReturn(List.of());
 
 		// 2. When
 		StoreResponseDTO.WeeklyRankResponseDTO response = storeService.getWeeklyRank(PARTNER_ID);
@@ -195,6 +201,33 @@ class StoreServiceImplTest {
 		// 3. Then
 		assertNull(response.rank());
 		assertEquals(0L, response.usageCount());
+	}
+
+	@Test
+	void getWeeklyRank_whenCalled_thenQueriesFromMondayMidnightKstForOneWeek() {
+		// given
+		Partner partner = Partner.builder().id(PARTNER_ID).name("역전할머니 맥주").isPhoneVerified(false).build();
+		Store store = Store.builder().id(500L).partner(partner).build();
+		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		when(storeRepository.findByPartner(partner)).thenReturn(Optional.of(store));
+		ArgumentCaptor<LocalDateTime> weekStart = ArgumentCaptor.forClass(LocalDateTime.class);
+		ArgumentCaptor<LocalDateTime> weekEnd = ArgumentCaptor.forClass(LocalDateTime.class);
+		when(storeRepository.findGlobalWeeklyRankForStore(eq(500L), weekStart.capture(), weekEnd.capture()))
+			.thenReturn(List.of());
+
+		// when
+		storeService.getWeeklyRank(PARTNER_ID);
+
+		// then
+		ZoneId kst = ZoneId.of("Asia/Seoul");
+		ZonedDateTime startInKst = weekStart.getValue().atZone(ZoneId.systemDefault()).withZoneSameInstant(kst);
+		ZonedDateTime endInKst = weekEnd.getValue().atZone(ZoneId.systemDefault()).withZoneSameInstant(kst);
+		ZonedDateTime nowInKst = ZonedDateTime.now(kst);
+		assertEquals(DayOfWeek.MONDAY, startInKst.getDayOfWeek());
+		assertEquals(LocalTime.MIDNIGHT, startInKst.toLocalTime());
+		assertEquals(startInKst.plusWeeks(1), endInKst);
+		assertFalse(nowInKst.isBefore(startInKst));
+		assertTrue(nowInKst.isBefore(endInKst));
 	}
 
 	@Test

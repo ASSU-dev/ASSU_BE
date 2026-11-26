@@ -1,7 +1,6 @@
 package com.assu.server.domain.review.repository;
 
 import com.assu.server.domain.review.entity.Review;
-import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 
 import org.springframework.data.domain.Page;
@@ -59,8 +58,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     Page<Review> findByStoreIdOrderByCreatedAtDesc(Long id, Pageable pageable);// 최신순 정렬
 
-    Page<Review> findByStoreId(Long id, Pageable pageable);
-
     @Query("SELECT AVG(r.rate) FROM Review r WHERE r.store.id = :storeId AND r.status = :status AND r.student.status = :studentStatus")
     Float standardScoreWithStatus(
             @Param("storeId") Long storeId,
@@ -70,6 +67,4 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT AVG(r.rate) FROM Review r WHERE r.store.id = :storeId")
     Float standardScore(Long storeId);
-
-    Long store(Store store);
 }

@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(indexes = @Index(name = "idx_message_room_receiver_read", columnList = "room_id, receiver_id, is_read"))
 @Getter
 @NoArgsConstructor
 @Builder
