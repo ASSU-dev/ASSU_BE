@@ -26,6 +26,8 @@ public class OutboxStatusService {
     public static final int MAX_RETRY = 3;
     private static final Duration BASE_RETRY_DELAY = Duration.ofSeconds(30);
     private static final Duration SENDING_LEASE = Duration.ofMinutes(5);
+    // 큐에 넣은 뒤 이 시간 안에 소비되지 않으면(브로커 유실, 소비 실패) 재시도 대상으로 본다
+    private static final Duration DISPATCH_TIMEOUT = Duration.ofMinutes(5);
 
     private final NotificationOutboxRepository repo;
     private final MeterRegistry meterRegistry;
@@ -33,7 +35,7 @@ public class OutboxStatusService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markDispatched(Long id) {
         try {
-            int updated = repo.markDispatchedById(id);
+            int updated = repo.markDispatchedById(id, LocalDateTime.now().plus(DISPATCH_TIMEOUT));
             if (updated == 0) {
                 log.warn("[OutboxStatus] DISPATCHED failed - outbox not found or already processed: {}", id);
             } else {

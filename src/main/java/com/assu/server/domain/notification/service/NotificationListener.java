@@ -24,6 +24,9 @@ import org.springframework.stereotype.Component;
 @ConditionalOnFirebaseEnabled
 public class NotificationListener {
 
+    private static final int MARK_SENT_ATTEMPTS = 3;
+    private static final long MARK_SENT_BACKOFF_MILLIS = 200;
+
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
     private final MeterRegistry meterRegistry;
@@ -73,7 +76,7 @@ public class NotificationListener {
                 log.warn("[Notify] all tokens failed with retryable errors, retry outboxId={} memberId={}", outboxId, dto.receiverId());
                 outboxStatus.scheduleRetry(outboxId);
             } else {
-                outboxStatus.markSent(outboxId);
+                recordSent(outboxId);
             }
         }
 
@@ -84,6 +87,34 @@ public class NotificationListener {
 
         log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
                 outboxId, dto.receiverId(), result.successCount(), result.failureCount(), result.invalidTokens());
+    }
+
+    // 발송은 이미 끝났으므로 SENT 기록 실패를 발송 실패로 처리하지 않는다(FAILED로 남으면 수동 재전송 때 중복 발송된다)
+    private void recordSent(Long outboxId) {
+        RuntimeException lastError = null;
+        for (int attempt = 1; attempt <= MARK_SENT_ATTEMPTS; attempt++) {
+            try {
+                outboxStatus.markSent(outboxId);
+                return;
+            } catch (RuntimeException e) {
+                lastError = e;
+                if (attempt < MARK_SENT_ATTEMPTS && !sleepQuietly(MARK_SENT_BACKOFF_MILLIS)) {
+                    break;
+                }
+            }
+        }
+        meterRegistry.counter("notification.outbox.status", "result", "mark_sent_failed").increment();
+        log.error("[Notify] delivered but SENT update failed outboxId={}", outboxId, lastError);
+    }
+
+    private boolean sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     private void handleException(Exception e, Long outboxId, Long memberId) {

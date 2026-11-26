@@ -13,7 +13,9 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,6 +60,33 @@ class NotificationListenerTest {
 
         verify(outboxStatus).markSent(OUTBOX_ID);
         verify(outboxStatus, never()).scheduleRetry(OUTBOX_ID);
+    }
+
+    @Test
+    void onMessage_whenMarkSentKeepsFailingAfterDelivery_thenAcksWithoutMarkingFailed() throws Exception {
+        when(fcmClient.sendToMemberId(anyLong(), any(), any(), any()))
+                .thenReturn(new FcmClient.FcmResult(1, 0, 0, List.of()));
+        doThrow(new IllegalStateException("db down")).when(outboxStatus).markSent(OUTBOX_ID);
+
+        listener.onMessage(message(), channel, TAG);
+
+        verify(outboxStatus, times(3)).markSent(OUTBOX_ID);
+        verify(outboxStatus, never()).markFailed(OUTBOX_ID);
+        verify(outboxStatus, never()).scheduleRetry(OUTBOX_ID);
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void onMessage_whenMarkSentFailsOnce_thenRetriesAndSucceeds() throws Exception {
+        when(fcmClient.sendToMemberId(anyLong(), any(), any(), any()))
+                .thenReturn(new FcmClient.FcmResult(1, 0, 0, List.of()));
+        doThrow(new IllegalStateException("db blip")).doNothing().when(outboxStatus).markSent(OUTBOX_ID);
+
+        listener.onMessage(message(), channel, TAG);
+
+        verify(outboxStatus, times(2)).markSent(OUTBOX_ID);
+        verify(outboxStatus, never()).markFailed(OUTBOX_ID);
+        verify(channel).basicAck(TAG, false);
     }
 
     @Test

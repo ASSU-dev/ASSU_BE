@@ -117,6 +117,43 @@ class OutboxMultiInstanceTest {
         assertThat(all).containsExactlyInAnyOrderElementsOf(outboxIds);
     }
 
+    @Test
+    void findRetryTargetIds_whenDispatchedMessageNeverConsumed_thenRetriedAfterTimeout() {
+        Long stuck = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().minusSeconds(1));
+        Long inFlight = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().plusMinutes(5));
+        Long legacy = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, null);
+
+        List<Long> targets = outboxStatusService.findRetryTargetIds(100);
+
+        assertThat(targets).contains(stuck).doesNotContain(inFlight, legacy);
+        assertThat(outboxStatusService.claimForRetry(stuck)).isPresent();
+        NotificationOutbox claimed = outboxRepository.findById(stuck).orElseThrow();
+        assertThat(claimed.getStatus()).isEqualTo(NotificationOutbox.Status.PENDING);
+        assertThat(claimed.getRetryCount()).isEqualTo(1);
+    }
+
+    @Test
+    void markDispatched_whenPending_thenSetsRedeliveryDeadline() {
+        Long outboxId = saveOutbox(NotificationOutbox.Status.PENDING, 0, null);
+
+        outboxStatusService.markDispatched(outboxId);
+
+        NotificationOutbox outbox = outboxRepository.findById(outboxId).orElseThrow();
+        assertThat(outbox.getStatus()).isEqualTo(NotificationOutbox.Status.DISPATCHED);
+        assertThat(outbox.getNextAttemptAt()).isAfter(LocalDateTime.now().plusMinutes(4));
+        assertThat(outboxStatusService.findRetryTargetIds(100)).doesNotContain(outboxId);
+    }
+
+    @Test
+    void claimForRetry_whenDispatchedExhaustedRetries_thenGivesUp() {
+        Long outboxId = saveOutbox(NotificationOutbox.Status.DISPATCHED, 3, LocalDateTime.now().minusSeconds(1));
+
+        assertThat(outboxStatusService.claimForRetry(outboxId)).isEmpty();
+
+        assertThat(outboxRepository.findById(outboxId).orElseThrow().getStatus())
+                .isEqualTo(NotificationOutbox.Status.FAILED);
+    }
+
     private <T> List<T> raceOnPods(Callable<T> pod) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(PODS);
         CountDownLatch start = new CountDownLatch(1);

@@ -58,6 +58,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setTaskScheduler(messageBrokerTaskScheduler);
         registry.setApplicationDestinationPrefixes("/pub", "/app"); // 둘 다 추가
         registry.setUserDestinationPrefix("/user");
+        // clientOutboundChannel이 스레드 풀이라 같은 세션으로 가는 메시지도 순서가 바뀔 수 있어, 세션별 발행 순서를 지킨다
+        registry.setPreservePublishOrder(true);
     }
 
     @Override
