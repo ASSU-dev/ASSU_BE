@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Spring Boot 3.5.3 / Java 17 backend for Assu, a university partnership benefit platform for Soongsil University.
+Spring Boot 3.5.16 / Java 17 backend for Assu, a university partnership benefit platform for Soongsil University.
 Application code lives under `src/main/java/com/assu/server`, grouped into `domain/`, `global/`, and `infra/`.
 
 Domains: `admin`, `appreview`, `auth`, `backoffice`, `certification`, `chat`, `common`, `deviceToken`,
