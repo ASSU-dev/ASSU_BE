@@ -39,6 +39,12 @@ public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsa
 
 	@Modifying(flushAutomatically = true)
 	@Query("UPDATE PartnershipUsage pu SET pu.isReviewed = true " +
-		"WHERE pu.id = :id AND pu.student.id = :studentId AND pu.isReviewed = false")
-	int markReviewedIfUnreviewed(@Param("id") Long id, @Param("studentId") Long studentId);
+		"WHERE pu.id = :id AND pu.student.id = :studentId AND pu.isReviewed = false " +
+		"AND EXISTS (SELECT 1 FROM Paper p WHERE p.id = pu.paperId AND p.store.id = :storeId)")
+	int markReviewedIfUnreviewed(@Param("id") Long id, @Param("studentId") Long studentId,
+		@Param("storeId") Long storeId);
+
+	@Query("SELECT COUNT(pu) > 0 FROM PartnershipUsage pu, Paper p " +
+		"WHERE pu.id = :id AND p.id = pu.paperId AND p.store.id = :storeId")
+	boolean existsByIdAndStoreId(@Param("id") Long id, @Param("storeId") Long storeId);
 }

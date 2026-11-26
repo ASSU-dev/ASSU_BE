@@ -39,9 +39,4 @@ public class PartnershipUsage extends BaseEntity {
 	private Long contentId;
 
 	private String adminName;
-
-	public void setIsReviewed(Boolean isReviewed) {
-		this.isReviewed = isReviewed;
-	}
-
 }

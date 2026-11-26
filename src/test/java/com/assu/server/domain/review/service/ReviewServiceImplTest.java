@@ -74,41 +74,93 @@ class ReviewServiceImplTest {
 
 	private ReviewRequestDTO.WriteReviewRequestDTO writeRequest() {
 		return ReviewRequestDTO.WriteReviewRequestDTO.builder()
-			.partnershipUsageId(USAGE_ID).storeId(STORE_ID).adminName("총학생회").build();
+			.partnershipUsageId(USAGE_ID).storeId(STORE_ID).partnerId(PARTNER_ID).adminName("총학생회").build();
 	}
 
 	// ===== writeReview =====
 
+	private static final Long PARTNER_ID = 700L;
+
+	private void givenStoreOfPartner() {
+		Partner partner = mock(Partner.class);
+		when(partner.getId()).thenReturn(PARTNER_ID);
+		Store store = mock(Store.class);
+		when(store.getId()).thenReturn(STORE_ID);
+		when(store.getPartner()).thenReturn(partner);
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+	}
+
 	@Test
 	@DisplayName("다른 학생의 제휴 사용 내역으로 리뷰를 작성하면 FORBIDDEN_USAGE 예외가 발생한다")
 	void writeReview_UsageOfAnotherStudent_ThrowsException() {
-		// 1. Given
-		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID)).thenReturn(0);
+		// given
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(0);
 		when(partnershipUsageRepository.findById(USAGE_ID)).thenReturn(Optional.of(
 			PartnershipUsage.builder().id(USAGE_ID).student(studentWithId(OTHER_MEMBER_ID)).isReviewed(false).build()));
 
-		// 2. When
+		// when
 		GeneralException exception = assertThrows(GeneralException.class,
 			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
 
-		// 3. Then
+		// then
 		assertEquals(ErrorStatus.FORBIDDEN_USAGE, exception.getCode());
 		verify(reviewRepository, never()).save(any());
 	}
 
 	@Test
-	@DisplayName("이미 리뷰를 작성한 제휴 사용 내역으로 다시 작성하면 ALREADY_REVIEWED_USAGE 예외가 발생한다")
-	void writeReview_UsageAlreadyReviewed_ThrowsException() {
-		// 1. Given
-		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID)).thenReturn(0);
+	@DisplayName("다른 가게에서 사용한 본인 내역으로 리뷰를 작성하면 USAGE_STORE_MISMATCH 예외가 발생한다")
+	void writeReview_whenUsageFromAnotherStore_thenThrowsStoreMismatch() {
+		// given
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(0);
 		when(partnershipUsageRepository.findById(USAGE_ID)).thenReturn(Optional.of(
-			PartnershipUsage.builder().id(USAGE_ID).student(studentWithId(MEMBER_ID)).isReviewed(true).build()));
+			PartnershipUsage.builder().id(USAGE_ID).student(studentWithId(MEMBER_ID)).isReviewed(false).build()));
+		when(partnershipUsageRepository.existsByIdAndStoreId(USAGE_ID, STORE_ID)).thenReturn(false);
 
-		// 2. When
+		// when
 		GeneralException exception = assertThrows(GeneralException.class,
 			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
 
-		// 3. Then
+		// then
+		assertEquals(ErrorStatus.USAGE_STORE_MISMATCH, exception.getCode());
+		verify(reviewRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("요청한 업체가 가게의 업체가 아니면 사용 내역을 선점하지 않고 NO_SUCH_STORE_WITH_THAT_PARTNER 예외가 발생한다")
+	void writeReview_whenPartnerDoesNotOwnStore_thenThrowsBeforeClaimingUsage() {
+		// given
+		Partner otherPartner = mock(Partner.class);
+		when(otherPartner.getId()).thenReturn(PARTNER_ID + 1);
+		Store store = mock(Store.class);
+		when(store.getPartner()).thenReturn(otherPartner);
+		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+
+		// when
+		CustomReviewException exception = assertThrows(CustomReviewException.class,
+			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_STORE_WITH_THAT_PARTNER, exception.getCode());
+		verify(partnershipUsageRepository, never()).markReviewedIfUnreviewed(any(), any(), any());
+	}
+
+	@Test
+	@DisplayName("이미 리뷰를 작성한 제휴 사용 내역으로 다시 작성하면 ALREADY_REVIEWED_USAGE 예외가 발생한다")
+	void writeReview_UsageAlreadyReviewed_ThrowsException() {
+		// given
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(0);
+		when(partnershipUsageRepository.findById(USAGE_ID)).thenReturn(Optional.of(
+			PartnershipUsage.builder().id(USAGE_ID).student(studentWithId(MEMBER_ID)).isReviewed(true).build()));
+		when(partnershipUsageRepository.existsByIdAndStoreId(USAGE_ID, STORE_ID)).thenReturn(true);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
+
+		// then
 		assertEquals(ErrorStatus.ALREADY_REVIEWED_USAGE, exception.getCode());
 		verify(reviewRepository, never()).save(any());
 	}
@@ -116,15 +168,16 @@ class ReviewServiceImplTest {
 	@Test
 	@DisplayName("존재하지 않는 제휴 사용 내역으로 리뷰를 작성하면 NO_SUCH_USAGE 예외가 발생한다")
 	void writeReview_UsageNotFound_ThrowsException() {
-		// 1. Given
-		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID)).thenReturn(0);
+		// given
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(0);
 		when(partnershipUsageRepository.findById(USAGE_ID)).thenReturn(Optional.empty());
 
-		// 2. When
+		// when
 		GeneralException exception = assertThrows(GeneralException.class,
 			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
 
-		// 3. Then
+		// then
 		assertEquals(ErrorStatus.NO_SUCH_USAGE, exception.getCode());
 		verify(reviewRepository, never()).save(any());
 	}
@@ -132,16 +185,17 @@ class ReviewServiceImplTest {
 	@Test
 	@DisplayName("사용 내역 선점에 성공한 경우에만 리뷰 생성 단계로 넘어간다")
 	void writeReview_UsageClaimed_ProceedsToCreateReview() {
-		// 1. Given (선점 성공 후 가게 조회에서 중단시켜 생성 단계 진입만 확인)
-		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID)).thenReturn(1);
-		when(storeRepository.findById(STORE_ID)).thenReturn(Optional.empty());
+		// given (선점 성공 후 업체 조회에서 중단시켜 생성 단계 진입만 확인)
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(1);
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.empty());
 
-		// 2. When
+		// when
 		CustomReviewException exception = assertThrows(CustomReviewException.class,
 			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, null));
 
-		// 3. Then
-		assertEquals(ErrorStatus.NO_SUCH_STORE, exception.getCode());
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_PARTNER, exception.getCode());
 		verify(partnershipUsageRepository, never()).findById(anyLong());
 	}
 

@@ -454,7 +454,9 @@ public enum SwaggerErrorCodes {
             ErrorStatus.IMAGE_UPLOAD_FAILED,
             ErrorStatus.NO_SUCH_USAGE,
             ErrorStatus.FORBIDDEN_USAGE,
-            ErrorStatus.ALREADY_REVIEWED_USAGE
+            ErrorStatus.ALREADY_REVIEWED_USAGE,
+            ErrorStatus.USAGE_STORE_MISMATCH,
+            ErrorStatus.NO_SUCH_STORE_WITH_THAT_PARTNER
     )),
     REVIEW_CHECK_PARTNER(Set.of(
             ErrorStatus.NO_SUCH_PARTNER,
