@@ -43,16 +43,21 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
     private static final String RESERVED_PREFIX = "RESERVED:";
 
     // 한도 확인·쿨다운 선점·발송 횟수 예약·인증번호 저장을 한 스크립트로 묶어, 동시 요청이 같은 횟수를 보고 한도를 넘겨 발송하지 못하게 한다
-    // 횟수 키와 같은 만료로 집계 창 식별자를 두고 돌려줘, 해제할 때 예약한 창과 지금 창이 같은지 비교할 수 있게 한다
+    // 횟수 키를 새로 만들 때만 창 만료를 정하고 같은 만료로 집계 창 식별자를 둔다. 횟수가 0으로 돌아가도 창 만료는 바뀌지 않는다
     private static final RedisScript<String> RESERVE_SEND_SCRIPT = RedisScript.of("""
             local count = tonumber(redis.call('GET', KEYS[1]) or '0')
             if count >= tonumber(ARGV[1]) then return 'LIMIT' end
             if not redis.call('SET', KEYS[2], ARGV[6], 'NX', 'EX', ARGV[2]) then return 'COOLDOWN' end
-            if redis.call('INCR', KEYS[1]) == 1 then redis.call('EXPIRE', KEYS[1], ARGV[3]) end
-            if redis.call('EXISTS', KEYS[5]) == 0 then
-              local ttl = redis.call('PTTL', KEYS[1])
-              if ttl > 0 then redis.call('SET', KEYS[5], ARGV[6], 'PX', ttl)
-              else redis.call('SET', KEYS[5], ARGV[6], 'EX', ARGV[3]) end
+            if redis.call('EXISTS', KEYS[1]) == 0 then
+              redis.call('SET', KEYS[1], '1', 'EX', ARGV[3])
+              redis.call('SET', KEYS[5], ARGV[6], 'EX', ARGV[3])
+            else
+              redis.call('INCR', KEYS[1])
+              if redis.call('EXISTS', KEYS[5]) == 0 then
+                local ttl = redis.call('PTTL', KEYS[1])
+                if ttl > 0 then redis.call('SET', KEYS[5], ARGV[6], 'PX', ttl)
+                else redis.call('SET', KEYS[5], ARGV[6], 'EX', ARGV[3]) end
+              end
             end
             redis.call('SET', KEYS[3], ARGV[4], 'EX', ARGV[5])
             redis.call('DEL', KEYS[4])
