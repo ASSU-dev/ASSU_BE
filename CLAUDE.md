@@ -42,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 기술 스택
 
-- **Spring Boot 3.5.3**, Java 17
+- **Spring Boot 3.5.16**, Java 17
 - **DB**: MariaDB (운영), H2 (테스트), Hibernate Spatial (공간 데이터)
 - **캐시/세션**: Redis
 - **메시지 브로커**: RabbitMQ (FCM 알림 Outbox 패턴)
