@@ -12,6 +12,7 @@ import org.locationtech.jts.geom.Point;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(indexes = @Index(name = "idx_partner_phone_num", columnList = "phone_num"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

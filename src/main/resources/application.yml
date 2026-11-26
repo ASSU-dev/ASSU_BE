@@ -31,9 +31,13 @@ spring:
       hibernate:
         jdbc:
           time_zone: Asia/Seoul
-        show_sql: true
+        show_sql: false
         default_batch_fetch_size: 100
-        highlight_sql : true
+        highlight_sql: false
+        log_slow_query: 1000
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
   lifecycle:
     timeout-per-shutdown-phase: 30s
   rabbitmq:

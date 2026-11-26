@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
+@Table(indexes = @Index(name = "idx_member_deleted_at", columnList = "deleted_at"))
 public class Member extends BaseEntity {
 
     @Id

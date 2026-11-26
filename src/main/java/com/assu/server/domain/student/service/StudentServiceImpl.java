@@ -46,7 +46,8 @@ import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.discord.DiscordNotifier;
-import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
+import com.assu.server.infra.s3.ImageSize;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -76,7 +77,7 @@ public class StudentServiceImpl implements StudentService {
 	private final HomeCurationRepository homeCurationRepository;
 	private final HomeCurationItemRepository homeCurationItemRepository;
 	private final StoreRepository storeRepository;
-	private final AmazonS3Manager amazonS3Manager;
+	private final ImageCdnManager imageCdnManager;
 	private final TransactionTemplate transactionTemplate;
 	private final EntityManager entityManager;
 	private final DiscordNotifier discordNotifier;
@@ -197,7 +198,7 @@ public class StudentServiceImpl implements StudentService {
 					.paperId(paper.getId())
 					.storeId(store != null ? store.getId() : null)
 					.extraCount(extraCount)
-					.partnerProfileUrl(getPartnerProfileImageUrl(paper.getPartner()))
+					.partnerProfileUrl(getPartnerProfileImageUrl(paper.getPartner(), ImageSize.THUMBNAIL))
 					.benefitCondition(content.getBenefitCondition())
 					.benefit(content.getBenefit())
 					.caution(content.getCaution())
@@ -228,7 +229,7 @@ public class StudentServiceImpl implements StudentService {
 			PaperContent content = contentByStoreId.get(store.getId());
 
 			return new StudentResponseDTO.RecommendCarouselDTO(
-					getStoreProfileImageUrl(store),
+					getStoreProfileImageUrl(store, ImageSize.THUMBNAIL),
 					store.getName(),
 					store.getId(),
 					content != null ? content.getBenefitCondition() : null,
@@ -391,7 +392,7 @@ public class StudentServiceImpl implements StudentService {
 			StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
 			if (!activeStores.isEmpty()) {
 				Store fs = activeStores.get(0);
-				String fsImg = getStoreProfileImageUrl(fs);
+				String fsImg = getStoreProfileImageUrl(fs, ImageSize.MEDIUM);
 				String fsDiscount = resolveStoreDiscountDescription(fs.getId());
 				featuredDTO = StudentHomeResponseDTO.FeaturedRecommendationDTO.of(
 						fs.getId(),
@@ -408,7 +409,7 @@ public class StudentServiceImpl implements StudentService {
 				List<Store> rem = activeStores.subList(1, activeStores.size());
 				for (int i = 0; i < rem.size(); i++) {
 					Store s = rem.get(i);
-					String sImg = getStoreProfileImageUrl(s);
+					String sImg = getStoreProfileImageUrl(s, ImageSize.MEDIUM);
 					String discount = resolveStoreDiscountDescription(s.getId());
 					var storeDTO = StudentHomeResponseDTO.CurationStoreDTO.of(
 							s.getId(),
@@ -441,7 +442,7 @@ public class StudentServiceImpl implements StudentService {
 		StudentHomeResponseDTO.FeaturedRecommendationDTO featuredDTO = null;
 		if (curation.getFeaturedStore() != null) {
 			Store fs = curation.getFeaturedStore();
-			String fsImg = getStoreProfileImageUrl(fs);
+			String fsImg = getStoreProfileImageUrl(fs, ImageSize.MEDIUM);
 			String discount = curation.getFeaturedDiscountContent();
 			if (discount == null || discount.isBlank()) {
 				discount = resolveStoreDiscountDescription(fs.getId());
@@ -467,7 +468,7 @@ public class StudentServiceImpl implements StudentService {
 			List<StudentHomeResponseDTO.CurationStoreDTO> storeList = groupItems.stream()
 					.map(item -> {
 						Store s = item.getStore();
-						String sImg = getStoreProfileImageUrl(s);
+						String sImg = getStoreProfileImageUrl(s, ImageSize.MEDIUM);
 						String discount = item.getCustomDiscountContent();
 						if (discount == null || discount.isBlank()) {
 							discount = resolveStoreDiscountDescription(s.getId());
@@ -488,19 +489,15 @@ public class StudentServiceImpl implements StudentService {
 		return StudentHomeResponseDTO.of(featuredDTO, formattedTitle, curationLists);
 	}
 
-	private String getStoreProfileImageUrl(Store store) {
-		return store == null ? null : getPartnerProfileImageUrl(store.getPartner());
+	private String getStoreProfileImageUrl(Store store, ImageSize size) {
+		return store == null ? null : getPartnerProfileImageUrl(store.getPartner(), size);
 	}
 
-	private String getPartnerProfileImageUrl(Partner partner) {
+	private String getPartnerProfileImageUrl(Partner partner, ImageSize size) {
 		if (partner == null || partner.getMember() == null) {
 			return null;
 		}
-		String key = partner.getMember().getProfileUrl();
-		if (key != null && !key.isBlank()) {
-			return amazonS3Manager.generatePresignedUrl(key);
-		}
-		return null;
+		return imageCdnManager.generateUrl(partner.getMember().getProfileUrl(), size);
 	}
 
 	private String resolveStoreDiscountDescription(Long storeId) {

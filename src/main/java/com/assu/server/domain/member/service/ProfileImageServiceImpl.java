@@ -1,10 +1,12 @@
 package com.assu.server.domain.member.service;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import java.util.Set;
 public class ProfileImageServiceImpl implements ProfileImageService{
     private final MemberRepository memberRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final ImageCdnManager imageCdnManager;
     private final MeterRegistry meterRegistry;
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -34,13 +37,16 @@ public class ProfileImageServiceImpl implements ProfileImageService{
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
 
-        String keyPath = "members/" + member.getId() + "/profile/" + image.getOriginalFilename();
-        String keyName = amazonS3Manager.generateKeyName(keyPath);
+        String keyName = amazonS3Manager.generateKeyName(
+                resolveProfileKeyPath(member), getFileExtension(image.getOriginalFilename()));
         String uploadedKey = amazonS3Manager.uploadFile(keyName, image); // S3에 올린 후 key 반환
 
         String oldKey = member.getProfileUrl();
         if (oldKey != null && !oldKey.isBlank()) {
-            try { amazonS3Manager.deleteFile(oldKey); }
+            try {
+                amazonS3Manager.deleteFile(oldKey);
+                imageCdnManager.invalidate(oldKey);
+            }
             catch (Exception e) {
                 log.warn("이전 프로필 삭제 실패 key={}", oldKey, e);
                 meterRegistry.counter("member.profile.image.s3.delete.failure").increment();
@@ -87,8 +93,18 @@ public class ProfileImageServiceImpl implements ProfileImageService{
             throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_DELETE_FAILED);
         }
 
+        imageCdnManager.invalidate(currentKey);
+
         // 4) DB에서 프로필 URL 제거 (null로 설정)
         member.setProfileUrl(null);
+    }
+
+    // 제휴업체 사진만 CDN 공개 경로에 저장한다
+    private String resolveProfileKeyPath(Member member) {
+        if (member.getRole() == UserRole.PARTNER) {
+            return ImageCdnManager.PUBLIC_PREFIX + "store-profiles";
+        }
+        return "members/" + member.getId() + "/profile";
     }
 
 

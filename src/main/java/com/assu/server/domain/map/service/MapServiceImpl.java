@@ -19,6 +19,7 @@ import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.UserPaper;
 import com.assu.server.domain.student.repository.UserPaperRepository;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.infra.s3.ImageCdnManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class MapServiceImpl implements MapService {
     private final PaperContentRepository paperContentRepository;
     private final PaperRepository paperRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final ImageCdnManager imageCdnManager;
     private final UserPaperRepository userPaperRepository;
 
     @Override
@@ -54,7 +56,7 @@ public class MapServiceImpl implements MapService {
                 .collect(Collectors.toMap(p -> p.getPartner().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return partners.stream()
-                .map(p -> PartnerMapResponseDTO.of(p, partnerIdToPaper.get(p.getId()), amazonS3Manager))
+                .map(p -> PartnerMapResponseDTO.of(p, partnerIdToPaper.get(p.getId()), imageCdnManager))
                 .toList();
     }
 
@@ -182,7 +184,7 @@ public class MapServiceImpl implements MapService {
                     .filter(p -> p.adminId() != null && !p.benefits().isEmpty())
                     .toList();
 
-            return StoreMapResponseDTO.ofWithPartnerships(s, partnerships, amazonS3Manager);
+            return StoreMapResponseDTO.ofWithPartnerships(s, partnerships, imageCdnManager);
         }).toList();
     }
 
@@ -243,7 +245,7 @@ public class MapServiceImpl implements MapService {
                             .filter(p -> !p.benefits().isEmpty())
                             .toList();
 
-                    return StoreMapResponseDTO.ofWithPartnerships(store, partnerships, amazonS3Manager);
+                    return StoreMapResponseDTO.ofWithPartnerships(store, partnerships, imageCdnManager);
                 })
                 .filter(dto -> !dto.partnerships().isEmpty())
                 .toList();
@@ -263,7 +265,7 @@ public class MapServiceImpl implements MapService {
                 .collect(Collectors.toMap(p -> p.getPartner().getId(), p -> p, (p1, p2) -> p1.getId() > p2.getId() ? p1 : p2));
 
         return partners.stream()
-                .map(p -> PartnerMapResponseDTO.of(p, partnerIdToPaper.get(p.getId()), amazonS3Manager))
+                .map(p -> PartnerMapResponseDTO.of(p, partnerIdToPaper.get(p.getId()), imageCdnManager))
                 .toList();
     }
 

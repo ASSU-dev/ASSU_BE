@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(name = "uk_token_member", columnNames = {"token", "member_id"}))
 @Getter
 @Builder
 @NoArgsConstructor

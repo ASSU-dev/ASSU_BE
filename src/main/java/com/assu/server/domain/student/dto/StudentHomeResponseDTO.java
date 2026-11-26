@@ -34,7 +34,7 @@ public record StudentHomeResponseDTO(
         @Schema(description = "업체 카테고리", example = "RESTAURANT")
         String storeCategory,
 
-        @Schema(description = "업체 프로필 이미지 URL", example = "https://assu-s3.s3.ap-northeast-2.amazonaws.com/profile.png")
+        @Schema(description = "업체 프로필 이미지 URL (640px WebP, 서명된 CDN URL)", example = "https://img.assu.site/fit-in/640x640/filters:format(webp):quality(80)/public/store-profiles/3f2a9c1e.png?signature=9b1c...")
         String profileImageUrl
     ) {
         public static FeaturedRecommendationDTO of(
@@ -83,7 +83,7 @@ public record StudentHomeResponseDTO(
         @Schema(description = "가게 카테고리", example = "CAFE")
         String storeCategory,
 
-        @Schema(description = "가게 프로필 이미지 URL", example = "https://assu-s3.s3.ap-northeast-2.amazonaws.com/store.png")
+        @Schema(description = "가게 프로필 이미지 URL (640px WebP, 서명된 CDN URL)", example = "https://img.assu.site/fit-in/640x640/filters:format(webp):quality(80)/public/store-profiles/3f2a9c1e.png?signature=9b1c...")
         String profileImageUrl
     ) {
         public static CurationStoreDTO of(

@@ -11,6 +11,4 @@ public interface HomeCurationItemRepository extends JpaRepository<HomeCurationIt
 
     @Query("SELECT i FROM HomeCurationItem i JOIN FETCH i.store s LEFT JOIN FETCH s.partner p LEFT JOIN FETCH p.member WHERE i.homeCuration.id = :curationId ORDER BY i.groupIndex ASC, i.sortOrder ASC")
     List<HomeCurationItem> findByHomeCurationIdWithStoreAndPartner(@Param("curationId") Long curationId);
-
-    List<HomeCurationItem> findByHomeCurationIdOrderByGroupIndexAscSortOrderAsc(Long homeCurationId);
 }
