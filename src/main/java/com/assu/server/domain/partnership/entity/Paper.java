@@ -13,6 +13,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
+@Table(indexes = @Index(name = "idx_paper_activated_period_end", columnList = "is_activated, partnership_period_end"))
 @Getter
 @NoArgsConstructor
 @Builder

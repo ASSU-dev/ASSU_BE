@@ -64,7 +64,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
 	List<Admin> findPartnerWithOffset(@Param("partnerId") Long partnerId, Pageable pageable);
 
     @Query("""
-        SELECT DISTINCT a
+        SELECT a
         FROM Admin a
         LEFT JOIN FETCH a.member m
         WHERE m.deletedAt IS NULL
@@ -74,11 +74,11 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     List<Admin> findAllWithinViewportWithMember(@Param("wkt") String wkt, Pageable pageable);
 
     @Query("""
-        SELECT DISTINCT a
+        SELECT a
         FROM Admin a
         LEFT JOIN FETCH a.member m
         WHERE m.deletedAt IS NULL
-          AND LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          AND a.name LIKE CONCAT('%', :keyword, '%')
         """)
     List<Admin> searchAdminByKeywordWithMember(
             @Param("keyword") String keyword,

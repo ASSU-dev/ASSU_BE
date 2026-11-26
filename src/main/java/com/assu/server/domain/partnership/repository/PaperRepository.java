@@ -96,14 +96,6 @@ public interface PaperRepository extends JpaRepository<Paper, Long> {
             @Param("status") ActivationStatus status
     );
 
-    @Query("""
-        SELECT p FROM Paper p
-        WHERE p.store.id IN :storeIds
-          AND p.isActivated = :status
-        ORDER BY p.id DESC
-        """)
-    List<Paper> findByStoreIdIn(@Param("storeIds") List<Long> storeIds, @Param("status") ActivationStatus status);
-
     @Modifying
     @Query("""
         UPDATE Paper p

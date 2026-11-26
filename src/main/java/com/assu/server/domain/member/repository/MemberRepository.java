@@ -31,8 +31,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.id = :id")
     Optional<Member> findWithLockById(@Param("id") Long id);
 
-    List<Member> findByRole(UserRole role);
-
     @Query("SELECT m.id FROM Member m")
     List<Long> findAllIds();
 
@@ -98,7 +96,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findPartnerWithProfileById(@Param("id") Long id);
 
     @Query("""
-            SELECT DISTINCT m FROM Member m
+            SELECT m FROM Member m
             JOIN FETCH m.ssuAuth
             JOIN FETCH m.studentProfile
             WHERE m.id IN :ids
@@ -107,7 +105,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findStudentsWithProfileByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query("""
-            SELECT DISTINCT m FROM Member m
+            SELECT m FROM Member m
             LEFT JOIN FETCH m.commonAuth
             JOIN FETCH m.adminProfile
             WHERE m.id IN :ids
@@ -116,7 +114,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findAdminsWithProfileByIdIn(@Param("ids") Collection<Long> ids);
 
     @Query("""
-            SELECT DISTINCT m FROM Member m
+            SELECT m FROM Member m
             LEFT JOIN FETCH m.commonAuth
             JOIN FETCH m.partnerProfile
             WHERE m.id IN :ids

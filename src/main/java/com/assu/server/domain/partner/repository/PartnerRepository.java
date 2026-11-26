@@ -45,7 +45,7 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     // 반경 내 제휴업체 조회
     @Query("""
-        SELECT DISTINCT p
+        SELECT p
         FROM Partner p
         LEFT JOIN FETCH p.member m
         WHERE m.deletedAt IS NULL
@@ -56,11 +56,11 @@ public interface PartnerRepository extends JpaRepository<Partner, Long> {
 
     // 키워드 검색
     @Query("""
-        SELECT DISTINCT p
+        SELECT p
         FROM Partner p
         LEFT JOIN FETCH p.member m
         WHERE m.deletedAt IS NULL
-          AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          AND p.name LIKE CONCAT('%', :keyword, '%')
         """)
     List<Partner> searchPartnerByKeywordWithMember(
             @Param("keyword") String keyword

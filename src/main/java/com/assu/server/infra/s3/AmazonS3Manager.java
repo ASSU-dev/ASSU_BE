@@ -136,6 +136,13 @@ public class AmazonS3Manager{
         return path + '/' + UUID.randomUUID();
     }
 
+    public String generateKeyName(String path, String extension) {
+        if (extension == null || extension.isBlank()) {
+            return generateKeyName(path);
+        }
+        return path + '/' + UUID.randomUUID() + '.' + extension;
+    }
+
     public void deleteFile(String keyName) {
         if (keyName == null || keyName.isBlank()) return;
         try {
