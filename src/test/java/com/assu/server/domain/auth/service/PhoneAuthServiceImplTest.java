@@ -212,60 +212,35 @@ class PhoneAuthServiceImplTest {
 		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), any());
 	}
 
-	@Test
-	@DisplayName("저장된 인증번호가 없으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
-	void verifyAuthNumber_NoStoredCode_ThrowsException() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn(null);
-
-		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
-			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
-
-		// 3. Then
-		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate, never()).delete(anyString());
+	private void givenVerifyResult(String phone, String authNumber, String result) {
+		when(redisTemplate.execute(any(RedisScript.class),
+			eq(List.of(phone, "phone-verify-fail:" + phone, "phone-verified:" + phone)),
+			eq(authNumber), eq("5"), eq("300"), eq("1800"))).thenReturn(result);
 	}
 
 	@Test
-	@DisplayName("인증번호가 일치하지 않으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
-	void verifyAuthNumber_CodeMismatch_ThrowsException() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("654321");
-
-		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
-			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
-
-		// 3. Then
-		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate, never()).delete(anyString());
-	}
-
-	@Test
-	@DisplayName("인증번호가 일치하면 검증에 성공하고 Redis에서 인증번호를 삭제한다")
-	void verifyAuthNumber_Success_DeletesCode() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("123456");
-
-		// 2. When
-		assertDoesNotThrow(() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
-
-		// 3. Then
-		verify(redisTemplate, times(1)).delete(PHONE);
-		verify(redisTemplate, times(1)).delete(VERIFY_FAILURE_KEY);
-	}
-
-	@Test
-	@DisplayName("인증번호가 처음 틀리면 실패 횟수에 인증번호와 같은 5분 TTL을 건다")
-	void verifyAuthNumber_whenFirstMismatch_thenStartsFailureCount() {
+	@DisplayName("SMS 발송 중 연결 실패·타임아웃 같은 런타임 예외가 나도 인증번호와 쿨다운을 정리하고 예외를 전파한다")
+	void checkAndSendAuthNumber_whenClientThrowsRuntimeException_thenDiscardsCodeAndCooldown() {
 		// given
 		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("654321");
-		when(redisTemplate.execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"))).thenReturn(1L);
+		when(valueOperations.setIfAbsent(SEND_COOLDOWN_KEY, "1", Duration.ofSeconds(60))).thenReturn(true);
+		when(aligoSmsClient.sendSms(eq(PHONE), anyString(), anyString()))
+			.thenThrow(new IllegalStateException("timeout"));
+
+		// when
+		assertThrows(IllegalStateException.class, () -> phoneAuthService.checkAndSendAuthNumber(PHONE));
+
+		// then
+		verify(redisTemplate).delete(PHONE);
+		verify(redisTemplate).delete(SEND_COOLDOWN_KEY);
+		verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(SEND_COUNT_KEY)), any());
+	}
+
+	@Test
+	@DisplayName("저장된 인증번호가 없으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
+	void verifyAuthNumber_whenNoStoredCode_thenThrowsNotVerified() {
+		// given
+		givenVerifyResult(PHONE, "123456", "MISSING");
 
 		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -273,17 +248,28 @@ class PhoneAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
-		verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"));
-		verify(redisTemplate, never()).delete(anyString());
 	}
 
 	@Test
-	@DisplayName("인증번호를 5번 틀리면 저장된 인증번호를 폐기하고 PHONE_AUTH_ATTEMPTS_EXCEEDED 예외가 발생한다")
-	void verifyAuthNumber_whenFifthMismatch_thenDeletesCodeAndThrowsAttemptsExceeded() {
+	@DisplayName("인증번호가 일치하지 않으면 NOT_VERIFIED_PHONE_NUMBER 예외가 발생한다")
+	void verifyAuthNumber_whenMismatch_thenThrowsNotVerified() {
 		// given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("654321");
-		when(redisTemplate.execute(any(RedisScript.class), eq(List.of(VERIFY_FAILURE_KEY)), eq("300"))).thenReturn(5L);
+		givenVerifyResult(PHONE, "123456", "MISMATCH");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
+
+		// then
+		assertEquals(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER, exception.getCode());
+		assertEquals(0.0, meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").count());
+	}
+
+	@Test
+	@DisplayName("인증번호를 5번 틀려 폐기되면 PHONE_AUTH_ATTEMPTS_EXCEEDED 예외와 차단 지표를 남긴다")
+	void verifyAuthNumber_whenExhausted_thenThrowsAttemptsExceeded() {
+		// given
+		givenVerifyResult(PHONE, "123456", "EXHAUSTED");
 
 		// when
 		CustomAuthException exception = assertThrows(CustomAuthException.class,
@@ -291,25 +277,21 @@ class PhoneAuthServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.PHONE_AUTH_ATTEMPTS_EXCEEDED, exception.getCode());
-		verify(redisTemplate).delete(PHONE);
-		verify(redisTemplate).delete(VERIFY_FAILURE_KEY);
-		verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
 		assertEquals(1.0, meterRegistry.counter("auth.phone.blocked", "reason", "verify-attempts").count());
 	}
 
 	@Test
-	@DisplayName("인증번호 검증에 성공하면 가입 시 확인할 인증 표식을 30분 TTL로 저장한다")
-	void verifyAuthNumber_Success_StoresVerificationMarker() {
-		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(PHONE)).thenReturn("123456");
+	@DisplayName("비교·실패 집계·폐기·인증 완료 표식 저장을 한 번의 스크립트로 처리하고 개별 Redis 명령은 쓰지 않는다")
+	void verifyAuthNumber_whenVerified_thenHandlesAllStateInSingleScript() {
+		// given
+		givenVerifyResult(PHONE, "123456", "VERIFIED");
 
-		// 2. When
-		phoneAuthService.verifyAuthNumber(PHONE, "123456");
+		// when
+		assertDoesNotThrow(() -> phoneAuthService.verifyAuthNumber(PHONE, "123456"));
 
-		// 3. Then
-		verify(valueOperations, times(1))
-			.set("phone-verified:" + PHONE, "1", Duration.ofMinutes(30));
+		// then
+		verify(redisTemplate, never()).opsForValue();
+		verify(redisTemplate, never()).delete(anyString());
 	}
 
 	@Test
@@ -404,8 +386,7 @@ class PhoneAuthServiceImplTest {
 	@DisplayName("마스터키가 비활성화 상태면 고정 인증번호를 넣어도 Redis에 저장된 값과 비교한다")
 	void verifyAuthNumber_MasterPhoneNumberButDisabled_FollowsNormalFlow() {
 		// 1. Given
-		when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-		when(valueOperations.get(MASTER_PHONE)).thenReturn(null);
+		givenVerifyResult(MASTER_PHONE, MASTER_AUTH_NUMBER, "MISSING");
 
 		// 2. When
 		CustomAuthException exception = assertThrows(CustomAuthException.class,

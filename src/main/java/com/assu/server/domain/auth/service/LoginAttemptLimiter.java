@@ -1,7 +1,10 @@
 package com.assu.server.domain.auth.service;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.domain.auth.repository.CommonAuthRepository;
+import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.util.LogMaskUtil;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +21,7 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class LoginAttemptLimiter {
 
-    public enum Policy {
+    enum Policy {
         COMMON("common", 5, Duration.ofMinutes(15), Duration.ofMinutes(15)),
         BACKOFFICE("backoffice", 5, Duration.ofMinutes(15), Duration.ofMinutes(30));
 
@@ -47,23 +50,34 @@ public class LoginAttemptLimiter {
 
     private final StringRedisTemplate redisTemplate;
     private final MeterRegistry meterRegistry;
+    private final CommonAuthRepository commonAuthRepository;
 
     // 확인 후 증가 방식은 동시 요청이 한도를 넘겨 통과하므로, 시도를 먼저 세고 인증에 성공하면 reset으로 지운다
-    public void checkAttempt(Policy policy, String identifier) {
+    public void checkAttempt(String identifier) {
+        Policy policy = resolvePolicy(identifier);
         if (!exceedsLimit(policy, identifier)) {
             return;
         }
         meterRegistry.counter("auth.login.blocked", "realm", policy.realm).increment();
-        log.warn("[LOGIN_BLOCKED] realm={}", policy.realm);
+        log.warn("[LOGIN_BLOCKED] realm={} account={}", policy.realm, LogMaskUtil.mask(identifier));
         throw new CustomAuthException(ErrorStatus.LOGIN_ATTEMPTS_EXCEEDED);
     }
 
-    public void reset(Policy policy, String identifier) {
+    public void reset(String identifier) {
         try {
             redisTemplate.delete(key(identifier));
         } catch (RuntimeException exception) {
-            failOpen(policy, exception);
+            log.warn("Redis 로그인 시도 횟수 초기화 실패", exception);
+            meterRegistry.counter("auth.login.limit.failopen").increment();
         }
+    }
+
+    // 차단 시간을 요청 경로가 아니라 계정 역할로 정해, 공통 로그인 경로로 백오피스 계정을 대입해도 30분 차단이 적용되게 한다
+    private Policy resolvePolicy(String identifier) {
+        return commonAuthRepository.findRoleByEmail(identifier)
+                .filter(role -> role == UserRole.BACKOFFICE)
+                .map(role -> Policy.BACKOFFICE)
+                .orElse(Policy.COMMON);
     }
 
     private boolean exceedsLimit(Policy policy, String identifier) {

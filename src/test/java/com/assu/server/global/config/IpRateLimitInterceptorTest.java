@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -90,8 +92,24 @@ class IpRateLimitInterceptorTest {
 		assertTrue(interceptor.preHandle(post("10.42.0.15"), new MockHttpServletResponse(), new Object()));
 		assertTrue(interceptor.preHandle(post("127.0.0.1"), new MockHttpServletResponse(), new Object()));
 		assertTrue(interceptor.preHandle(post("not-an-ip.example"), new MockHttpServletResponse(), new Object()));
+		assertTrue(interceptor.preHandle(post("fd00::1"), new MockHttpServletResponse(), new Object()));
 		assertTrue(interceptor.preHandle(preflight, new MockHttpServletResponse(), new Object()));
 		verifyNoInteractions(redisTemplate);
+	}
+
+	@Test
+	@DisplayName("같은 IPv6 주소를 다른 표기로 보내도 하나의 정규화된 키로 센다")
+	void preHandle_whenSameIpv6InDifferentNotations_thenUsesCanonicalKey() {
+		// given
+		List<String> canonicalKey = List.of("ip-limit:login:2606:4700:4700:0:0:0:0:1111");
+		when(redisTemplate.execute(any(RedisScript.class), eq(canonicalKey), eq("900"))).thenReturn(1L);
+
+		// when
+		interceptor.preHandle(post("2606:4700:4700::1111"), new MockHttpServletResponse(), new Object());
+		interceptor.preHandle(post("2606:4700:4700:0:0:0:0:1111"), new MockHttpServletResponse(), new Object());
+
+		// then
+		verify(redisTemplate, times(2)).execute(any(RedisScript.class), eq(canonicalKey), eq("900"));
 	}
 
 	@Test

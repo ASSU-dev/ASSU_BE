@@ -23,6 +23,7 @@ import com.assu.server.global.exception.GeneralException;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -57,7 +58,7 @@ public class LoginServiceImpl implements LoginService {
      */
     @Override
     public LoginResponseDTO loginCommon(CommonLoginRequestDTO request) {
-        loginAttemptLimiter.checkAttempt(LoginAttemptLimiter.Policy.COMMON, request.email());
+        loginAttemptLimiter.checkAttempt(request.email());
 
         Authentication authentication = authenticationManager.authenticate(
                 new LoginUsernamePasswordAuthenticationToken(
@@ -66,19 +67,20 @@ public class LoginServiceImpl implements LoginService {
                         request.password()
                 )
         );
-        loginAttemptLimiter.reset(LoginAttemptLimiter.Policy.COMMON, request.email());
 
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.COMMON);
 
         // 인증 시 조회한 principal에 status/role이 담겨 있어 추가 조회 없이 검사한다
         CommonUserDetails userDetails = (CommonUserDetails) authentication.getPrincipal();
 
+        // 백오피스 계정은 이 경로에서 비밀번호가 맞아도 실패와 같은 응답을 주고 시도 횟수도 초기화하지 않는다
+        if (userDetails.getRole() == UserRole.BACKOFFICE) {
+            throw new BadCredentialsException("Backoffice account must use dedicated login");
+        }
+        loginAttemptLimiter.reset(request.email());
+
         if (userDetails.getStatus() == ActivationStatus.SUSPEND) {
             throw new CustomAuthException(ErrorStatus.MEMBER_PENDING_APPROVAL);
-        }
-
-        if (userDetails.getRole() == UserRole.BACKOFFICE) {
-            throw new GeneralException(ErrorStatus.BACKOFFICE_USE_DEDICATED_LOGIN);
         }
 
         Member member = adapter.loadMember(authentication.getName());

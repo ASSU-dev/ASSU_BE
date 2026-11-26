@@ -34,7 +34,7 @@ public class BackofficeAuthServiceImpl implements BackofficeAuthService {
 
     @Override
     public BackofficeLoginResponseDTO login(CommonLoginRequestDTO request) {
-        loginAttemptLimiter.checkAttempt(LoginAttemptLimiter.Policy.BACKOFFICE, request.email());
+        loginAttemptLimiter.checkAttempt(request.email());
 
         Authentication authentication = authenticationManager.authenticate(
                 new LoginUsernamePasswordAuthenticationToken(
@@ -51,7 +51,7 @@ public class BackofficeAuthServiceImpl implements BackofficeAuthService {
             throw new GeneralException(ErrorStatus.NO_BACKOFFICE_TYPE);
         }
         // 일반 계정의 비밀번호를 이 엔드포인트로 대입해 보는 시도도 실패로 세도록, 운영자 확인 이후에만 초기화한다
-        loginAttemptLimiter.reset(LoginAttemptLimiter.Policy.BACKOFFICE, request.email());
+        loginAttemptLimiter.reset(request.email());
 
         TokensDTO tokens = jwtUtil.issueBackofficeTokens(
                 member.getId(),

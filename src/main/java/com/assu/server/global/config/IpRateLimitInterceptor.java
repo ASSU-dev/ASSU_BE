@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -47,11 +48,13 @@ public class IpRateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
         String clientIp = ClientIpResolver.resolve(request);
+        InetAddress address = parseLiteral(clientIp);
         // 사설·루프백 주소는 프록시 주소가 넘어온 것이라, 세면 모든 사용자가 한도 하나를 나눠 쓰게 된다
-        if (!isPublicAddress(clientIp)) {
+        if (address == null || !isPublicAddress(address)) {
             return true;
         }
-        if (exceedsLimit(clientIp)) {
+        // 같은 주소의 다른 표기(IPv6 축약 등)로 한도를 나눠 쓰지 못하도록 정규화한 표기를 키로 쓴다
+        if (exceedsLimit(address.getHostAddress())) {
             meterRegistry.counter("auth.ip.blocked", "bucket", bucket).increment();
             log.warn("[IP_RATE_LIMITED] bucket={} ip={}", bucket, clientIp);
             throw new CustomAuthException(ErrorStatus.AUTH_REQUESTS_EXCEEDED);
@@ -72,16 +75,25 @@ public class IpRateLimitInterceptor implements HandlerInterceptor {
         }
     }
 
-    private static boolean isPublicAddress(String ip) {
+    private static InetAddress parseLiteral(String ip) {
         if (ip == null || !IP_LITERAL.matcher(ip).matches()) {
-            return false;
+            return null;
         }
         try {
-            InetAddress address = InetAddress.getByName(ip);
-            return !(address.isSiteLocalAddress() || address.isLoopbackAddress()
-                    || address.isLinkLocalAddress() || address.isAnyLocalAddress());
+            return InetAddress.getByName(ip);
         } catch (UnknownHostException exception) {
-            return false;
+            return null;
         }
+    }
+
+    private static boolean isPublicAddress(InetAddress address) {
+        return !(address.isSiteLocalAddress() || address.isLoopbackAddress()
+                || address.isLinkLocalAddress() || address.isAnyLocalAddress()
+                || isUniqueLocalIpv6(address));
+    }
+
+    // Java의 isSiteLocalAddress는 IPv6 사설 대역(fc00::/7)을 판별하지 않는다
+    private static boolean isUniqueLocalIpv6(InetAddress address) {
+        return address instanceof Inet6Address && (address.getAddress()[0] & 0xfe) == 0xfc;
     }
 }
