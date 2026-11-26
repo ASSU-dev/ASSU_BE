@@ -73,7 +73,7 @@
 
 | 항목 | 사용 기술 / 라이브러리 |
 | :--- | :--- |
-| **Backend** | Spring Boot 3.5.3, Java 17, Spring Data JPA (Hibernate), Spring Security, Spring Batch, Spring AOP, WebFlux(WebClient) |
+| **Backend** | Spring Boot 3.5.16, Java 17, Spring Data JPA (Hibernate), Spring Security, Spring Batch, Spring AOP, WebFlux(WebClient) |
 | **Database** | MariaDB (Amazon RDS), Hibernate Spatial · JTS (위치 데이터), H2 (테스트) |
 | **Cache · Session** | Redis (리프레시 토큰, 로그아웃 블랙리스트, 채팅 Pub/Sub) |
 | **Messaging** | RabbitMQ (Transactional Outbox), Firebase Cloud Messaging (FCM) |
