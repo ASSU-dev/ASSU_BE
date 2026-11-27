@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Set;
@@ -24,13 +25,14 @@ public class ProfileImageServiceImpl implements ProfileImageService{
     private final AmazonS3Manager amazonS3Manager;
     private final ImageCdnManager imageCdnManager;
     private final MeterRegistry meterRegistry;
+    private final TransactionTemplate transactionTemplate;
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
 
+    // 업로드 동안 DB 커넥션을 잡지 않도록 업로드는 트랜잭션 밖에서 하고, 반영에 실패하면 올린 파일을 지운다
     @Override
-    @Transactional
     public String updateProfileImage(Long memberId, MultipartFile image) {
         validateFile(image);
 
@@ -39,22 +41,39 @@ public class ProfileImageServiceImpl implements ProfileImageService{
 
         String keyName = amazonS3Manager.generateKeyName(
                 resolveProfileKeyPath(member), getFileExtension(image.getOriginalFilename()));
-        String uploadedKey = amazonS3Manager.uploadFile(keyName, image); // S3에 올린 후 key 반환
+        String uploadedKey = amazonS3Manager.uploadFile(keyName, image);
 
-        String oldKey = member.getProfileUrl();
-        if (oldKey != null && !oldKey.isBlank()) {
-            try {
-                amazonS3Manager.deleteFile(oldKey);
-                imageCdnManager.invalidate(oldKey);
-            }
-            catch (Exception e) {
-                log.warn("이전 프로필 삭제 실패 key={}", oldKey, e);
-                meterRegistry.counter("member.profile.image.s3.delete.failure").increment();
-            }
+        String oldKey;
+        try {
+            oldKey = transactionTemplate.execute(status -> replaceProfileKey(memberId, uploadedKey));
+        } catch (RuntimeException e) {
+            amazonS3Manager.deleteFileQuietly(uploadedKey);
+            throw e;
         }
 
-        member.setProfileUrl(uploadedKey);
+        deletePreviousProfileImage(oldKey);
         return uploadedKey;
+    }
+
+    private String replaceProfileKey(Long memberId, String newKey) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+        String previousKey = member.getProfileUrl();
+        member.setProfileUrl(newKey);
+        return previousKey;
+    }
+
+    private void deletePreviousProfileImage(String oldKey) {
+        if (oldKey == null || oldKey.isBlank()) {
+            return;
+        }
+        try {
+            amazonS3Manager.deleteFile(oldKey);
+            imageCdnManager.invalidate(oldKey);
+        } catch (Exception e) {
+            log.warn("이전 프로필 삭제 실패 key={}", oldKey, e);
+            meterRegistry.counter("member.profile.image.s3.delete.failure").increment();
+        }
     }
 
     @Override

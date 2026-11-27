@@ -193,7 +193,7 @@ public class ChatServiceImpl implements ChatService {
         Message saved = messageRepository.saveAndFlush(message);
 
         ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
-        webSocketBroadcaster.send("/sub/chat/" + request.roomId(), responseDTO);
+        webSocketBroadcaster.sendAfterCommit("/sub/chat/" + request.roomId(), responseDTO);
 
         return responseDTO;
     }
@@ -213,7 +213,7 @@ public class ChatServiceImpl implements ChatService {
         if (!readMessagesIdList.isEmpty()) {
             ChatResponseDTO.ReadMessageResponseDTO receipt =
                     new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);
-            webSocketBroadcaster.send("/sub/chat/" + roomId, receipt);
+            webSocketBroadcaster.sendAfterCommit("/sub/chat/" + roomId, receipt);
         }
 
         return new ChatResponseDTO.ReadMessageResponseDTO(ChatEventType.READ_RECEIPT, roomId, memberId, readMessagesIdList, unreadMessages.size(), true);

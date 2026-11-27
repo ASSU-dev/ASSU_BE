@@ -26,14 +26,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 @Service
+// BCrypt·외부 호출 동안 DB 커넥션을 잡지 않도록 클래스 레벨 트랜잭션을 두지 않고 필요한 구간만 트랜잭션으로 감싼다
 @RequiredArgsConstructor
-@Transactional
 public class LoginServiceImpl implements LoginService {
 
     private final AuthenticationManager authenticationManager;
@@ -43,6 +43,7 @@ public class LoginServiceImpl implements LoginService {
     private final LoginAttemptLimiter loginAttemptLimiter;
 
     private final List<RealmAuthAdapter> realmAuthAdapters;
+    private final TransactionTemplate transactionTemplate;
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return realmAuthAdapters.stream()
@@ -83,17 +84,21 @@ public class LoginServiceImpl implements LoginService {
             throw new CustomAuthException(ErrorStatus.MEMBER_PENDING_APPROVAL);
         }
 
-        Member member = adapter.loadMember(authentication.getName());
-        TokensDTO tokens = jwtUtil.issueTokens(
-                member.getId(),
-                authentication.getName(),
-                member.getRole(),
-                adapter.authRealmValue()
-        );
+        // BCrypt 검증 동안 DB 커넥션을 잡지 않도록 인증이 끝난 뒤에만 트랜잭션을 연다
+        LoginResponseDTO response = transactionTemplate.execute(status -> {
+            Member member = adapter.loadMember(authentication.getName());
+            TokensDTO tokens = jwtUtil.issueTokens(
+                    member.getId(),
+                    authentication.getName(),
+                    member.getRole(),
+                    adapter.authRealmValue()
+            );
+            return LoginResponseDTO.from(member, tokens);
+        });
 
         meterRegistry.counter("auth.login.result", "result", "success").increment();
 
-        return LoginResponseDTO.from(member, tokens);
+        return response;
     }
 
     /**
@@ -104,6 +109,7 @@ public class LoginServiceImpl implements LoginService {
      * 3) JWT 발급: username=studentNumber, authRealm=SSU
      */
     @Override
+    @Transactional
     public LoginResponseDTO loginSsuStudent(USaintAuthResponseDTO authResponse) {
         // 1) 기존 회원 확인
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.SSU);
@@ -160,7 +166,6 @@ public class LoginServiceImpl implements LoginService {
      * 4) 새 토큰 발급, 짧은 유예 기간 동안 같은 RT 재시도에는 같은 토큰 반환
      */
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RefreshResponseDTO refresh(String refreshToken) {
         io.jsonwebtoken.Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
         if (jwtUtil.isBackofficeAudience(refreshClaims)) {

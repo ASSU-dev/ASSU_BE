@@ -444,7 +444,7 @@ class ChatServiceImplTest {
 		// 3. Then
 		assertTrue(response.readMessagesId().isEmpty());
 		assertEquals(0, response.readCount());
-		verify(webSocketBroadcaster, never()).send(anyString(), any(Object.class));
+		verify(webSocketBroadcaster, never()).sendAfterCommit(anyString(), any(Object.class));
 	}
 
 	@Test
@@ -468,7 +468,7 @@ class ChatServiceImplTest {
 		assertEquals(0, message1.getUnreadCount());
 		assertTrue(message2.isRead());
 
-		verify(webSocketBroadcaster).send(
+		verify(webSocketBroadcaster).sendAfterCommit(
 			eq("/sub/chat/" + ROOM_ID),
 			argThat((ChatResponseDTO.ReadMessageResponseDTO receipt) ->
 				receipt.readMessagesId().equals(List.of(100L, 101L)) && receipt.readerId().equals(ADMIN_ID))

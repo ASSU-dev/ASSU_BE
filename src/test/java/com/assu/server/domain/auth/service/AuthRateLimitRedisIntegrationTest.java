@@ -37,6 +37,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -209,7 +210,8 @@ class AuthRateLimitRedisIntegrationTest {
 				AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
 				when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 				LoginServiceImpl commonLogin = new LoginServiceImpl(authenticationManager, mock(JwtUtil.class),
-					mock(StudentRepository.class), new SimpleMeterRegistry(), loginAttemptLimiter, List.of());
+					mock(StudentRepository.class), new SimpleMeterRegistry(), loginAttemptLimiter, List.of(),
+					mock(TransactionTemplate.class));
 				BackofficeAuthServiceImpl backofficeLogin = new BackofficeAuthServiceImpl(authenticationManager,
 					mock(JwtUtil.class), loginAttemptLimiter, List.of());
 				CommonLoginRequestDTO request = new CommonLoginRequestDTO(EMAIL, "wrong-password1!");
@@ -310,6 +312,22 @@ class AuthRateLimitRedisIntegrationTest {
 		assertFalse(Boolean.TRUE.equals(redisTemplate.hasKey(FAIL_KEY)));
 		long ttl = ttlSeconds(VERIFIED_KEY);
 		assertTrue(ttl > 1790 && ttl <= 1800, "ttl=" + ttl);
+		assertDoesNotThrow(() -> phoneAuthService.consumeVerification(PHONE));
+		assertThrows(CustomAuthException.class, () -> phoneAuthService.consumeVerification(PHONE));
+	}
+
+	@Test
+	@DisplayName("가입이 롤백되어 인증 표식을 복원하면 다시 한 번 소비할 수 있다")
+	void restoreVerification_afterConsume_thenConsumableAgainOnce() {
+		// given
+		redisTemplate.opsForValue().set(VERIFIED_KEY, "1", Duration.ofMinutes(30));
+		phoneAuthService.consumeVerification(PHONE);
+
+		// when
+		phoneAuthService.restoreVerification(PHONE);
+
+		// then
+		assertTrue(ttlSeconds(VERIFIED_KEY) > 0);
 		assertDoesNotThrow(() -> phoneAuthService.consumeVerification(PHONE));
 		assertThrows(CustomAuthException.class, () -> phoneAuthService.consumeVerification(PHONE));
 	}

@@ -3,11 +3,13 @@ package com.assu.server.domain.review.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +22,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.domain.common.entity.enums.University;
@@ -64,6 +70,15 @@ class ReviewServiceImplTest {
 
 	@Mock
 	private PartnershipUsageRepository partnershipUsageRepository;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
+	@BeforeEach
+	void setUpTransaction() {
+		lenient().when(transactionTemplate.execute(any()))
+			.thenAnswer(inv -> inv.<TransactionCallback<Object>>getArgument(0).doInTransaction(null));
+	}
 
 	private static final Long STORE_ID = 500L;
 	private static final Long REVIEW_ID = 100L;
@@ -200,6 +215,49 @@ class ReviewServiceImplTest {
 		// then
 		assertEquals(ErrorStatus.NO_SUCH_PARTNER, exception.getCode());
 		verify(partnershipUsageRepository, never()).findById(anyLong());
+	}
+
+	@Test
+	@DisplayName("이미지는 트랜잭션 전에 올리고, 저장이 실패하면 올린 이미지를 모두 지운다")
+	void writeReview_whenSaveFailsAfterUpload_thenDeletesUploadedImages() {
+		// given
+		givenStoreOfPartner();
+		when(partnershipUsageRepository.markReviewedIfUnreviewed(USAGE_ID, MEMBER_ID, STORE_ID)).thenReturn(1);
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.empty());
+		List<MultipartFile> images = List.of(
+			new MockMultipartFile("img", "a.png", "image/png", new byte[]{1}),
+			new MockMultipartFile("img", "b.png", "image/png", new byte[]{2}));
+
+		// when
+		assertThrows(CustomReviewException.class,
+			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, images));
+
+		// then
+		ArgumentCaptor<String> uploaded = ArgumentCaptor.forClass(String.class);
+		verify(amazonS3Manager, times(2)).uploadFile(uploaded.capture(), any(MultipartFile.class));
+		verify(amazonS3Manager).deleteFileQuietly(uploaded.getAllValues().get(0));
+		verify(amazonS3Manager).deleteFileQuietly(uploaded.getAllValues().get(1));
+	}
+
+	@Test
+	@DisplayName("이미지 업로드 중간에 실패하면 이미 올린 이미지를 지우고 저장 단계로 넘어가지 않는다")
+	void writeReview_whenSecondUploadFails_thenDeletesFirstAndSkipsSave() {
+		// given
+		when(amazonS3Manager.uploadFile(anyString(), any(MultipartFile.class)))
+			.thenReturn("ok")
+			.thenThrow(new RuntimeException("s3 down"));
+		List<MultipartFile> images = List.of(
+			new MockMultipartFile("img", "a.png", "image/png", new byte[]{1}),
+			new MockMultipartFile("img", "b.png", "image/png", new byte[]{2}));
+
+		// when
+		CustomReviewException exception = assertThrows(CustomReviewException.class,
+			() -> reviewService.writeReview(writeRequest(), MEMBER_ID, images));
+
+		// then
+		assertEquals(ErrorStatus.IMAGE_UPLOAD_FAILED, exception.getCode());
+		verify(amazonS3Manager, times(1)).deleteFileQuietly(anyString());
+		verify(transactionTemplate, never()).execute(any());
 	}
 
 	// ===== deleteReview =====
