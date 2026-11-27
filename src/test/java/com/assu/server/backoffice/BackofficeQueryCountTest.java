@@ -77,6 +77,7 @@ class BackofficeQueryCountTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(1);
     }
 
     @Test
@@ -129,6 +130,7 @@ class BackofficeQueryCountTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(2);
     }
 
     @Test

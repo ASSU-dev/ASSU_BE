@@ -141,6 +141,7 @@ class PartnershipListPagingTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(2);
     }
 
     private void assertConsistentPaging(Function<Pageable, Page<WritePartnershipResponseDTO>> query, int validCount) {

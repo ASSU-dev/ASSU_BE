@@ -77,6 +77,7 @@ class StudentHomeAndUsageQueryCountTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(4);
     }
 
     @Test
@@ -130,6 +131,7 @@ class StudentHomeAndUsageQueryCountTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(2);
     }
 
     @Test
@@ -185,6 +187,7 @@ class StudentHomeAndUsageQueryCountTest {
 
         // then
         assertThat(large).isEqualTo(small);
+        assertThat(large).isLessThanOrEqualTo(2);
     }
 
     @Test

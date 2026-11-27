@@ -28,7 +28,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
           AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
           AND (:adminId IS NULL OR a.id = :adminId)
-        ORDER BY p.id DESC
+        ORDER BY p.id DESC, up.id ASC
     """)
     List<UserPaper> findActivePartnershipsByStudentId(
             @Param("studentId") Long studentId,
@@ -65,7 +65,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
         LEFT JOIN FETCH pt.member pm
         WHERE up.student.id = :studentId
           AND p.id IN :paperIds
-        ORDER BY p.id DESC
+        ORDER BY p.id DESC, up.id ASC
     """)
     List<UserPaper> findByStudentIdAndPaperIdIn(
             @Param("studentId") Long studentId,
@@ -82,7 +82,7 @@ public interface UserPaperRepository extends JpaRepository<UserPaper, Long> {
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
           AND (:storeCategory IS NULL OR s.storeCategory = :storeCategory)
           AND (:adminId IS NULL OR a.id = :adminId)
-        ORDER BY p.id DESC
+        ORDER BY p.id DESC, up.id ASC
     """)
     List<UserPaper> findActivePartnershipsByStudentIdAndStoreIds(
             @Param("studentId") Long studentId,
