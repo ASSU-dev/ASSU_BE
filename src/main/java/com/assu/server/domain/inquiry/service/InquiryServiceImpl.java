@@ -38,7 +38,8 @@ InquiryServiceImpl implements InquiryService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
-        Inquiry inquiry = Inquiry.create(member, inquiryCreateRequestDTO);
+        Inquiry inquiry = Inquiry.create(member, inquiryCreateRequestDTO.title(),
+                inquiryCreateRequestDTO.content(), inquiryCreateRequestDTO.email());
 
         inquiryRepository.save(inquiry);
         incrementAfterCommit(meterRegistry.counter("inquiry.created"));

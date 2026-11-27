@@ -105,6 +105,9 @@ dependencies {
 	// junit
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// architecture test
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+
 	// h2 db (test)
 	runtimeOnly 'com.h2database:h2'
 

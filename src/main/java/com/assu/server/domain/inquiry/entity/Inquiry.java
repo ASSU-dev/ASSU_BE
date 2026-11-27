@@ -1,7 +1,6 @@
 package com.assu.server.domain.inquiry.entity;
 
 import com.assu.server.domain.common.entity.BaseEntity;
-import com.assu.server.domain.inquiry.dto.InquiryCreateRequestDTO;
 import com.assu.server.domain.member.entity.Member;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -56,12 +55,12 @@ public class Inquiry extends BaseEntity {
         this.answeredAt = LocalDateTime.now();
     }
 
-    public static Inquiry create(Member member, InquiryCreateRequestDTO inquiryCreateRequestDTO) {
+    public static Inquiry create(Member member, String title, String content, String email) {
         return Inquiry.builder()
                 .member(member)
-                .title(inquiryCreateRequestDTO.title())
-                .content(inquiryCreateRequestDTO.content())
-                .email(inquiryCreateRequestDTO.email())
+                .title(title)
+                .content(content)
+                .email(email)
                 .status(Status.WAITING)
                 .build();
     }

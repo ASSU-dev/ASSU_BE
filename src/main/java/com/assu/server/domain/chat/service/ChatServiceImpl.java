@@ -139,7 +139,7 @@ public class ChatServiceImpl implements ChatService {
         int unreadForSender = receiverInRoom ? 0 : 1;
 
         // 3. 메시지 저장 (기존 로직)
-        Message message = Message.toMessageEntity(request, room, sender, receiver, unreadForSender);
+        Message message = Message.toMessageEntity(request.message(), room, sender, receiver, unreadForSender);
         Message saved = messageRepository.saveAndFlush(message);
         incrementAfterCommit(meterRegistry.counter("chat.message.sent"));
         log.info("saved message id={}, roomId={}, senderId={}, receiverId={}",
@@ -189,7 +189,7 @@ public class ChatServiceImpl implements ChatService {
         Member receiver = memberRepository.findById(request.receiverId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
-        Message message = Message.toGuideMessageEntity(request, room, sender, receiver);
+        Message message = Message.toGuideMessageEntity(request.message(), room, sender, receiver);
         Message saved = messageRepository.saveAndFlush(message);
 
         ChatResponseDTO.SendMessageResponseDTO responseDTO = ChatResponseDTO.SendMessageResponseDTO.from(saved);
