@@ -20,6 +20,7 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.store.service.StoreRegistrationLock;
 import com.assu.server.domain.student.entity.PartnershipUsage;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
@@ -59,6 +60,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     private final PartnerRepository partnerRepository;
     private final StoreRepository storeRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final StoreRegistrationLock storeRegistrationLock;
 
     @Override
     @Transactional
@@ -240,10 +242,12 @@ public class PartnershipServiceImpl implements PartnershipService {
         if (request == null || adminId == null)
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
 
+        String address = pickDisplayAddress(request.selectedPlace().getRoadAddress(), request.selectedPlace().getAddress());
+        // InnoDB REPEATABLE READ 스냅샷은 첫 SELECT 시점에 잡히므로 락은 어떤 조회보다 먼저 획득해야 선행 요청이 커밋한 가게가 보인다
+        storeRegistrationLock.acquire(request.storeName(), address, request.storeDetailAddress());
+
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
-
-        String address = pickDisplayAddress(request.selectedPlace().getRoadAddress(), request.selectedPlace().getAddress());
 
         Store store = storeRepository
                 .findByNameAndAddressAndDetailAddress(request.storeName(), address, request.storeDetailAddress())
