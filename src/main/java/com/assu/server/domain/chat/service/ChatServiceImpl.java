@@ -110,7 +110,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public MessageHandlingResult handleMessage(ChatRequestDTO.ChatMessageRequestDTO request, Long authenticatedMemberId) {
+    public MessageHandlingResultDTO handleMessage(ChatRequestDTO.ChatMessageRequestDTO request, Long authenticatedMemberId) {
         // 1. 유효성 검사 (기존 로직)
         ChattingRoom room = chatRepository.findById(request.roomId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ROOM));
@@ -170,11 +170,11 @@ public class ChatServiceImpl implements ChatService {
             notificationCommandService.sendChat(request.receiverId(), request.roomId(), senderName, request.message());
 
             // 5. [업데이트 포함] 결과 반환
-            return MessageHandlingResult.withUpdates(savedDTO, updateDTO, request.receiverId());
+            return MessageHandlingResultDTO.withUpdates(savedDTO, updateDTO, request.receiverId());
         }
 
         // 5. [일반 메시지] 결과 반환
-        return MessageHandlingResult.of(savedDTO);
+        return MessageHandlingResultDTO.of(savedDTO);
     }
 
 

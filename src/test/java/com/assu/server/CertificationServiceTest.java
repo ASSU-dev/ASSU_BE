@@ -24,7 +24,7 @@ import com.assu.server.domain.admin.service.AdminService;
 import com.assu.server.domain.certification.component.CertificationSessionManager;
 import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
-import com.assu.server.domain.certification.dto.GroupSessionRequest;
+import com.assu.server.domain.certification.dto.GroupSessionRequestDTO;
 import com.assu.server.domain.certification.entity.AssociateCertification;
 import com.assu.server.domain.certification.entity.enums.SessionJoinStatus;
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
@@ -94,7 +94,7 @@ class CertificationServiceImplTest {
 		when(mockMember.getStudentProfile()).thenReturn(studentProfile);
 
 		// DTO: adminId=77L, sessionId=100L
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// 세션 매니저 설정
 		when(sessionManager.exists(sessionId)).thenReturn(true);
@@ -140,7 +140,7 @@ class CertificationServiceImplTest {
 		// 1. Given (상황 설정)
 		Long sessionId = 100L;
 		Long participantId = 2L; // 참여자 ID
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// 가짜 참여자 멤버 설정
 		Member participantMember = mock(Member.class);
@@ -196,7 +196,7 @@ class CertificationServiceImplTest {
 		when(mockMember.getStudentProfile()).thenReturn(studentProfile);
 
 		// DTO 설정
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// 서비스 내부 로직 흐름 Mocking
 		when(sessionManager.exists(sessionId)).thenReturn(true);
@@ -272,7 +272,7 @@ class CertificationServiceImplTest {
 		Long sessionId = 100L;
 		Member member = mock(Member.class);
 		when(sessionManager.exists(sessionId)).thenReturn(false);
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -294,7 +294,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.getSessionInfo(sessionId, "peopleNumber")).thenReturn("2");
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of());
 		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of());
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		CertificationProgressResponseDTO response = certificationService.handleCertification(dto, member);
@@ -320,7 +320,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.joinSession(sessionId, userId, 2))
 			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.DUPLICATE, List.of()));
 		when(sessionManager.snapshotUserIds(sessionId)).thenReturn(List.of(userId));
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		assertThrows(GeneralException.class, () -> certificationService.handleCertification(dto, member));
@@ -345,7 +345,7 @@ class CertificationServiceImplTest {
 		when(adminService.findMatchingAdmins(any(), any(), any())).thenReturn(List.of(matchingAdmin));
 		when(sessionManager.joinSession(sessionId, 1L, 2)).thenReturn(joined(1L, 2L));
 		when(storeRepository.findById(storeId)).thenReturn(Optional.empty());
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		assertThrows(GeneralException.class, () -> certificationService.handleCertification(dto, member));
@@ -361,7 +361,7 @@ class CertificationServiceImplTest {
 		Member member = givenMatchedMember(sessionId, 3L, 2);
 		when(sessionManager.joinSession(sessionId, 3L, 2))
 			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.FULL, List.of()));
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -381,7 +381,7 @@ class CertificationServiceImplTest {
 		Member member = givenMatchedMember(sessionId, 3L, 2);
 		when(sessionManager.joinSession(sessionId, 3L, 2))
 			.thenReturn(new CertificationSessionManager.JoinResult(SessionJoinStatus.NO_SESSION, List.of()));
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		GeneralException exception = assertThrows(GeneralException.class,
@@ -401,7 +401,7 @@ class CertificationServiceImplTest {
 		when(sessionManager.joinSession(sessionId, 2L, 2)).thenReturn(joined(1L, 2L));
 		when(storeRepository.findById(storeId)).thenReturn(Optional.of(Store.builder().id(storeId).build()));
 		when(sessionManager.removeSession(sessionId)).thenReturn(false);
-		GroupSessionRequest dto = new GroupSessionRequest(77L, sessionId);
+		GroupSessionRequestDTO dto = new GroupSessionRequestDTO(77L, sessionId);
 
 		// when
 		GeneralException exception = assertThrows(GeneralException.class,

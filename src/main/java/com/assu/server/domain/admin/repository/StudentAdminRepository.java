@@ -1,6 +1,6 @@
 package com.assu.server.domain.admin.repository;
 
-import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
+import com.assu.server.domain.admin.dto.StoreUsageWithPaperDTO;
 import com.assu.server.domain.admin.entity.StudentAdmin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -42,7 +42,7 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
     );
 
     @Query("""
-    SELECT new com.assu.server.domain.admin.dto.StoreUsageWithPaper(
+    SELECT new com.assu.server.domain.admin.dto.StoreUsageWithPaperDTO(
       p.id, p.store.id, p.store.name, COUNT(pu.id)
     )
     FROM PartnershipUsage pu
@@ -51,5 +51,5 @@ public interface StudentAdminRepository extends JpaRepository<StudentAdmin, Long
     GROUP BY p.id, p.store.id, p.store.name
     ORDER BY COUNT(pu.id) DESC, p.id ASC
 """)
-    List<StoreUsageWithPaper> findUsageByStoreWithPaper(@Param("adminId") Long adminId);
+    List<StoreUsageWithPaperDTO> findUsageByStoreWithPaper(@Param("adminId") Long adminId);
     }

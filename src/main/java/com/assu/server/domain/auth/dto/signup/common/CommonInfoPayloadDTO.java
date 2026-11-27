@@ -1,6 +1,6 @@
 package com.assu.server.domain.auth.dto.signup.common;
 
-import com.assu.server.domain.map.dto.SelectedPlacePayload;
+import com.assu.server.domain.map.dto.SelectedPlacePayloadDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +19,6 @@ public record CommonInfoPayloadDTO(
         
         @Schema(description = "선택된 장소 정보")
         @NotNull(message = "선택된 장소 정보는 필수입니다.")
-        SelectedPlacePayload selectedPlace
+        SelectedPlacePayloadDTO selectedPlace
 ) {
 }

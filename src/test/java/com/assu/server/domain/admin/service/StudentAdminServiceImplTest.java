@@ -19,7 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
+import com.assu.server.domain.admin.dto.StoreUsageWithPaperDTO;
 import com.assu.server.domain.admin.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
@@ -173,7 +173,7 @@ class StudentAdminServiceImplTest {
 	void getCountUsage_PaperNotFound_ThrowsException() {
 		// 1. Given
 		givenAdmin();
-		StoreUsageWithPaper top = new StoreUsageWithPaper(500L, 200L, "역전할머니 맥주", 30L);
+		StoreUsageWithPaperDTO top = new StoreUsageWithPaperDTO(500L, 200L, "역전할머니 맥주", 30L);
 		when(studentAdminRepository.findUsageByStoreWithPaper(ADMIN_ID)).thenReturn(List.of(top));
 		when(paperRepository.findById(500L)).thenReturn(Optional.empty());
 
@@ -190,8 +190,8 @@ class StudentAdminServiceImplTest {
 	void getCountUsage_Success_ReturnsTopStore() {
 		// 1. Given (repository 쿼리가 이용 횟수 내림차순 정렬을 보장하므로 첫 번째 행이 1위)
 		givenAdmin();
-		StoreUsageWithPaper top = new StoreUsageWithPaper(500L, 200L, "역전할머니 맥주", 30L);
-		StoreUsageWithPaper second = new StoreUsageWithPaper(501L, 201L, "숭실분식", 10L);
+		StoreUsageWithPaperDTO top = new StoreUsageWithPaperDTO(500L, 200L, "역전할머니 맥주", 30L);
+		StoreUsageWithPaperDTO second = new StoreUsageWithPaperDTO(501L, 201L, "숭실분식", 10L);
 		when(studentAdminRepository.findUsageByStoreWithPaper(ADMIN_ID)).thenReturn(List.of(top, second));
 
 		Store store = Store.builder().id(200L).name("역전할머니 맥주").build();
@@ -232,8 +232,8 @@ class StudentAdminServiceImplTest {
 	void getCountUsageList_PaperMissingInBatch_ThrowsException() {
 		// 1. Given (500L은 조회되지만 501L은 조회되지 않는 상황)
 		givenAdmin();
-		StoreUsageWithPaper first = new StoreUsageWithPaper(500L, 200L, "역전할머니 맥주", 30L);
-		StoreUsageWithPaper second = new StoreUsageWithPaper(501L, 201L, "숭실분식", 10L);
+		StoreUsageWithPaperDTO first = new StoreUsageWithPaperDTO(500L, 200L, "역전할머니 맥주", 30L);
+		StoreUsageWithPaperDTO second = new StoreUsageWithPaperDTO(501L, 201L, "숭실분식", 10L);
 		when(studentAdminRepository.findUsageByStoreWithPaper(ADMIN_ID)).thenReturn(List.of(first, second));
 
 		Store store = Store.builder().id(200L).name("역전할머니 맥주").build();
@@ -253,8 +253,8 @@ class StudentAdminServiceImplTest {
 	void getCountUsageList_Success_ReturnsAllStores() {
 		// 1. Given
 		givenAdmin();
-		StoreUsageWithPaper first = new StoreUsageWithPaper(500L, 200L, "역전할머니 맥주", 30L);
-		StoreUsageWithPaper second = new StoreUsageWithPaper(501L, 201L, "숭실분식", 10L);
+		StoreUsageWithPaperDTO first = new StoreUsageWithPaperDTO(500L, 200L, "역전할머니 맥주", 30L);
+		StoreUsageWithPaperDTO second = new StoreUsageWithPaperDTO(501L, 201L, "숭실분식", 10L);
 		when(studentAdminRepository.findUsageByStoreWithPaper(ADMIN_ID)).thenReturn(List.of(first, second));
 
 		Store store1 = Store.builder().id(200L).name("역전할머니 맥주").build();

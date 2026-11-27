@@ -60,10 +60,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private ReviewResponseDTO.WriteReviewResponseDTO saveReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<String> imageKeys) {
-        Store store = findStoreOfPartner(request.getStoreId(), request.getPartnerId());
-        claimUsageForReview(request.getPartnershipUsageId(), memberId, store.getId());
+        Store store = findStoreOfPartner(request.storeId(), request.partnerId());
+        claimUsageForReview(request.partnershipUsageId(), memberId, store.getId());
 
-        String affiliation = adminNameToAffliation(request.getAdminName());
+        String affiliation = adminNameToAffliation(request.adminName());
 
         Review review = createReview(memberId, store, request, imageKeys, affiliation);
 
@@ -127,7 +127,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     private Review createReview(Long memberId, Store store, ReviewRequestDTO.WriteReviewRequestDTO request, List<String> imageKeys, String affiliation) {
-        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.getPartnerId())
+        Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.partnerId())
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STUDENT));

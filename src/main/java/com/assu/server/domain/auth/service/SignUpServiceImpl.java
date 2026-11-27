@@ -186,9 +186,9 @@ public class SignUpServiceImpl implements SignUpService {
         var sp = Optional.ofNullable(info.selectedPlace())
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
 
-        String address = pickDisplayAddress(sp.getRoadAddress(), sp.getAddress());
-        Double lat = sp.getLatitude();
-        Double lng = sp.getLongitude();
+        String address = pickDisplayAddress(sp.roadAddress(), sp.address());
+        Double lat = sp.latitude();
+        Double lng = sp.longitude();
         Point point = toPoint(lat, lng);
 
         // 1) 기존 계정 확인 — 탈퇴 유예기간 내라면 신규 생성 대신 복구한다
@@ -414,9 +414,9 @@ public class SignUpServiceImpl implements SignUpService {
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
 
         // selectedPlace로부터 주소/좌표 생성
-        String address = pickDisplayAddress(sp.getRoadAddress(), sp.getAddress());
-        Double lat = sp.getLatitude();
-        Double lng = sp.getLongitude();
+        String address = pickDisplayAddress(sp.roadAddress(), sp.address());
+        Double lat = sp.latitude();
+        Double lng = sp.longitude();
         Point point = toPoint(lat, lng);
 
         // 3) Admin 프로필 생성
@@ -458,9 +458,9 @@ public class SignUpServiceImpl implements SignUpService {
         var sp = Optional.ofNullable(info.selectedPlace())
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus._BAD_REQUEST)); // selectedPlace 필수
 
-        String address = pickDisplayAddress(sp.getRoadAddress(), sp.getAddress());
-        Double lat = sp.getLatitude();
-        Double lng = sp.getLongitude();
+        String address = pickDisplayAddress(sp.roadAddress(), sp.address());
+        Double lat = sp.latitude();
+        Double lng = sp.longitude();
         Point point = toPoint(lat, lng);
 
         // isActivated는 유지한다 — 승인받았던 학생회는 재승인 없이 바로 로그인 가능

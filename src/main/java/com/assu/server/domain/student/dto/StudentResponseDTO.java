@@ -4,12 +4,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.assu.server.domain.student.entity.StampEventApplicant;
+import com.assu.server.domain.student.entity.Student;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 public class StudentResponseDTO {
 
@@ -30,14 +28,15 @@ public class StudentResponseDTO {
 		boolean isReviewed
 	){}
 
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class CheckStampResponseDTO {
-        private Long userId;
-        private int stamp;
-        private String message;
+    public record CheckStampResponseDTO(
+        Long userId,
+        int stamp,
+        String message
+    ) {
+        public static CheckStampResponseDTO from(Student student, String message) {
+            return new CheckStampResponseDTO(student.getId(), student.getStamp(), message);
+        }
     }
 
 	public record RecommendCarouselDTO(
@@ -50,27 +49,20 @@ public class StudentResponseDTO {
 		String benefit
 	) {}
 
-	@Getter
-	@NoArgsConstructor
-	@AllArgsConstructor
 	@Builder
-	public static class UsablePartnershipDTO {
-		private Long partnershipId;
-		private String adminName;
-		private String partnerName;
-		private Long paperId;
-		private Long storeId;
-		private Integer extraCount;
-		private String partnerProfileUrl;
-		@Schema(description = "혜택 조건", example = "30,000원 이상 주문 시")
-		private String benefitCondition;
-		@Schema(description = "혜택 내용", example = "음료 1캔 제공")
-		private String benefit;
-		@Schema(description = "유의사항", example = "학생증 지참")
-		private String caution;
-		@Schema(description = "그룹 인증 최소 인원", example = "4")
-		private Integer minPeople;
-	}
+	public record UsablePartnershipDTO(
+		Long partnershipId,
+		String adminName,
+		String partnerName,
+		Long paperId,
+		Long storeId,
+		Integer extraCount,
+		String partnerProfileUrl,
+		@Schema(description = "혜택 조건", example = "30,000원 이상 주문 시") String benefitCondition,
+		@Schema(description = "혜택 내용", example = "음료 1캔 제공") String benefit,
+		@Schema(description = "유의사항", example = "학생증 지참") String caution,
+		@Schema(description = "그룹 인증 최소 인원", example = "4") Integer minPeople
+	) {}
 
 	@Schema(description = "스탬프 이벤트 응모자")
 	public record StampEventApplicantDTO(

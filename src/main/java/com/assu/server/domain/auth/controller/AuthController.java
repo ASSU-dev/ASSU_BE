@@ -1,6 +1,5 @@
 package com.assu.server.domain.auth.controller;
 
-import java.util.List;
 
 import com.assu.server.domain.auth.dto.login.CommonLoginRequestDTO;
 import com.assu.server.domain.auth.dto.login.LoginResponseDTO;
@@ -32,7 +31,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.RequestBody;
 import jakarta.validation.Valid;
@@ -234,7 +232,7 @@ public class AuthController {
                     "    - `commonInfo` (CommonInfoPayloadDTO, required): 사용자 기본 정보\n" +
                     "      - `name` (String, required): 업체명\n" +
                     "      - `detailAddress` (String, required): 상세 주소\n" +
-                    "      - `selectedPlace` (SelectedPlacePayload, required): 선택된 장소 정보\n" +
+                    "      - `selectedPlace` (SelectedPlacePayloadDTO, required): 선택된 장소 정보\n" +
                     "        - `placeId` (String, required): 장소 ID\n" +
                     "        - `name` (String, required): 장소 이름\n" +
                     "        - `address` (String, required): 장소 지번 주소\n" +
@@ -309,7 +307,7 @@ public class AuthController {
                     "    - `commonInfo` (CommonInfoPayloadDTO, required): 사용자 기본 정보\n" +
                     "      - `name` (String, required): 단체명/관리자 이름\n" +
                     "      - `detailAddress` (String, required): 상세 주소\n" +
-                    "      - `selectedPlace` (SelectedPlacePayload, required): 선택된 장소 정보\n" +
+                    "      - `selectedPlace` (SelectedPlacePayloadDTO, required): 선택된 장소 정보\n" +
                     "        - `placeId` (String, required): 장소 ID\n" +
                     "        - `name` (String, required): 장소 이름\n" +
                     "        - `address` (String, required): 장소 지번 주소\n" +

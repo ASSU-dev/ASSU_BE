@@ -33,7 +33,7 @@ import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.chat.dto.ChatRequestDTO;
 import com.assu.server.domain.chat.dto.ChatResponseDTO;
-import com.assu.server.domain.chat.dto.MessageHandlingResult;
+import com.assu.server.domain.chat.dto.MessageHandlingResultDTO;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.entity.Message;
 import com.assu.server.domain.chat.entity.enums.MessageType;
@@ -346,7 +346,7 @@ class ChatServiceImplTest {
 		when(messageRepository.saveAndFlush(any(Message.class))).thenReturn(saved);
 
 		// 2. When
-		MessageHandlingResult result = chatService.handleMessage(request, PARTNER_ID);
+		MessageHandlingResultDTO result = chatService.handleMessage(request, PARTNER_ID);
 
 		// 3. Then
 		assertFalse(result.hasRoomUpdates());
@@ -418,7 +418,7 @@ class ChatServiceImplTest {
 		when(messageRepository.countUnreadMessagesByRoomAndReceiver(ROOM_ID, ADMIN_ID)).thenReturn(3L);
 
 		// 2. When
-		MessageHandlingResult result = chatService.handleMessage(request, PARTNER_ID);
+		MessageHandlingResultDTO result = chatService.handleMessage(request, PARTNER_ID);
 
 		// 3. Then
 		assertTrue(result.hasRoomUpdates());

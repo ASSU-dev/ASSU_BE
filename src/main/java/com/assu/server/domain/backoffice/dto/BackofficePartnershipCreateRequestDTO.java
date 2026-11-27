@@ -3,7 +3,7 @@ package com.assu.server.domain.backoffice.dto;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.assu.server.domain.map.dto.SelectedPlacePayload;
+import com.assu.server.domain.map.dto.SelectedPlacePayloadDTO;
 import com.assu.server.domain.partnership.dto.PartnershipOptionRequestDTO;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,7 +20,7 @@ public record BackofficePartnershipCreateRequestDTO(
 
     @Schema(description = "선택된 장소 정보 (카카오맵 검색 결과)")
     @NotNull(message = "장소 정보는 필수입니다.")
-    SelectedPlacePayload selectedPlace,
+    SelectedPlacePayloadDTO selectedPlace,
 
     @Schema(description = "가게 상세주소", example = "2층")
     String storeDetailAddress,

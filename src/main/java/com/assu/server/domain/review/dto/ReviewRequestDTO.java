@@ -11,30 +11,16 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public class ReviewRequestDTO {
-    @Getter
-    @Setter
     @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class WriteReviewRequestDTO {
-        @Schema(description = "리뷰 내용", example = "정말 맛있었어요!")
-        private String content;
-
-        @Schema(description = "별점 (1-5)", example = "5", minimum = "1", maximum = "5")
-        private Integer rate;
-
-        @Schema(hidden = true)
-        private List<MultipartFile> reviewImage;
-
-        @Schema(description = "가게 ID", example = "3")
-        private Long storeId;
-
-        @Schema(description = "파트너 ID", example = "2")
-        private Long partnerId;
-
-        private Long partnershipUsageId;
-        private String adminName;
-
+    public record WriteReviewRequestDTO(
+        @Schema(description = "리뷰 내용", example = "정말 맛있었어요!") String content,
+        @Schema(description = "별점 (1-5)", example = "5", minimum = "1", maximum = "5") Integer rate,
+        @Schema(hidden = true) List<MultipartFile> reviewImage,
+        @Schema(description = "가게 ID", example = "3") Long storeId,
+        @Schema(description = "파트너 ID", example = "2") Long partnerId,
+        Long partnershipUsageId,
+        String adminName
+    ) {
             public Review toEntity(Store store, Partner partner, Student student, String affiliation) {
             return Review.builder()
                     .rate(this.rate)

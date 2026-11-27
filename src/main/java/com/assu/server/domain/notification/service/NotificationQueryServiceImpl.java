@@ -3,7 +3,6 @@ package com.assu.server.domain.notification.service;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
-import com.assu.server.domain.notification.converter.NotificationConverter;
 import com.assu.server.domain.notification.dto.NotificationResponseDTO;
 import com.assu.server.domain.notification.dto.NotificationSettingsResponseDTO;
 import com.assu.server.domain.notification.entity.Notification;
@@ -45,7 +44,7 @@ public class NotificationQueryServiceImpl implements NotificationQueryService {
                 ? notificationRepository.findByReceiverIdAndIsReadFalseAndTypeNot(memberId, NotificationType.CHAT, pageable)
                 : notificationRepository.findByReceiverIdAndTypeNot(memberId, NotificationType.CHAT, pageable);
 
-        Page<NotificationResponseDTO> p = rawPage.map(NotificationConverter::toDto);
+        Page<NotificationResponseDTO> p = rawPage.map(NotificationResponseDTO::from);
 
         return Map.of(
             "items", p.getContent(),

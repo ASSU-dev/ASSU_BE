@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
-import com.assu.server.domain.store.converter.StoreConverter;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import java.util.Optional;
@@ -87,7 +86,8 @@ public class StoreServiceImpl implements StoreService {
             // 데이터가 없을 때 기본값 반환(필요 시 예외로 변경)
             return new StoreResponseDTO.WeeklyRankResponseDTO(null, 0L);
         }
-        return StoreConverter.weeklyRankResponseDTO(rows.get(0));
+        StoreRepository.GlobalWeeklyRankRow row = rows.get(0);
+        return new StoreResponseDTO.WeeklyRankResponseDTO(row.getStoreRank(), row.getUsageCount());
     }
 
     @Override
@@ -110,7 +110,10 @@ public class StoreServiceImpl implements StoreService {
                 toStoredDateTime(oldestWeekStart.plusWeeks(6)));
 
         String storeName = rows.isEmpty() ? null : rows.get(0).getStoreName();
-        return StoreConverter.listWeeklyRankResponseDTO(storeId, storeName, rows);
+        List<StoreResponseDTO.WeeklyRankResponseDTO> items = rows.stream()
+                .map(row -> new StoreResponseDTO.WeeklyRankResponseDTO(row.getStoreRank(), row.getUsageCount()))
+                .toList();
+        return new StoreResponseDTO.ListWeeklyRankResponseDTO(storeId, storeName, items);
 
     }
 

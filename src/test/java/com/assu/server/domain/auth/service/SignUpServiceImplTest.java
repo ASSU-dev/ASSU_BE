@@ -48,7 +48,7 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
-import com.assu.server.domain.map.dto.SelectedPlacePayload;
+import com.assu.server.domain.map.dto.SelectedPlacePayloadDTO;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.store.entity.Store;
@@ -346,7 +346,7 @@ class SignUpServiceImplTest {
 	@DisplayName("마스터 번호로 파트너 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
 	void signupPartner_MasterPhoneNumber_ActivatesImmediately() {
 		// 1. Given
-		SelectedPlacePayload place = SelectedPlacePayload.builder()
+		SelectedPlacePayloadDTO place = SelectedPlacePayloadDTO.builder()
 			.address("서울특별시 동작구 상도로 369")
 			.roadAddress("서울특별시 동작구 상도로 369")
 			.latitude(37.5)
@@ -393,7 +393,7 @@ class SignUpServiceImplTest {
 	@DisplayName("마스터 번호로 관리자 회원가입하면 중복 체크 없이 즉시 ACTIVE 상태로 가입된다")
 	void signupAdmin_MasterPhoneNumber_ActivatesImmediately() {
 		// 1. Given
-		SelectedPlacePayload place = SelectedPlacePayload.builder()
+		SelectedPlacePayloadDTO place = SelectedPlacePayloadDTO.builder()
 			.address("서울특별시 동작구 상도로 369")
 			.roadAddress("서울특별시 동작구 상도로 369")
 			.latitude(37.5)
@@ -615,7 +615,7 @@ class SignUpServiceImplTest {
 	}
 
 	private PartnerSignUpRequestDTO partnerSignUpRequest() {
-		SelectedPlacePayload place = SelectedPlacePayload.builder()
+		SelectedPlacePayloadDTO place = SelectedPlacePayloadDTO.builder()
 			.address("서울특별시 동작구 상도로 369")
 			.roadAddress("서울특별시 동작구 상도로 369")
 			.latitude(37.5)

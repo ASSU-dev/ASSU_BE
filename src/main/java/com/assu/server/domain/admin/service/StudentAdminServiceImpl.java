@@ -2,7 +2,7 @@ package com.assu.server.domain.admin.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.admin.dto.StoreUsageWithPaper;
+import com.assu.server.domain.admin.dto.StoreUsageWithPaperDTO;
 import com.assu.server.domain.admin.dto.StudentAdminResponseDTO;
 import com.assu.server.domain.admin.repository.StudentAdminRepository;
 import com.assu.server.domain.partnership.entity.Paper;
@@ -62,14 +62,14 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageResponseDTO getCountUsage(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        List<StoreUsageWithPaper> storeUsages =
+        List<StoreUsageWithPaperDTO> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
         if (storeUsages.isEmpty()) {
             throw new DatabaseException(ErrorStatus.NO_USAGE_DATA);
         }
 
-        StoreUsageWithPaper top = storeUsages.get(0);
+        StoreUsageWithPaperDTO top = storeUsages.get(0);
 
         Paper paper = paperRepository.findById(top.paperId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_PAPER_FOR_STORE));
@@ -81,7 +81,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
     public StudentAdminResponseDTO.CountUsageListResponseDTO getCountUsageList(Long memberId) {
         Admin admin = getAdminOrThrow(memberId);
 
-        List<StoreUsageWithPaper> storeUsages =
+        List<StoreUsageWithPaperDTO> storeUsages =
                 studentAdminRepository.findUsageByStoreWithPaper(memberId);
 
         if (storeUsages.isEmpty()) {
@@ -89,7 +89,7 @@ public class StudentAdminServiceImpl implements StudentAdminService {
         }
 
         List<Long> paperIds = storeUsages.stream()
-                .map(StoreUsageWithPaper::paperId)
+                .map(StoreUsageWithPaperDTO::paperId)
                 .toList();
 
         Map<Long, Paper> paperMap = paperRepository.findAllById(paperIds).stream()

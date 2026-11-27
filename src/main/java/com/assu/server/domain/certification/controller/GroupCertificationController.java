@@ -10,7 +10,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
-import com.assu.server.domain.certification.dto.GroupSessionRequest;
+import com.assu.server.domain.certification.dto.GroupSessionRequestDTO;
 import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PrincipalDetails;
@@ -42,7 +42,7 @@ public class GroupCertificationController {
 			"  - `adminId` (Long, required): 인증하고자 하는 제휴의 관리자 ID\n" +
 			"  - `sessionId` (Long, required): 인증하고자 하는 그룹 세션 ID\n\n"
 	)
-	public CertificationProgressResponseDTO certifyGroup(@Payload GroupSessionRequest dto,
+	public CertificationProgressResponseDTO certifyGroup(@Payload GroupSessionRequestDTO dto,
 		Principal principal) {
 		if (principal instanceof UsernamePasswordAuthenticationToken) {
 			UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken)principal;

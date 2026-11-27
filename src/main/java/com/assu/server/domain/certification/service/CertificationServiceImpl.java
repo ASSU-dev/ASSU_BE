@@ -13,7 +13,7 @@ import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
 import com.assu.server.domain.certification.dto.CertificationResponseDTO;
 import com.assu.server.domain.certification.dto.CertificationSessionResponseDTO;
-import com.assu.server.domain.certification.dto.GroupSessionRequest;
+import com.assu.server.domain.certification.dto.GroupSessionRequestDTO;
 import com.assu.server.domain.certification.entity.AssociateCertification;
 import com.assu.server.domain.certification.entity.enums.SessionJoinStatus;
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
@@ -130,7 +130,7 @@ public class CertificationServiceImpl implements CertificationService {
 
 	@Override
 	@Transactional
-	public CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member) {
+	public CertificationProgressResponseDTO handleCertification(GroupSessionRequestDTO dto, Member member) {
 		Long userId = member.getId();
 		Long sessionId = dto.sessionId();
 

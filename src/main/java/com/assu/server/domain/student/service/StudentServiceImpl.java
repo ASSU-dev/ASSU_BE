@@ -31,7 +31,6 @@ import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.entity.enums.StoreCategory;
 import com.assu.server.domain.store.repository.StoreRepository;
-import com.assu.server.domain.student.converter.StudentConverter;
 import com.assu.server.domain.student.dto.StudentHomeResponseDTO;
 import com.assu.server.domain.student.dto.StudentProfileResponseDTO;
 import com.assu.server.domain.student.dto.StudentResponseDTO;
@@ -93,7 +92,7 @@ public class StudentServiceImpl implements StudentService {
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STUDENT));
 
-        return StudentConverter.checkStampResponseDTO(student, "스탬프 조회 성공");
+        return StudentResponseDTO.CheckStampResponseDTO.from(student, "스탬프 조회 성공");
     }
 
 

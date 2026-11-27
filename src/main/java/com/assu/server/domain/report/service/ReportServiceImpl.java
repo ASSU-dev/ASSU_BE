@@ -71,21 +71,21 @@ public class ReportServiceImpl implements ReportService {
                 .orElseThrow(() -> new ReportException(ErrorStatus.NO_MEMBER));
 
         // 신고 대상 존재 확인 및 자기 자신 신고 방지
-        validateContentReportTarget(reporterId, request.getTargetType(), request.getTargetId());
+        validateContentReportTarget(reporterId, request.targetType(), request.targetId());
 
         // 중복 신고 확인
-        if (reportRepository.existsByReporterIdAndTargetTypeAndTargetId(reporterId, request.getTargetType(),
-                request.getTargetId())) {
+        if (reportRepository.existsByReporterIdAndTargetTypeAndTargetId(reporterId, request.targetType(),
+                request.targetId())) {
             throw new ReportException(ErrorStatus.REPORT_DUPLICATE);
         }
 
         // 콘텐츠 신고 생성
         Report report = Report.builder()
                 .reporter(reporter)
-                .targetType(request.getTargetType())
-                .targetId(request.getTargetId())
+                .targetType(request.targetType())
+                .targetId(request.targetId())
                 .reported(null) // 콘텐츠 신고는 피신고자 없음
-                .reportType(request.getReportType())
+                .reportType(request.reportType())
                 .status(ReportStatus.PENDING)
                 .build();
 
@@ -110,8 +110,8 @@ public class ReportServiceImpl implements ReportService {
                 .orElseThrow(() -> new ReportException(ErrorStatus.NO_MEMBER));
 
         // 신고 대상 존재 확인 및 자기 자신 신고 방지
-        Student reportedStudent = validateStudentReportTarget(reporterId, request.getTargetType(),
-                request.getTargetId());
+        Student reportedStudent = validateStudentReportTarget(reporterId, request.targetType(),
+                request.targetId());
 
         // 중복 신고 확인 (작성자 기준)
         if (reportRepository.existsByReporterIdAndTargetTypeAndTargetId(
@@ -128,7 +128,7 @@ public class ReportServiceImpl implements ReportService {
                 .targetType(ReportTargetType.STUDENT_USER)
                 .targetId(reportedStudent.getId())
                 .reported(reportedStudent.getMember())
-                .reportType(request.getReportType())
+                .reportType(request.reportType())
                 .status(ReportStatus.PENDING)
                 .build();
 

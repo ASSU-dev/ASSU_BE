@@ -80,7 +80,7 @@ public class ChatController {
         log.info("[STOMP SEND] roomId={}, senderId={}, receiverId={}", request.roomId(), request.senderId(), request.receiverId());
         Long authenticatedMemberId = ((PrincipalDetails) ((Authentication) principal).getPrincipal()).getId();
         // 1. 서비스 호출
-        MessageHandlingResult result = chatService.handleMessage(request, authenticatedMemberId);
+        MessageHandlingResultDTO result = chatService.handleMessage(request, authenticatedMemberId);
         // 2. [항상 전송] 채팅방 메시지 전송
         webSocketBroadcaster.send("/sub/chat/" + request.roomId(), result.sendMessageResponseDTO());
         // 3. [조건부 전송] 채팅방 목록 업데이트 전송

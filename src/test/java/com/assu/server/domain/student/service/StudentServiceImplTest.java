@@ -123,8 +123,8 @@ class StudentServiceImplTest {
 		StudentResponseDTO.CheckStampResponseDTO response = studentService.addStamp(STUDENT_ID);
 
 		// 3. Then
-		assertEquals(4, response.getStamp());
-		assertEquals("스탬프가 적립되었습니다.", response.getMessage());
+		assertEquals(4, response.stamp());
+		assertEquals("스탬프가 적립되었습니다.", response.message());
 		verify(stampEventApplicantRepository, never()).save(any());
 	}
 
@@ -139,8 +139,8 @@ class StudentServiceImplTest {
 		StudentResponseDTO.CheckStampResponseDTO response = studentService.addStamp(STUDENT_ID);
 
 		// 3. Then
-		assertEquals(0, response.getStamp());
-		assertEquals("스탬프 10개를 모아 자동 응모 되었습니다.", response.getMessage());
+		assertEquals(0, response.stamp());
+		assertEquals("스탬프 10개를 모아 자동 응모 되었습니다.", response.message());
 		verify(stampEventApplicantRepository, times(1)).save(any());
 		verify(notificationCommandService, times(1)).sendStamp(STUDENT_ID);
 		verify(discordNotifier, times(1)).send(any());
@@ -271,11 +271,11 @@ class StudentServiceImplTest {
 
 		// 3. Then
 		assertEquals(2, result.size());
-		assertEquals(102L, result.get(0).getPaperId());
-		assertEquals(1, result.get(0).getExtraCount());
-		assertEquals("주류", result.get(0).getBenefit());
-		assertEquals(101L, result.get(1).getPaperId());
-		assertEquals(0, result.get(1).getExtraCount());
+		assertEquals(102L, result.get(0).paperId());
+		assertEquals(1, result.get(0).extraCount());
+		assertEquals("주류", result.get(0).benefit());
+		assertEquals(101L, result.get(1).paperId());
+		assertEquals(0, result.get(1).extraCount());
 		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
 		verify(userPaperRepository).findActivePaperIdsByStudentId(eq(STUDENT_ID), isNull(), isNull(), pageableCaptor.capture());
 		assertEquals(2, pageableCaptor.getValue().getPageSize());
@@ -298,8 +298,8 @@ class StudentServiceImplTest {
 
 		// 3. Then
 		assertEquals(3, result.size());
-		assertEquals("총학생회", result.get(0).getAdminName());
-		assertEquals("역전할머니 맥주", result.get(0).getPartnerName());
+		assertEquals("총학생회", result.get(0).adminName());
+		assertEquals("역전할머니 맥주", result.get(0).partnerName());
 	}
 
 	@Test
@@ -371,7 +371,7 @@ class StudentServiceImplTest {
 			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// then
-		assertEquals("https://cdn.url", result.get(0).getPartnerProfileUrl());
+		assertEquals("https://cdn.url", result.get(0).partnerProfileUrl());
 	}
 
 	@Test
@@ -386,7 +386,7 @@ class StudentServiceImplTest {
 			studentService.getUsablePartnership(STUDENT_ID, true, null, null);
 
 		// then
-		assertNull(result.get(0).getPartnerProfileUrl());
+		assertNull(result.get(0).partnerProfileUrl());
 		verify(imageCdnManager, never()).generateUrl(anyString(), any());
 	}
 

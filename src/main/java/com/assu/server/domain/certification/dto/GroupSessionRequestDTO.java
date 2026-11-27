@@ -3,7 +3,7 @@ package com.assu.server.domain.certification.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 
-public record GroupSessionRequest(
+public record GroupSessionRequestDTO(
 	@Schema(description = "adminId를 입력해주세요")
 	@NotNull(message = "adminId를 입력해주세요")
 	Long adminId,
@@ -13,7 +13,7 @@ public record GroupSessionRequest(
 
 	@Override
 	public String toString() {
-		return "GroupSessionRequest{" +
+		return "GroupSessionRequestDTO{" +
 			"adminId=" + adminId +
 			", sessionId=" + sessionId +
 			'}';

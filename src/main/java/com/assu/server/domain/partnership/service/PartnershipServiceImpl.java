@@ -243,7 +243,7 @@ public class PartnershipServiceImpl implements PartnershipService {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
-        String address = pickDisplayAddress(request.selectedPlace().getRoadAddress(), request.selectedPlace().getAddress());
+        String address = pickDisplayAddress(request.selectedPlace().roadAddress(), request.selectedPlace().address());
 
         Store store = storeRepository
                 .findByNameAndAddressAndDetailAddress(request.storeName(), address, request.storeDetailAddress())

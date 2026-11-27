@@ -3,7 +3,7 @@ package com.assu.server.domain.partnership.dto;
 import com.assu.server.domain.admin.entity.Admin;
 import jakarta.validation.Valid;
 import com.assu.server.domain.common.enums.ActivationStatus;
-import com.assu.server.domain.map.dto.SelectedPlacePayload;
+import com.assu.server.domain.map.dto.SelectedPlacePayloadDTO;
 import com.assu.server.domain.partnership.entity.Paper;
 import com.assu.server.domain.partnership.entity.PaperContent;
 import com.assu.server.domain.store.entity.Store;
@@ -19,7 +19,7 @@ public record ManualPartnershipRequestDTO(
         @NotNull String storeName,
 
         @Schema(description = "선택된 장소 정보 (카카오맵 검색 결과)")
-        @NotNull SelectedPlacePayload selectedPlace,
+        @NotNull SelectedPlacePayloadDTO selectedPlace,
 
         @Schema(description = "가게 상세주소", example = "2층")
         String storeDetailAddress,
