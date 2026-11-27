@@ -8,13 +8,14 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class BlockServiceImpl implements BlockService {
     private final BlockRepository blockRepository;
@@ -84,7 +85,6 @@ public class BlockServiceImpl implements BlockService {
         return BlockResponseDTO.BlockMemberDTO.of(blockedId, blockedName);
     }
 
-    @Transactional
     @Override
     public List<BlockResponseDTO.BlockMemberDTO> getMyBlockList(Long blockerId) {
         Member blocker = memberRepository.findById(blockerId)

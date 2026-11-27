@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.common.enums.UserRole;
@@ -23,6 +26,8 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import com.assu.server.infra.s3.ImageCdnManager;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class ProfileImageServiceImplTest {
@@ -38,6 +43,18 @@ class ProfileImageServiceImplTest {
 
 	@Mock
 	private ImageCdnManager imageCdnManager;
+
+	@Mock
+	private MeterRegistry meterRegistry;
+
+	@Mock
+	private TransactionTemplate transactionTemplate;
+
+	@BeforeEach
+	void setUp() {
+		lenient().when(transactionTemplate.execute(any()))
+			.thenAnswer(inv -> inv.<TransactionCallback<Object>>getArgument(0).doInTransaction(null));
+	}
 
 	private static final Long MEMBER_ID = 1L;
 
@@ -177,6 +194,28 @@ class ProfileImageServiceImplTest {
 		assertEquals("public/store-profiles/new-key.png", result);
 		verify(amazonS3Manager, times(1)).uploadFile(eq("public/store-profiles/new-key.png"), any());
 		verify(member, times(1)).setProfileUrl("public/store-profiles/new-key.png");
+	}
+
+	@Test
+	@DisplayName("업로드 후 DB 반영이 실패하면 새로 올린 파일을 지우고 기존 파일은 남긴다")
+	void updateProfileImage_WhenDbUpdateFails_DeletesUploadedFileAndKeepsOld() {
+		// 1. Given
+		Member member = mock(Member.class);
+		when(member.getId()).thenReturn(MEMBER_ID);
+		when(member.getRole()).thenReturn(UserRole.STUDENT);
+		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+		when(amazonS3Manager.generateKeyName("members/1/profile", "png")).thenReturn("members/1/profile/new-key.png");
+		when(amazonS3Manager.uploadFile(anyString(), any())).thenReturn("members/1/profile/new-key.png");
+		doThrow(new IllegalStateException("db down")).when(transactionTemplate).execute(any());
+
+		// 2. When
+		assertThrows(IllegalStateException.class,
+			() -> profileImageService.updateProfileImage(MEMBER_ID, validImage()));
+
+		// 3. Then
+		verify(amazonS3Manager).deleteFileQuietly("members/1/profile/new-key.png");
+		verify(amazonS3Manager, never()).deleteFile(anyString());
+		verify(imageCdnManager, never()).invalidate(anyString());
 	}
 
 	// ===== getProfileImageUrl =====

@@ -17,10 +17,10 @@ import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
-@Transactional
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
 public class TemporaryQrServiceImpl implements TemporaryQrService{
@@ -29,6 +29,7 @@ public class TemporaryQrServiceImpl implements TemporaryQrService{
 	private final StudentRepository studentRepository;
 
 	@Override
+	@Transactional
 	public void insertData(TemporaryQrRequestDTO dto, Member member){
 		studentRepository.findById(member.getId()).orElseThrow(
 			() -> new GeneralException(ErrorStatus.NO_SUCH_STUDENT)

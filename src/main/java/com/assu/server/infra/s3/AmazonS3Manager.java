@@ -1,6 +1,7 @@
 package com.assu.server.infra.s3;
 
 import com.assu.server.global.config.AmazonConfig;
+import com.assu.server.global.util.TransactionCallbacks;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -141,6 +142,18 @@ public class AmazonS3Manager{
             return generateKeyName(path);
         }
         return path + '/' + UUID.randomUUID() + '.' + extension;
+    }
+
+    public void deleteFileQuietly(String keyName) {
+        try {
+            deleteFile(keyName);
+        } catch (RuntimeException e) {
+            log.warn("S3 정리 실패, 수동 확인 필요 key={}", keyName);
+        }
+    }
+
+    public void deleteFileOnRollback(String keyName) {
+        TransactionCallbacks.runAfterRollback(() -> deleteFileQuietly(keyName));
     }
 
     public void deleteFile(String keyName) {

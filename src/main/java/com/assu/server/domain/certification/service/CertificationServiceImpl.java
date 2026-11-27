@@ -29,12 +29,12 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 // AdminService 참조, 순환 참조 문제 주의
-@Transactional
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -117,7 +117,7 @@ public class CertificationServiceImpl implements CertificationService {
 			throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
 		}
 
-		webSocketBroadcaster.send("/certification/progress/" + sessionId,
+		webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId,
 			new CertificationProgressResponseDTO(
 				"expired",
 				certifiedUserIds.size(),
@@ -129,6 +129,7 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
+	@Transactional
 	public CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member) {
 		Long userId = member.getId();
 		Long sessionId = dto.sessionId();
@@ -153,7 +154,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"학생과 매치되지 않는 정보입니다.",
 				currentCertifiedUserIds
 			);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupFailure("mismatch");
 			return response;
 		}
@@ -168,6 +169,7 @@ public class CertificationServiceImpl implements CertificationService {
 				"doubled member",
 				currentCertifiedUserIds
 			);
+			// 곧 예외로 롤백되므로 커밋을 기다리지 않고 바로 알린다
 			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
@@ -207,11 +209,11 @@ public class CertificationServiceImpl implements CertificationService {
 			associateCertificationRepository.save(certification);
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupSuccess("completed");
 		} else {
 			response = new CertificationProgressResponseDTO("progress", currentCount, null, currentCertifiedUserIds);
-			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
+			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
 			countGroupSuccess("success");
 		}
 		return response;
@@ -238,6 +240,7 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
+	@Transactional
 	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
 		Store store = storeRepository.findById(dto.storeId()).orElseThrow(

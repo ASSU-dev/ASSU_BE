@@ -15,11 +15,12 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         UPDATE NotificationOutbox o
-           SET o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED}
+           SET o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED},
+               o.nextAttemptAt = :redeliverAt
          WHERE o.id = :id
            AND o.status = :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).PENDING}
         """)
-    int markDispatchedById(@Param("id") Long id);
+    int markDispatchedById(@Param("id") Long id, @Param("redeliverAt") LocalDateTime redeliverAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -65,11 +66,15 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
         SELECT o.id FROM NotificationOutbox o
          WHERE o.status IN (
                :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).PENDING},
-               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING})
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING},
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED})
            AND (o.nextAttemptAt IS NULL OR o.nextAttemptAt <= :now)
+           AND (o.status <> :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED} OR o.nextAttemptAt >= :staleBefore)
          ORDER BY o.id
         """)
-    List<Long> findRetryTargetIds(@Param("now") LocalDateTime now, Pageable pageable);
+    List<Long> findRetryTargetIds(@Param("now") LocalDateTime now,
+                                  @Param("staleBefore") LocalDateTime staleBefore,
+                                  Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -81,13 +86,16 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
            AND o.retryCount = :retryCount
            AND o.status IN (
                :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).PENDING},
-               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING})
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING},
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED})
            AND (o.nextAttemptAt IS NULL OR o.nextAttemptAt <= :now)
+           AND (o.status <> :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED} OR o.nextAttemptAt >= :staleBefore)
         """)
     int claimForRetry(@Param("id") Long id,
                       @Param("retryCount") int retryCount,
                       @Param("now") LocalDateTime now,
-                      @Param("nextAttemptAt") LocalDateTime nextAttemptAt);
+                      @Param("nextAttemptAt") LocalDateTime nextAttemptAt,
+                      @Param("staleBefore") LocalDateTime staleBefore);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -96,10 +104,14 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
          WHERE o.id = :id
            AND o.status IN (
                :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).PENDING},
-               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING})
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).SENDING},
+               :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED})
            AND (o.nextAttemptAt IS NULL OR o.nextAttemptAt <= :now)
+           AND (o.status <> :#{T(com.assu.server.domain.notification.entity.NotificationOutbox$Status).DISPATCHED} OR o.nextAttemptAt >= :staleBefore)
         """)
-    int giveUpById(@Param("id") Long id, @Param("now") LocalDateTime now);
+    int giveUpById(@Param("id") Long id,
+                   @Param("now") LocalDateTime now,
+                   @Param("staleBefore") LocalDateTime staleBefore);
 
     Page<NotificationOutbox> findByStatus(NotificationOutbox.Status status, Pageable pageable);
 

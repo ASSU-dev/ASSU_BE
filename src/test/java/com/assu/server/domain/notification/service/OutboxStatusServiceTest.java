@@ -80,7 +80,7 @@ class OutboxStatusServiceTest {
     }
 
     @Test
-    void findRetryTargetIds_returnsOnlyDuePendingOrExpiredSending() {
+    void findRetryTargetIds_returnsOnlyDuePendingOrExpiredSendingOrDispatched() {
         // given
         LocalDateTime past = LocalDateTime.now().minusSeconds(1);
         LocalDateTime future = LocalDateTime.now().plusMinutes(5);
@@ -89,12 +89,14 @@ class OutboxStatusServiceTest {
         Long expiredSending = saveOutbox(NotificationOutbox.Status.SENDING, 0, past);
         saveOutbox(NotificationOutbox.Status.PENDING, 0, future);
         saveOutbox(NotificationOutbox.Status.SENDING, 0, future);
-        saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, past);
+        Long expiredDispatched = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, past);
+        saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, future);
+        saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, null);
         saveOutbox(NotificationOutbox.Status.SENT, 0, past);
 
         // when & then
         assertThat(outboxStatusService.findRetryTargetIds(100))
-                .containsExactlyInAnyOrder(duePending, legacyPending, expiredSending);
+                .containsExactlyInAnyOrder(duePending, legacyPending, expiredSending, expiredDispatched);
     }
 
     @Test

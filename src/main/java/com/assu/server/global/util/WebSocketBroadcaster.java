@@ -52,6 +52,17 @@ public class WebSocketBroadcaster implements MessageListener {
         publishToOtherInstances(destination, payload);
     }
 
+    // 롤백된 변경이 클라이언트에 먼저 도착하지 않도록 트랜잭션 안에서는 커밋 후에 보낸다
+    public void sendAfterCommit(String destination, Object payload) {
+        TransactionCallbacks.runAfterCommit(() -> {
+            try {
+                send(destination, payload);
+            } catch (RuntimeException e) {
+                log.warn("[WebSocketBroadcaster] 커밋 후 전송 실패 destination={} cause={}", destination, e.toString());
+            }
+        });
+    }
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         try {

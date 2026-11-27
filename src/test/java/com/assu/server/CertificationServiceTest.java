@@ -126,7 +126,7 @@ class CertificationServiceImplTest {
 		verify(sessionManager, times(1)).removeSession(sessionId);
 
 		// - 메시지 전송 확인 (DTO 필드명 type과 status 혼동 주의, 현재 DTO상 type이 'completed'여야 함)
-		verify(webSocketBroadcaster).send(
+		verify(webSocketBroadcaster).sendAfterCommit(
 			eq("/certification/progress/" + sessionId),
 			argThat((CertificationProgressResponseDTO resp) -> "completed".equals(resp.type()))
 		);
@@ -166,7 +166,7 @@ class CertificationServiceImplTest {
 		// 3. Then (구독 경로 및 데이터 검증)
 		// - 첫 번째 인자: 구독 경로가 "/certification/progress/100"인지 확인
 		// - 두 번째 인자: 전달된 DTO의 내용이 'progress'이고 인원수가 2명인지 확인
-		verify(webSocketBroadcaster).send(
+		verify(webSocketBroadcaster).sendAfterCommit(
 			eq("/certification/progress/" + sessionId),
 			argThat((CertificationProgressResponseDTO resp) -> {
 				return resp.type().equals("progress") &&
@@ -327,6 +327,7 @@ class CertificationServiceImplTest {
 
 		// then
 		assertEquals(1, count("certification.group.result", "failure", "doubled"));
+		verify(webSocketBroadcaster).send(eq("/certification/progress/" + sessionId), any());
 	}
 
 	@Test
@@ -370,7 +371,7 @@ class CertificationServiceImplTest {
 		assertEquals(ErrorStatus.SESSION_NOT_OPENED, exception.getCode());
 		assertEquals(1, count("certification.group.result", "failure", "full"));
 		verify(associateCertificationRepository, never()).save(any());
-		verify(webSocketBroadcaster, never()).send(any(), any());
+		verify(webSocketBroadcaster, never()).sendAfterCommit(any(), any());
 	}
 
 	@Test
@@ -409,7 +410,7 @@ class CertificationServiceImplTest {
 		// then
 		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
 		verify(associateCertificationRepository, never()).save(any());
-		verify(webSocketBroadcaster, never()).send(any(), any());
+		verify(webSocketBroadcaster, never()).sendAfterCommit(any(), any());
 		assertEquals(0, count("certification.group.result", "completed", "none"));
 	}
 

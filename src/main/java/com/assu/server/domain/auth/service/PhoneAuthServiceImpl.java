@@ -3,12 +3,14 @@ package com.assu.server.domain.auth.service;
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.util.LogMaskUtil;
 import com.assu.server.global.util.RandomNumberUtil;
 import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.infra.aligo.client.AligoSmsClient;
 import com.assu.server.infra.aligo.dto.AligoSendResponse;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -19,6 +21,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PhoneAuthServiceImpl implements PhoneAuthService {
@@ -195,6 +198,16 @@ public class PhoneAuthServiceImpl implements PhoneAuthService {
 
         if (!Boolean.TRUE.equals(verified)) {
             throw new CustomAuthException(ErrorStatus.NOT_VERIFIED_PHONE_NUMBER);
+        }
+    }
+
+    // 가입이 롤백되면 사용자가 SMS 인증을 다시 받지 않도록 소모한 인증 표식을 되돌린다
+    @Override
+    public void restoreVerification(String phoneNumber) {
+        try {
+            redisTemplate.opsForValue().setIfAbsent(VERIFIED_KEY_PREFIX + phoneNumber, "1", VERIFIED_TTL);
+        } catch (RuntimeException e) {
+            log.warn("[PhoneAuth] 인증 표식 복원 실패 phone={}", LogMaskUtil.mask(phoneNumber));
         }
     }
 

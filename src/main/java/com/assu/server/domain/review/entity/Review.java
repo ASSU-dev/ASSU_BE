@@ -47,6 +47,7 @@ public class Review extends BaseEntity {
 	private Store store;
 
 	@OneToMany(mappedBy = "review", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	@Builder.Default
 	private List<ReviewPhoto> imageList = new ArrayList<>();
 
 	private Integer rate;

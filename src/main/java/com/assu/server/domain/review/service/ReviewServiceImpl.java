@@ -18,20 +18,24 @@ import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.infra.s3.AmazonS3Manager;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
@@ -40,20 +44,50 @@ public class ReviewServiceImpl implements ReviewService {
     private final StudentRepository studentRepository;
     private final AmazonS3Manager amazonS3Manager;
     private final PartnershipUsageRepository partnershipUsageRepository;
+    private final TransactionTemplate transactionTemplate;
 
+    // 이미지 업로드 동안 DB 커넥션을 잡지 않도록 업로드를 먼저 하고, 저장이 실패하면 올린 파일을 지운다
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReviewResponseDTO.WriteReviewResponseDTO writeReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<MultipartFile> reviewImages) {
+        List<String> uploadedKeys = uploadReviewImages(memberId, reviewImages);
+        try {
+            return transactionTemplate.execute(status -> saveReview(request, memberId, uploadedKeys));
+        } catch (RuntimeException e) {
+            uploadedKeys.forEach(amazonS3Manager::deleteFileQuietly);
+            throw e;
+        }
+    }
+
+    private ReviewResponseDTO.WriteReviewResponseDTO saveReview(ReviewRequestDTO.WriteReviewRequestDTO request, Long memberId, List<String> imageKeys) {
         Store store = findStoreOfPartner(request.getStoreId(), request.getPartnerId());
         claimUsageForReview(request.getPartnershipUsageId(), memberId, store.getId());
 
         String affiliation = adminNameToAffliation(request.getAdminName());
 
-        Review review = createReview(memberId, store, request, reviewImages, affiliation);
+        Review review = createReview(memberId, store, request, imageKeys, affiliation);
 
         recalcAndUpdateStoreRate(review.getStore().getId());
 
         return ReviewResponseDTO.WriteReviewResponseDTO.from(review);
+    }
+
+    private List<String> uploadReviewImages(Long memberId, List<MultipartFile> images) {
+        if (images == null || images.isEmpty()) {
+            return List.of();
+        }
+        List<String> uploadedKeys = new ArrayList<>();
+        try {
+            for (int i = 0; i < images.size(); i++) {
+                String keyName = generateReviewImageKeyName(memberId, i + 1);
+                amazonS3Manager.uploadFile(keyName, images.get(i));
+                uploadedKeys.add(keyName);
+            }
+        } catch (Exception e) {
+            uploadedKeys.forEach(amazonS3Manager::deleteFileQuietly);
+            throw new CustomReviewException(ErrorStatus.IMAGE_UPLOAD_FAILED);
+        }
+        return uploadedKeys;
     }
 
     // 다른 가게의 평점을 바꾸지 못하도록 요청한 가게와 업체가 실제로 연결돼 있는지 먼저 확인한다
@@ -92,62 +126,42 @@ public class ReviewServiceImpl implements ReviewService {
             return adminName.replace(" 학생회"," 재학생");
     }
 
-    private Review createReview(Long memberId, Store store, ReviewRequestDTO.WriteReviewRequestDTO request, List<MultipartFile> images, String affiliation) {
+    private Review createReview(Long memberId, Store store, ReviewRequestDTO.WriteReviewRequestDTO request, List<String> imageKeys, String affiliation) {
         Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.getPartnerId())
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));
         Student student = studentRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_STUDENT));
 
         Review review = request.toEntity(store, partner, student, affiliation);
-        reviewRepository.save(review);
-
-        if (images != null && !images.isEmpty()) {
-            try {
-                for (int i = 0; i < images.size(); i++) {
-                    String keyName = generateReviewImageKeyName(memberId, review.getId(), i + 1);
-                    amazonS3Manager.uploadFile(keyName, images.get(i));
-                    String presignedUrl = amazonS3Manager.generatePresignedUrl(keyName);
-
-                    ReviewPhoto reviewPhoto = ReviewPhoto.builder()
-                            .review(review)
-                            .photoUrl(presignedUrl)
-                            .keyName(keyName)
-                            .build();
-
-                    review.getImageList().add(reviewPhoto);
-                }
-            } catch (Exception e) {
-                throw new CustomReviewException(ErrorStatus.IMAGE_UPLOAD_FAILED);
-            }
+        for (String keyName : imageKeys) {
+            review.getImageList().add(ReviewPhoto.builder()
+                    .review(review)
+                    .photoUrl(amazonS3Manager.generatePresignedUrl(keyName))
+                    .keyName(keyName)
+                    .build());
         }
 
         return reviewRepository.save(review);
     }
 
-    private String generateReviewImageKeyName(Long memberId, Long reviewId, int imageIndex) {
+    private String generateReviewImageKeyName(Long memberId, int imageIndex) {
         LocalDateTime now = LocalDateTime.now();
         String year = String.valueOf(now.getYear());
         String month = String.format("%02d", now.getMonthValue());
 
-        return String.format("reviews/images/%s/%s/user%d/review%d_img%d_%s",
-                year, month, memberId, reviewId, imageIndex, UUID.randomUUID());
+        return String.format("reviews/images/%s/%s/user%d/img%d_%s",
+                year, month, memberId, imageIndex, UUID.randomUUID());
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStudentReview(Long memberId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Page<Review> reviews = reviewRepository.findByMemberId(memberId, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Partner partner = partnerRepository.findById(memberId)
@@ -158,11 +172,7 @@ public class ReviewServiceImpl implements ReviewService {
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
@@ -184,17 +194,15 @@ public class ReviewServiceImpl implements ReviewService {
                 .build();
     }
 
-    private void updateReviewImageUrls(Review review) {
-        for (ReviewPhoto reviewPhoto : review.getImageList()) {
-            if (reviewPhoto.getKeyName() != null) {
-                String freshUrl = amazonS3Manager.generatePresignedUrl(reviewPhoto.getKeyName());
-                reviewPhoto.updatePhotoUrl(freshUrl);
-            }
-        }
+    private List<String> resolveImageUrls(Review review) {
+        return review.getImageList().stream()
+                .map(photo -> photo.getKeyName() != null
+                        ? amazonS3Manager.generatePresignedUrl(photo.getKeyName())
+                        : photo.getPhotoUrl())
+                .toList();
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Store store = storeRepository.findById(storeId).orElseThrow(
@@ -203,22 +211,16 @@ public class ReviewServiceImpl implements ReviewService {
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
-    @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO standardScore(Long storeId) {
         Float score = reviewRepository.standardScoreWithStatus(storeId, ReportedStatus.NORMAL, ReportedStatus.NORMAL);
         return new ReviewResponseDTO.StandardScoreResponseDTO(score == null ? 0f : score);
     }
 
     @Override
-    @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO myStoreAverage(Long memberId) {
         Partner partner = partnerRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));

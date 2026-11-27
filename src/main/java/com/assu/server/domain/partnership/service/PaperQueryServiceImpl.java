@@ -16,7 +16,7 @@ import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +27,7 @@ import static com.assu.server.domain.partnership.dto.PaperContentResponseDTO.toC
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class PaperQueryServiceImpl implements PaperQueryService {
 
 	private final AdminService adminService;
@@ -79,6 +79,7 @@ public class PaperQueryServiceImpl implements PaperQueryService {
 	 * paper 상태를 업데이트하는 메서드 (ACTIVE -> INACTIVE)
 	 */
 	@Override
+	@Transactional
 	public void updatePaperStatus() {
 		LocalDate today = LocalDate.now();
 		paperRepository.updatePaperStatus(today, ActivationStatus.INACTIVE, ActivationStatus.ACTIVE);

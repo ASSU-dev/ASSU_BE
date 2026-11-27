@@ -274,6 +274,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             try {
                 String keyName = amazonS3Manager.generateKeyName("contract-images");
                 amazonS3Manager.uploadFile(keyName, contractImage);
+                amazonS3Manager.deleteFileOnRollback(keyName);
                 paper.updateContractImageKey(keyName);
                 paperRepository.save(paper);
             } catch (Exception e) {
