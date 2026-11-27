@@ -48,7 +48,6 @@ import com.assu.server.infra.s3.ImageCdnManager;
 import com.assu.server.infra.s3.ImageSize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.support.TransactionTemplate;
-import jakarta.persistence.EntityManager;
 
 import java.util.function.Consumer;
 
@@ -94,9 +93,6 @@ class StudentServiceImplTest {
 
 	@Mock
 	private TransactionTemplate transactionTemplate;
-
-	@Mock
-	private EntityManager entityManager;
 
 	private static final Long STUDENT_ID = 1L;
 
@@ -639,6 +635,5 @@ class StudentServiceImplTest {
 		// then
 		verify(transactionTemplate, times(2)).executeWithoutResult(any());
 		verify(adminRepository).findMatchingAdmins(next.getUniversity(), next.getDepartment(), next.getMajor());
-		verify(entityManager, times(2)).clear();
 	}
 }
