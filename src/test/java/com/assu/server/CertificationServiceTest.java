@@ -327,6 +327,7 @@ class CertificationServiceImplTest {
 
 		// then
 		assertEquals(1, count("certification.group.result", "failure", "doubled"));
+		verify(webSocketBroadcaster).send(eq("/certification/progress/" + sessionId), any());
 	}
 
 	@Test

@@ -75,10 +75,10 @@ class OutboxMultiInstanceTest {
         // given: 두 파드가 retryCount=0을 읽고, 한 파드가 먼저 선점
         Long outboxId = saveOutbox(NotificationOutbox.Status.PENDING, 0, LocalDateTime.now().minusSeconds(1));
         LocalDateTime now = LocalDateTime.now();
-        int first = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, now, now.minusSeconds(1)));
+        int first = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, now, now.minusSeconds(1), now.minusHours(1)));
 
         // when: 다른 파드가 읽어둔 retryCount=0으로 선점 시도 (next_attempt_at 조건은 통과하도록 과거 시각)
-        int second = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, LocalDateTime.now(), now.minusSeconds(1)));
+        int second = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, LocalDateTime.now(), now.minusSeconds(1), now.minusHours(1)));
 
         // then
         assertThat(first).isEqualTo(1);
@@ -115,6 +115,44 @@ class OutboxMultiInstanceTest {
         // then
         List<Long> all = claimedByPod.stream().flatMap(List::stream).toList();
         assertThat(all).containsExactlyInAnyOrderElementsOf(outboxIds);
+    }
+
+    @Test
+    void findRetryTargetIds_whenDispatchedMessageNeverConsumed_thenRetriedAfterTimeout() {
+        Long stuck = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().minusSeconds(1));
+        Long inFlight = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().plusMinutes(5));
+        Long legacy = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, null);
+        Long staleSinceLongAgo = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().minusDays(3));
+
+        List<Long> targets = outboxStatusService.findRetryTargetIds(100);
+
+        assertThat(targets).contains(stuck).doesNotContain(inFlight, legacy, staleSinceLongAgo);
+        assertThat(outboxStatusService.claimForRetry(stuck)).isPresent();
+        NotificationOutbox claimed = outboxRepository.findById(stuck).orElseThrow();
+        assertThat(claimed.getStatus()).isEqualTo(NotificationOutbox.Status.PENDING);
+        assertThat(claimed.getRetryCount()).isEqualTo(1);
+    }
+
+    @Test
+    void markDispatched_whenPending_thenSetsRedeliveryDeadline() {
+        Long outboxId = saveOutbox(NotificationOutbox.Status.PENDING, 0, null);
+
+        outboxStatusService.markDispatched(outboxId);
+
+        NotificationOutbox outbox = outboxRepository.findById(outboxId).orElseThrow();
+        assertThat(outbox.getStatus()).isEqualTo(NotificationOutbox.Status.DISPATCHED);
+        assertThat(outbox.getNextAttemptAt()).isAfter(LocalDateTime.now().plusMinutes(29));
+        assertThat(outboxStatusService.findRetryTargetIds(100)).doesNotContain(outboxId);
+    }
+
+    @Test
+    void claimForRetry_whenDispatchedExhaustedRetries_thenGivesUp() {
+        Long outboxId = saveOutbox(NotificationOutbox.Status.DISPATCHED, 3, LocalDateTime.now().minusSeconds(1));
+
+        assertThat(outboxStatusService.claimForRetry(outboxId)).isEmpty();
+
+        assertThat(outboxRepository.findById(outboxId).orElseThrow().getStatus())
+                .isEqualTo(NotificationOutbox.Status.FAILED);
     }
 
     private <T> List<T> raceOnPods(Callable<T> pod) throws Exception {

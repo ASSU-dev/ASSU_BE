@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -33,6 +34,7 @@ import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.review.dto.ReviewRequestDTO;
 import com.assu.server.domain.review.dto.ReviewResponseDTO;
 import com.assu.server.domain.review.entity.Review;
+import com.assu.server.domain.review.entity.ReviewPhoto;
 import com.assu.server.domain.review.exception.CustomReviewException;
 import com.assu.server.domain.review.repository.ReviewRepository;
 import com.assu.server.domain.store.entity.Store;
@@ -453,6 +455,25 @@ class ReviewServiceImplTest {
 		verify(reviewRepository).findByMemberId(anyLong(), captor.capture());
 		assertEquals(sort, captor.getValue().getSort());
 		assertEquals(10, captor.getValue().getPageSize());
+	}
+
+	@Test
+	@DisplayName("리뷰 조회 시 presigned URL은 응답에만 담고 엔티티의 photoUrl은 바꾸지 않는다")
+	void checkStudentReview_WithPhotoKey_ReturnsPresignedUrlWithoutMutatingEntity() {
+		// 1. Given
+		Store store = Store.builder().id(STORE_ID).name("가게").build();
+		ReviewPhoto keyed = ReviewPhoto.builder().photoUrl("stored-url").keyName("reviews/a.png").build();
+		ReviewPhoto legacy = ReviewPhoto.builder().photoUrl("legacy-url").build();
+		Review review = Review.builder().id(REVIEW_ID).store(store).imageList(List.of(keyed, legacy)).build();
+		when(reviewRepository.findByMemberId(anyLong(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(review)));
+		when(amazonS3Manager.generatePresignedUrl("reviews/a.png")).thenReturn("fresh-url");
+
+		// 2. When
+		Page<ReviewResponseDTO.CheckReviewResponseDTO> result = reviewService.checkStudentReview(MEMBER_ID, PageRequest.of(1, 10));
+
+		// 3. Then
+		assertEquals(List.of("fresh-url", "legacy-url"), result.getContent().get(0).reviewImageUrls());
+		assertEquals("stored-url", keyed.getPhotoUrl());
 	}
 
 	private int capturedPageNumber() {

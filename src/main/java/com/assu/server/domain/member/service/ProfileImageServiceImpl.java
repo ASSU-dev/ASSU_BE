@@ -11,7 +11,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,7 +33,6 @@ public class ProfileImageServiceImpl implements ProfileImageService{
 
     // 업로드 동안 DB 커넥션을 잡지 않도록 업로드는 트랜잭션 밖에서 하고, 반영에 실패하면 올린 파일을 지운다
     @Override
-    @Transactional(propagation = Propagation.SUPPORTS)
     public String updateProfileImage(Long memberId, MultipartFile image) {
         validateFile(image);
 

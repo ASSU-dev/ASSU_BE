@@ -24,7 +24,7 @@ import com.assu.server.global.exception.GeneralException;
 import com.assu.server.global.util.PresenceTracker;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +56,7 @@ public class ChatServiceImpl implements ChatService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public List<ChatRoomListResultDTO> getChatRoomList(Long memberId) {
         List<ChatRoomListResultDTO> chatRoomList = chatRepository.findChattingRoomsByMemberId(memberId);
         return ChatRoomListResultDTO.ofList(chatRoomList);
@@ -219,6 +220,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ChatResponseDTO.ChatHistoryResponseDTO readHistory(Long roomId, Long memberId) {
 
         ChattingRoom room = chatRepository.findById(roomId)

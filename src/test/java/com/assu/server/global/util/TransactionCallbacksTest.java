@@ -57,6 +57,16 @@ class TransactionCallbacksTest {
         assertThat(calls).containsExactly("rollback");
     }
 
+    @Test
+    void runAfterRollback_whenCommitOutcomeUnknown_thenDoesNotRun() {
+        TransactionSynchronizationManager.initSynchronization();
+        TransactionCallbacks.runAfterRollback(() -> calls.add("rollback"));
+
+        complete(TransactionSynchronization.STATUS_UNKNOWN);
+
+        assertThat(calls).isEmpty();
+    }
+
     private void complete(int status) {
         List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
         if (status == TransactionSynchronization.STATUS_COMMITTED) {

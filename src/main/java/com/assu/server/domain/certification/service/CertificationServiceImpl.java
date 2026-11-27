@@ -29,12 +29,12 @@ import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 // AdminService 참조, 순환 참조 문제 주의
-@Transactional
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -129,6 +129,7 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
+	@Transactional
 	public CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member) {
 		Long userId = member.getId();
 		Long sessionId = dto.sessionId();
@@ -168,7 +169,8 @@ public class CertificationServiceImpl implements CertificationService {
 				"doubled member",
 				currentCertifiedUserIds
 			);
-			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
+			// 곧 예외로 롤백되므로 커밋을 기다리지 않고 바로 알린다
+			webSocketBroadcaster.send("/certification/progress/" + sessionId, response);
 			countGroupFailure("doubled");
 			throw new GeneralException(ErrorStatus.DOUBLE_CERTIFIED_USER);
 		}
@@ -238,6 +240,7 @@ public class CertificationServiceImpl implements CertificationService {
 	}
 
 	@Override
+	@Transactional
 	public void certificatePersonal(CertificationPersonalRequestDTO dto, Member member){
 		// store id 추출
 		Store store = storeRepository.findById(dto.storeId()).orElseThrow(

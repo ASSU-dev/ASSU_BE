@@ -21,7 +21,7 @@ public final class TransactionCallbacks {
         });
     }
 
-    // 커밋되지 않고 끝난 경우(롤백, 커밋 실패)에만 실행한다. 트랜잭션이 없으면 보상할 대상도 없으므로 아무것도 하지 않는다
+    // 롤백이 확정된 경우에만 실행한다. 커밋 결과를 알 수 없는 경우(STATUS_UNKNOWN)는 실제로 커밋됐을 수 있어 보상하지 않는다
     public static void runAfterRollback(Runnable task) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
@@ -29,7 +29,7 @@ public final class TransactionCallbacks {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-                if (status != STATUS_COMMITTED) {
+                if (status == STATUS_ROLLED_BACK) {
                     task.run();
                 }
             }

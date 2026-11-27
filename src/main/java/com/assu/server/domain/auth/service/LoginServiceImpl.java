@@ -26,15 +26,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 @Service
+// BCrypt·외부 호출 동안 DB 커넥션을 잡지 않도록 클래스 레벨 트랜잭션을 두지 않고 필요한 구간만 트랜잭션으로 감싼다
 @RequiredArgsConstructor
-@Transactional
 public class LoginServiceImpl implements LoginService {
 
     private final AuthenticationManager authenticationManager;
@@ -59,7 +58,6 @@ public class LoginServiceImpl implements LoginService {
      * 2) JWT 발급: username=email, authRealm=COMMON
      */
     @Override
-    @Transactional(propagation = Propagation.SUPPORTS)
     public LoginResponseDTO loginCommon(CommonLoginRequestDTO request) {
         loginAttemptLimiter.checkAttempt(request.email());
 
@@ -111,6 +109,7 @@ public class LoginServiceImpl implements LoginService {
      * 3) JWT 발급: username=studentNumber, authRealm=SSU
      */
     @Override
+    @Transactional
     public LoginResponseDTO loginSsuStudent(USaintAuthResponseDTO authResponse) {
         // 1) 기존 회원 확인
         RealmAuthAdapter adapter = pickAdapter(AuthRealm.SSU);
@@ -163,11 +162,10 @@ public class LoginServiceImpl implements LoginService {
      * 절차:
      * 1) RT 서명/만료 검증(jwtUtil.validateRefreshToken)
      * 2) RT의 Claims 추출(만료 X), memberId/jti/username/role/authRealm 획득
-     * 3) Redis 키 "refresh:{memberId}:{jti}" 존재 및 값 일치 확인(도난/중복 재사용 차단)
-     * 4) 기존 RT 키 삭제(회전), 새 토큰 발급(issueTokens)
+     * 3) Redis 키 "refresh:{memberId}:{jti}" 값 대조와 삭제를 원자적으로 수행(중복 회전 차단)
+     * 4) 새 토큰 발급, 짧은 유예 기간 동안 같은 RT 재시도에는 같은 토큰 반환
      */
     @Override
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RefreshResponseDTO refresh(String refreshToken) {
         io.jsonwebtoken.Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
         if (jwtUtil.isBackofficeAudience(refreshClaims)) {
