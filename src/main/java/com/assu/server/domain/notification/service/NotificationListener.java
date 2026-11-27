@@ -8,6 +8,7 @@ import com.assu.server.domain.notification.dto.NotificationMessageDTO;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.rabbitmq.client.Channel;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -16,6 +17,11 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 // 큐 소비(Rabbit)와 실제 발송(FCM/Firebase) 양쪽에 의존하므로 두 플래그가 모두 켜져 있어야 등록된다.
 @Slf4j
 @Component
@@ -23,6 +29,17 @@ import org.springframework.stereotype.Component;
 @ConditionalOnRabbitEnabled
 @ConditionalOnFirebaseEnabled
 public class NotificationListener {
+
+    private static final int MARK_SENT_ATTEMPTS = 3;
+    private static final long MARK_SENT_BACKOFF_MILLIS = 200;
+    private static final int DEFERRED_MARK_SENT_ATTEMPTS = 8;
+
+    private final ScheduledExecutorService deferredMarkSentExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "outbox-mark-sent");
+        t.setDaemon(true);
+        return t;
+    });
+    private long deferredMarkSentDelayMillis = 30_000;
 
     private final FcmClient fcmClient;
     private final OutboxStatusService outboxStatus;
@@ -55,8 +72,10 @@ public class NotificationListener {
         try {
             if (outboxStatus.claimForSending(outboxId)) return true;
         } catch (Exception e) {
-            log.error("[Notify] claim error, sending anyway outboxId={}", outboxId, e);
-            return true;
+            // 선점 여부를 모른 채 보내면 이미 보낸 알림이 또 나갈 수 있어 보내지 않는다. 행은 재시도 스케줄러가 다시 발행한다
+            log.error("[Notify] claim error, skip and leave to retry scheduler outboxId={}", outboxId, e);
+            meterRegistry.counter("notification.outbox.status", "result", "claim_error").increment();
+            return false;
         }
         log.info("[Notify] already sending or sent outboxId={}, ACK", outboxId);
         return false;
@@ -73,7 +92,7 @@ public class NotificationListener {
                 log.warn("[Notify] all tokens failed with retryable errors, retry outboxId={} memberId={}", outboxId, dto.receiverId());
                 outboxStatus.scheduleRetry(outboxId);
             } else {
-                outboxStatus.markSent(outboxId);
+                recordSent(outboxId);
             }
         }
 
@@ -84,6 +103,60 @@ public class NotificationListener {
 
         log.info("[Notify] sent outboxId={} memberId={} success={} fail={} invalidTokens={}",
                 outboxId, dto.receiverId(), result.successCount(), result.failureCount(), result.invalidTokens());
+    }
+
+    // 발송은 이미 끝났으므로 SENT 기록 실패를 발송 실패로 처리하지 않는다(FAILED로 남으면 수동 재전송 때 중복 발송된다)
+    private void recordSent(Long outboxId) {
+        RuntimeException lastError = null;
+        for (int attempt = 1; attempt <= MARK_SENT_ATTEMPTS; attempt++) {
+            try {
+                outboxStatus.markSent(outboxId);
+                return;
+            } catch (RuntimeException e) {
+                lastError = e;
+                if (attempt < MARK_SENT_ATTEMPTS && !sleepQuietly(MARK_SENT_BACKOFF_MILLIS)) {
+                    break;
+                }
+            }
+        }
+        meterRegistry.counter("notification.outbox.status", "result", "mark_sent_failed").increment();
+        log.error("[Notify] delivered but SENT update failed, retrying in background outboxId={}", outboxId, lastError);
+        scheduleDeferredMarkSent(outboxId, 1);
+    }
+
+    // SENDING 리스 만료 전에 SENT를 기록하지 못하면 재시도 스케줄러가 같은 알림을 다시 보내므로, 리스 안에서 계속 기록을 시도한다
+    private void scheduleDeferredMarkSent(Long outboxId, int attempt) {
+        if (attempt > DEFERRED_MARK_SENT_ATTEMPTS) {
+            meterRegistry.counter("notification.outbox.status", "result", "mark_sent_gave_up").increment();
+            log.error("[Notify] SENT update gave up, may be resent after lease outboxId={}", outboxId);
+            return;
+        }
+        try {
+            deferredMarkSentExecutor.schedule(() -> {
+                try {
+                    outboxStatus.markSent(outboxId);
+                } catch (RuntimeException e) {
+                    scheduleDeferredMarkSent(outboxId, attempt + 1);
+                }
+            }, deferredMarkSentDelayMillis, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            log.error("[Notify] deferred SENT update rejected outboxId={}", outboxId);
+        }
+    }
+
+    @PreDestroy
+    void shutdownDeferredMarkSent() {
+        deferredMarkSentExecutor.shutdown();
+    }
+
+    private boolean sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     private void handleException(Exception e, Long outboxId, Long memberId) {

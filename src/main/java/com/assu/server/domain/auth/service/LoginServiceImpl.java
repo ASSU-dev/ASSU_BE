@@ -156,8 +156,8 @@ public class LoginServiceImpl implements LoginService {
      * 절차:
      * 1) RT 서명/만료 검증(jwtUtil.validateRefreshToken)
      * 2) RT의 Claims 추출(만료 X), memberId/jti/username/role/authRealm 획득
-     * 3) Redis 키 "refresh:{memberId}:{jti}" 존재 및 값 일치 확인(도난/중복 재사용 차단)
-     * 4) 기존 RT 키 삭제(회전), 새 토큰 발급(issueTokens)
+     * 3) Redis 키 "refresh:{memberId}:{jti}" 값 대조와 삭제를 원자적으로 수행(중복 회전 차단)
+     * 4) 새 토큰 발급, 짧은 유예 기간 동안 같은 RT 재시도에는 같은 토큰 반환
      */
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
