@@ -120,7 +120,7 @@ class JwtUtilRedisIntegrationTest {
 	}
 
 	@Test
-	@DisplayName("회전하면 기존 RT 키는 사라지고 새 RT 키와 10초짜리 유예 기록이 생긴다")
+	@DisplayName("회전하면 기존 RT 키는 사라지고 새 RT 키와 3초짜리 유예 기록이 생긴다")
 	void rotate_whenValid_thenReplacesRefreshKeyAndStoresGrace() {
 		// given
 		TokensDTO issued = issue();
@@ -135,7 +135,7 @@ class JwtUtilRedisIntegrationTest {
 		assertEquals(rotated.refreshToken(),
 			redisTemplate.opsForValue().get("refresh:" + MEMBER_ID + ":" + jti(rotated.refreshToken())));
 		Long graceTtl = redisTemplate.getExpire("refresh-grace:" + MEMBER_ID + ":" + oldJti);
-		assertTrue(graceTtl != null && graceTtl > 0 && graceTtl <= 10, "graceTtl=" + graceTtl);
+		assertTrue(graceTtl != null && graceTtl > 0 && graceTtl <= 3, "graceTtl=" + graceTtl);
 	}
 
 	@Test
@@ -167,6 +167,57 @@ class JwtUtilRedisIntegrationTest {
 
 		// then
 		assertEquals(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("저장된 RT도 유예 기록도 없으면 기다리지 않고 바로 거절한다")
+	void rotate_whenRefreshKeyAndGraceMissing_thenRejectsWithoutWaiting() {
+		// given
+		TokensDTO issued = issue();
+		redisTemplate.delete("refresh:" + MEMBER_ID + ":" + jti(issued.refreshToken()));
+
+		// when
+		long startedAt = System.nanoTime();
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> jwtUtil.rotateRefreshToken(issued.refreshToken()));
+		long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000;
+
+		// then
+		assertEquals(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL, exception.getCode());
+		assertTrue(elapsedMillis < 200, "elapsedMillis=" + elapsedMillis);
+	}
+
+	@Test
+	@DisplayName("유예 기간 중 로그아웃으로 RT를 모두 지우면 같은 RT 재시도를 거절한다")
+	void rotate_whenLoggedOutDuringGrace_thenRejects() {
+		// given
+		TokensDTO issued = issue();
+		jwtUtil.rotateRefreshToken(issued.refreshToken());
+		jwtUtil.removeAllRefreshTokens(MEMBER_ID);
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> jwtUtil.rotateRefreshToken(issued.refreshToken()));
+
+		// then
+		assertEquals(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL, exception.getCode());
+	}
+
+	@Test
+	@DisplayName("저장된 값과 다른 RT로 요청하면 거절하고 저장된 RT는 지우지 않는다")
+	void rotate_whenStoredValueDiffers_thenRejectsWithoutConsuming() {
+		// given
+		TokensDTO issued = issue();
+		String refreshKey = "refresh:" + MEMBER_ID + ":" + jti(issued.refreshToken());
+		redisTemplate.opsForValue().set(refreshKey, "other-token");
+
+		// when
+		CustomAuthException exception = assertThrows(CustomAuthException.class,
+			() -> jwtUtil.rotateRefreshToken(issued.refreshToken()));
+
+		// then
+		assertEquals(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL, exception.getCode());
+		assertEquals("other-token", redisTemplate.opsForValue().get(refreshKey));
 	}
 
 	@Test

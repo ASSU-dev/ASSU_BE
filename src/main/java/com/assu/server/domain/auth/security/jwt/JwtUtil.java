@@ -22,6 +22,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -51,10 +53,26 @@ public class JwtUtil {
 
     private static final String REVOKED_BEFORE_KEY_PREFIX = "revoked-before:";
     private static final String REFRESH_GRACE_KEY_PREFIX = "refresh-grace:";
-    // 회전 직후 같은 RT로 들어온 재시도·동시 요청에 방금 발급한 토큰을 그대로 돌려주는 시간
-    private static final Duration REFRESH_GRACE = Duration.ofSeconds(10);
-    private static final int GRACE_POLL_ATTEMPTS = 10;
+    // 회전 직후 같은 RT로 들어온 재시도·동시 요청에 방금 발급한 토큰을 그대로 돌려주는 시간. 탈취된 RT 재사용 창을 줄이려 짧게 둔다
+    private static final Duration REFRESH_GRACE = Duration.ofSeconds(3);
+    private static final String GRACE_PENDING = "PENDING";
+    private static final int GRACE_POLL_ATTEMPTS = 20;
     private static final long GRACE_POLL_INTERVAL_MILLIS = 50;
+    private static final String CLAIMED = "CLAIMED";
+    private static final String MISMATCH = "MISMATCH";
+    // RT 소비와 유예 자리 선점을 한 번에 해서, 회전 중인 요청이 있을 때만 다른 요청이 기다리게 한다
+    private static final RedisScript<String> CLAIM_REFRESH_SCRIPT = new DefaultRedisScript<>("""
+            local saved = redis.call('GET', KEYS[1])
+            if not saved then
+                return 'MISSING'
+            end
+            if saved ~= ARGV[1] then
+                return 'MISMATCH'
+            end
+            redis.call('DEL', KEYS[1])
+            redis.call('SET', KEYS[2], ARGV[2], 'PX', ARGV[3])
+            return 'CLAIMED'
+            """, String.class);
     private static final int SCAN_BATCH_SIZE = 100;
     private static final String ISSUED_AT_MILLIS_CLAIM = "iatMillis";
 
@@ -383,7 +401,7 @@ public class JwtUtil {
 
     /**
      * Refresh 토큰 회전.
-     * - GETDEL로 저장된 RT를 조회와 동시에 지워, 같은 RT로는 한 번만 회전된다.
+     * - Lua 스크립트로 저장된 RT 대조·삭제와 유예 자리 선점을 원자적으로 해, 같은 RT로는 한 번만 회전된다.
      * - 회전 직후 짧은 유예 기간 동안 같은 RT로 다시 들어온 요청(재시도·동시 요청)에는 방금 발급한 토큰을 그대로 돌려준다.
      */
     public TokensDTO rotateRefreshToken(String refreshToken) {
@@ -405,14 +423,15 @@ public class JwtUtil {
 
         String refreshKey = String.format("refresh:%d:%s", memberId, refreshJti);
         String graceKey = String.format("%s%d:%s", REFRESH_GRACE_KEY_PREFIX, memberId, refreshJti);
-        String savedRefreshToken = redisTemplate.opsForValue().getAndDelete(refreshKey);
+        String claimResult = redisTemplate.execute(CLAIM_REFRESH_SCRIPT, List.of(refreshKey, graceKey),
+                refreshToken, GRACE_PENDING, String.valueOf(REFRESH_GRACE.toMillis()));
 
-        if (savedRefreshToken == null) {
+        if (MISMATCH.equals(claimResult)) {
+            throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
+        }
+        if (!CLAIMED.equals(claimResult)) {
             return awaitGraceTokens(graceKey)
                     .orElseThrow(() -> new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL));
-        }
-        if (!savedRefreshToken.equals(refreshToken)) {
-            throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
         }
 
         TokensDTO tokens = AUD_BACKOFFICE.equals(audience)
@@ -430,11 +449,14 @@ public class JwtUtil {
         }
     }
 
-    // 동시에 들어온 다른 요청이 GETDEL과 유예 기록 저장 사이에 있을 수 있으므로 잠깐 기다렸다가 다시 조회한다
+    // 다른 요청이 회전 중(PENDING)일 때만 발급이 끝나길 잠깐 기다리고, 유예 기록이 없으면 바로 거절한다
     private Optional<TokensDTO> awaitGraceTokens(String graceKey) {
         for (int attempt = 0; attempt < GRACE_POLL_ATTEMPTS; attempt++) {
             String saved = redisTemplate.opsForValue().get(graceKey);
-            if (saved != null) {
+            if (saved == null) {
+                return Optional.empty();
+            }
+            if (!GRACE_PENDING.equals(saved)) {
                 String[] parts = saved.split(" ", 2);
                 return Optional.of(TokensDTO.of(parts[0], parts[1]));
             }

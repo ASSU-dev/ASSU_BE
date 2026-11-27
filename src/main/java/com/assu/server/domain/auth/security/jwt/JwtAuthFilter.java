@@ -20,6 +20,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Component
@@ -133,7 +134,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             jwtUtil.validateRefreshToken(refreshToken);
             Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
-            // Redis에 저장된 RT와의 대조는 회전 유예 처리까지 포함해 JwtUtil.rotateRefreshToken에서 원자적으로 한다
+            // 다른 사람의 Access 토큰과 짝지어 탈취한 RT를 쓰지 못하게 한다
+            if (!Objects.equals(accessClaims.get("userId"), refreshClaims.get("userId"))) {
+                throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
+            }
 
             boolean backofficeRefresh = PATH.match("/auth/backoffice/tokens/refresh", requestUri);
             if (backofficeRefresh) {
