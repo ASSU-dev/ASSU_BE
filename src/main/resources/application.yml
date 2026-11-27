@@ -25,6 +25,8 @@ spring:
 #      - optional:classpath:application-secret.yml
 #      - optional:file:/app/config/application-secret.yml
   jpa:
+    # 요청이 끝날 때까지 DB 커넥션을 잡지 않도록 트랜잭션 밖 지연 로딩을 허용하지 않는다
+    open-in-view: false
     hibernate:
       ddl-auto: update
     properties:
