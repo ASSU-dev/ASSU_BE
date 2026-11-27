@@ -2,6 +2,7 @@ package com.assu.server.domain.partnership.service;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.domain.chat.dto.ChatRequestDTO;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.repository.ChatRepository;
@@ -59,46 +60,42 @@ public class PartnershipServiceImpl implements PartnershipService {
     private final PartnerRepository partnerRepository;
     private final StoreRepository storeRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final CertificationService certificationService;
 
     @Override
     @Transactional
     public void recordPartnershipUsage(PartnershipFinalRequestDTO dto, Member member) {
-        // 1. 제휴 내용(PaperContent) 조회
         PaperContent content = contentRepository.findById(dto.contentId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_CONTENT)
         );
-        Long paperId = content.getPaper().getId();
-
-        // 2. 중복을 허용하지 않는 Set을 사용하여 모든 사용자 ID를 수집
-        Set<Long> uniqueUserIds = new HashSet<>();
-        // 요청자 본인 ID 추가
-        uniqueUserIds.add(member.getId());
-        // DTO에 포함된 사용자 ID들 추가 (null일 경우 무시)
-        if (dto.userIds() != null) {
-            uniqueUserIds.addAll(dto.userIds());
+        Paper paper = content.getPaper();
+        if (paper.getStore() == null || !paper.getStore().getId().equals(dto.storeId())) {
+            throw new GeneralException(ErrorStatus.NO_SUCH_CONTENT);
         }
-
-        // 3. 모든 학생 정보를 DB에서 한 번의 쿼리로 조회 (N+1 문제 해결)
-        List<Student> studentsToUpdate = studentRepository.findAllById(uniqueUserIds);
-
-        // 4. 조회된 학생들에 대해 PartnershipUsage 생성 및 스탬프 업데이트
-        List<PartnershipUsage> usages = studentsToUpdate.stream()
-            .map(student -> {
-                studentService.addStampIfNotStampedToday(student.getId());
-                return dto.toPartnershipUsage(student, paperId);
-            })
-            .collect(Collectors.toList());
-
-        // 5. 생성된 모든 Usage 기록을 한 번에 저장
-        partnershipUsageRepository.saveAll(usages);
         Store store = storeRepository.findById(dto.storeId()).orElseThrow(
             () -> new GeneralException(ErrorStatus.NO_SUCH_STORE)
         );
+
+        // 클라이언트가 보낸 userIds 대신 서버의 인증 기록으로 참여자를 정하고, 인증 한 건당 한 번만 기록한다
+        List<Long> participantIds = certificationService.claimCertifiedParticipants(
+            member.getId(), dto.storeId(), dto.sessionId(), dto.userIds());
+        if (participantIds.isEmpty()) {
+            return;
+        }
+
+        List<Student> studentsToUpdate = studentRepository.findAllById(participantIds);
+
+        List<PartnershipUsage> usages = studentsToUpdate.stream()
+            .map(student -> {
+                studentService.addStampIfNotStampedToday(student.getId());
+                return dto.toPartnershipUsage(student, paper.getId());
+            })
+            .collect(Collectors.toList());
+
+        partnershipUsageRepository.saveAll(usages);
         Partner partner = store.getPartner();
         Long partnerId = partner.getId();
         notificationService.sendOrder(partnerId, 0L, dto.tableNumber(), dto.partnershipContent());
-
-        // @Transactional 환경에서는 studentsToUpdate의 변경 사항(스탬프)이 자동으로 DB에 반영됩니다.
     }
 
     @Override
@@ -190,6 +187,9 @@ public class PartnershipServiceImpl implements PartnershipService {
         ActivationStatus prev = paper.getIsActivated();
         ActivationStatus next = parseStatus(request.status());
 
+        if (next != prev) {
+            assertStatusChangeAllowed(paper, prev, next, role);
+        }
         paper.changeStatus(next);
 
         if (next == prev) {
@@ -480,6 +480,28 @@ public class PartnershipServiceImpl implements PartnershipService {
         } catch (Exception e) {
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
         }
+    }
+
+    private void assertStatusChangeAllowed(Paper paper, ActivationStatus prev, ActivationStatus next, UserRole role) {
+        if (paper.getPartner() == null) {
+            throw new GeneralException(ErrorStatus.PAPER_WITHOUT_PARTNER);
+        }
+        if (prev == ActivationStatus.INACTIVE) {
+            throw new GeneralException(ErrorStatus.PAPER_ALREADY_TERMINATED);
+        }
+        if (!canRequestStatus(role, next)) {
+            throw new GeneralException(ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN);
+        }
+    }
+
+    // SUSPEND 안내 메시지는 제휴업체 명의, ACTIVE 안내 메시지는 학생회 명의로 나가므로 각 상태는 해당 역할만 요청할 수 있다
+    private boolean canRequestStatus(UserRole role, ActivationStatus next) {
+        return switch (next) {
+            case SUSPEND -> role == UserRole.PARTNER;
+            case ACTIVE -> role == UserRole.ADMIN;
+            case INACTIVE -> role == UserRole.ADMIN || role == UserRole.PARTNER;
+            case BLANK -> false;
+        };
     }
 
     private String pickDisplayAddress(String road, String jibun) {

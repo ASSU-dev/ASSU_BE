@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
+import com.assu.server.domain.certification.service.CertificationService;
 import com.assu.server.domain.chat.entity.ChattingRoom;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.chat.service.ChatService;
@@ -100,6 +101,9 @@ class PartnershipServiceImplTest {
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
 
+	@Mock
+	private CertificationService certificationService;
+
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
 	private static final Long PAPER_ID = 100L;
@@ -111,7 +115,7 @@ class PartnershipServiceImplTest {
 			partnershipUsageRepository, studentRepository, studentService, contentRepository,
 			notificationService, chatService, chatRepository,
 			paperRepository, paperContentRepository, goodsRepository,
-			adminRepository, partnerRepository, storeRepository, amazonS3Manager);
+			adminRepository, partnerRepository, storeRepository, amazonS3Manager, certificationService);
 	}
 
 	private Admin admin() {
@@ -130,7 +134,7 @@ class PartnershipServiceImplTest {
 	void recordPartnershipUsage_ContentNotFound_ThrowsException() {
 		// 1. Given
 		PartnershipFinalRequestDTO request = new PartnershipFinalRequestDTO(
-			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of());
+			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of(), null);
 		when(contentRepository.findById(1000L)).thenReturn(Optional.empty());
 
 		Member member = mock(Member.class);
@@ -144,44 +148,120 @@ class PartnershipServiceImplTest {
 		verify(partnershipUsageRepository, never()).saveAll(any());
 	}
 
-	@Test
-	@DisplayName("제휴 이용 기록 시 참여 학생 전원에 대해 스탬프 적립이 호출되고 이용 내역 저장 후 주문 알림이 전송된다")
-	void recordPartnershipUsage_Success_StampsAndNotifies() {
-		// 1. Given (요청자 1L + 동행 2L, 중복 ID는 Set으로 제거됨)
-		PartnershipFinalRequestDTO request = new PartnershipFinalRequestDTO(
-			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, List.of(1L, 2L));
+	private PartnershipFinalRequestDTO usageRequest(List<Long> userIds, Long sessionId) {
+		return new PartnershipFinalRequestDTO(
+			500L, ADMIN_ID, "03", "총학생회", "역전할머니 맥주", "생맥주 1잔 무료", 1000L, null, userIds, sessionId);
+	}
 
-		Paper paper = Paper.builder().id(PAPER_ID).build();
-		PaperContent content = PaperContent.builder().id(1000L).paper(paper).build();
-		when(contentRepository.findById(1000L)).thenReturn(Optional.of(content));
-
+	private Member requester() {
 		Member member = mock(Member.class);
 		when(member.getId()).thenReturn(1L);
+		return member;
+	}
 
+	private void givenContentOfStore(Long storeId) {
+		Store store = Store.builder().id(storeId).partner(partner()).build();
+		Paper paper = Paper.builder().id(PAPER_ID).store(store).build();
+		PaperContent content = PaperContent.builder().id(1000L).paper(paper).build();
+		when(contentRepository.findById(1000L)).thenReturn(Optional.of(content));
+	}
+
+	private void givenStore() {
+		Store store = Store.builder().id(500L).partner(partner()).build();
+		when(storeRepository.findById(500L)).thenReturn(Optional.of(store));
+	}
+
+	@Test
+	void recordPartnershipUsage_whenParticipantsCertified_thenStampsSavesAndNotifies() {
+		// given
+		givenContentOfStore(500L);
+		givenStore();
+		when(certificationService.claimCertifiedParticipants(1L, 500L, null, List.of(1L, 2L, 3L)))
+			.thenReturn(List.of(1L, 2L));
 		Student student1 = Student.builder().id(1L).university(University.SSU).build();
 		Student student2 = Student.builder().id(2L).university(University.SSU).build();
-		when(studentRepository.findAllById(any())).thenReturn(List.of(student1, student2));
+		when(studentRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(student1, student2));
 
-		Partner storePartner = partner();
-		Store store = Store.builder().id(500L).partner(storePartner).build();
-		when(storeRepository.findById(500L)).thenReturn(Optional.of(store));
+		// when
+		partnershipService.recordPartnershipUsage(usageRequest(List.of(1L, 2L, 3L), null), requester());
 
-		// 2. When
-		partnershipService.recordPartnershipUsage(request, member);
-
-		// 3. Then (참여 학생 전원에 대해 스탬프 적립이 호출됨 - 실제 증가/이벤트 응모 로직은 StudentService 책임)
+		// then
 		verify(studentService, times(1)).addStampIfNotStampedToday(1L);
 		verify(studentService, times(1)).addStampIfNotStampedToday(2L);
+		verify(studentService, never()).addStampIfNotStampedToday(3L);
 
-		// 이용 내역 저장 내용 확인
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<List<PartnershipUsage>> usageCaptor = ArgumentCaptor.forClass(List.class);
 		verify(partnershipUsageRepository, times(1)).saveAll(usageCaptor.capture());
 		assertEquals(2, usageCaptor.getValue().size());
 		assertEquals(PAPER_ID, usageCaptor.getValue().get(0).getPaperId());
 
-		// 파트너에게 주문 알림 전송 확인
 		verify(notificationService, times(1)).sendOrder(PARTNER_ID, 0L, "03", "생맥주 1잔 무료");
+	}
+
+	@Test
+	void recordPartnershipUsage_whenSessionIdGiven_thenPassesSessionIdToCertificationClaim() {
+		// given
+		givenContentOfStore(500L);
+		givenStore();
+		when(certificationService.claimCertifiedParticipants(1L, 500L, 123L, null)).thenReturn(List.of(1L));
+		when(studentRepository.findAllById(List.of(1L))).thenReturn(List.of(Student.builder().id(1L).build()));
+
+		// when
+		partnershipService.recordPartnershipUsage(usageRequest(null, 123L), requester());
+
+		// then
+		verify(certificationService, times(1)).claimCertifiedParticipants(1L, 500L, 123L, null);
+		verify(partnershipUsageRepository, times(1)).saveAll(any());
+	}
+
+	@Test
+	void recordPartnershipUsage_whenCertificationAlreadyClaimed_thenRecordsNothing() {
+		// given
+		givenContentOfStore(500L);
+		givenStore();
+		when(certificationService.claimCertifiedParticipants(1L, 500L, null, List.of(1L, 2L))).thenReturn(List.of());
+
+		// when
+		partnershipService.recordPartnershipUsage(usageRequest(List.of(1L, 2L), null), requester());
+
+		// then
+		verify(studentService, never()).addStampIfNotStampedToday(any());
+		verify(partnershipUsageRepository, never()).saveAll(any());
+		verify(notificationService, never()).sendOrder(any(), any(), any(), any());
+	}
+
+	@Test
+	void recordPartnershipUsage_whenNoCertification_thenThrowsUsageCertificationRequired() {
+		// given
+		givenContentOfStore(500L);
+		givenStore();
+		when(certificationService.claimCertifiedParticipants(1L, 500L, null, null))
+			.thenThrow(new GeneralException(ErrorStatus.USAGE_CERTIFICATION_REQUIRED));
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.recordPartnershipUsage(usageRequest(null, null), requester()));
+
+		// then
+		assertEquals(ErrorStatus.USAGE_CERTIFICATION_REQUIRED, exception.getCode());
+		verify(partnershipUsageRepository, never()).saveAll(any());
+		verify(notificationService, never()).sendOrder(any(), any(), any(), any());
+	}
+
+	@Test
+	void recordPartnershipUsage_whenContentBelongsToOtherStore_thenThrowsNoSuchContent() {
+		// given
+		givenContentOfStore(999L);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.recordPartnershipUsage(usageRequest(null, null), mock(Member.class)));
+
+		// then
+		assertEquals(ErrorStatus.NO_SUCH_CONTENT, exception.getCode());
+		verifyNoInteractions(certificationService);
+		verify(partnershipUsageRepository, never()).saveAll(any());
 	}
 
 	// ===== updatePartnershipStatus =====
@@ -264,6 +344,131 @@ class PartnershipServiceImplTest {
 		assertEquals("ACTIVE", response.newStatus());
 		verify(chatService, never()).sendGuideMessage(any());
 		verify(notificationService, never()).sendChat(any(), any(), any(), any());
+	}
+
+	private Paper paperIn(ActivationStatus status) {
+		return Paper.builder().id(PAPER_ID).admin(admin()).partner(partner()).isActivated(status).build();
+	}
+
+	private void assertStatusChangeRejected(Paper paper, String requested, Long memberId, UserRole role,
+		ErrorStatus expected) {
+		// given
+		ActivationStatus before = paper.getIsActivated();
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.updatePartnershipStatus(
+				PAPER_ID, new PartnershipStatusUpdateRequestDTO(requested), memberId, role));
+
+		// then
+		assertEquals(expected, exception.getCode());
+		assertEquals(before, paper.getIsActivated());
+		verifyNoInteractions(chatService, notificationService);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPartnerApproves_thenForbidden() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.SUSPEND), "ACTIVE", PARTNER_ID, UserRole.PARTNER,
+			ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenAdminSubmitsProposal_thenForbidden() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.BLANK), "SUSPEND", ADMIN_ID, UserRole.ADMIN,
+			ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenAdminRequestsBlank_thenForbidden() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.SUSPEND), "BLANK", ADMIN_ID, UserRole.ADMIN,
+			ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPartnerRequestsBlank_thenForbidden() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.SUSPEND), "BLANK", PARTNER_ID, UserRole.PARTNER,
+			ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenAdminReactivatesTerminatedPaper_thenConflict() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.INACTIVE), "ACTIVE", ADMIN_ID, UserRole.ADMIN,
+			ErrorStatus.PAPER_ALREADY_TERMINATED);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPartnerResubmitsTerminatedPaper_thenConflict() {
+		assertStatusChangeRejected(paperIn(ActivationStatus.INACTIVE), "SUSPEND", PARTNER_ID, UserRole.PARTNER,
+			ErrorStatus.PAPER_ALREADY_TERMINATED);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPaperHasNoPartner_thenBadRequest() {
+		Paper manualPaper = Paper.builder().id(PAPER_ID).admin(admin()).isActivated(ActivationStatus.ACTIVE).build();
+		assertStatusChangeRejected(manualPaper, "INACTIVE", ADMIN_ID, UserRole.ADMIN,
+			ErrorStatus.PAPER_WITHOUT_PARTNER);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenTerminatedPaperRequestedAsInactiveAgain_thenNoOp() {
+		// given
+		Paper paper = paperIn(ActivationStatus.INACTIVE);
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
+
+		// when
+		PartnershipStatusUpdateResponseDTO response = partnershipService.updatePartnershipStatus(
+			PAPER_ID, new PartnershipStatusUpdateRequestDTO("INACTIVE"), PARTNER_ID, UserRole.PARTNER);
+
+		// then
+		assertEquals("INACTIVE", response.prevStatus());
+		assertEquals("INACTIVE", response.newStatus());
+		verifyNoInteractions(chatService, notificationService);
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPartnerSubmitsDraft_thenSendsGuideMessageToAdmin() {
+		// given
+		Admin admin = admin();
+		Partner partner = partner();
+		Paper paper = Paper.builder()
+			.id(PAPER_ID).admin(admin).partner(partner).isActivated(ActivationStatus.BLANK).build();
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+		ChattingRoom room = ChattingRoom.builder().id(1L).admin(admin).partner(partner).build();
+		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(room);
+
+		// when
+		partnershipService.updatePartnershipStatus(
+			PAPER_ID, new PartnershipStatusUpdateRequestDTO("SUSPEND"), PARTNER_ID, UserRole.PARTNER);
+
+		// then
+		assertEquals(ActivationStatus.SUSPEND, paper.getIsActivated());
+		verify(chatService, times(1)).sendGuideMessage(any());
+		verify(notificationService, times(1))
+			.sendChat(eq(ADMIN_ID), eq(1L), eq("역전할머니 맥주"), anyString());
+	}
+
+	@Test
+	void updatePartnershipStatus_whenPartnerTerminatesActivePaper_thenInactiveWithoutGuideMessage() {
+		// given
+		Admin admin = admin();
+		Partner partner = partner();
+		Paper paper = Paper.builder()
+			.id(PAPER_ID).admin(admin).partner(partner).isActivated(ActivationStatus.ACTIVE).build();
+		when(paperRepository.findWithLockById(PAPER_ID)).thenReturn(Optional.of(paper));
+		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findById(PARTNER_ID)).thenReturn(Optional.of(partner));
+
+		// when
+		PartnershipStatusUpdateResponseDTO response = partnershipService.updatePartnershipStatus(
+			PAPER_ID, new PartnershipStatusUpdateRequestDTO("INACTIVE"), PARTNER_ID, UserRole.PARTNER);
+
+		// then
+		assertEquals("INACTIVE", response.newStatus());
+		assertEquals(ActivationStatus.INACTIVE, paper.getIsActivated());
+		verifyNoInteractions(chatService, notificationService);
 	}
 
 	// ===== updatePartnership =====

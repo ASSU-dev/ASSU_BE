@@ -1,4 +1,6 @@
 package com.assu.server.domain.certification.entity;
+import java.time.LocalDateTime;
+
 import com.assu.server.domain.certification.entity.enums.SessionStatus;
 import com.assu.server.domain.common.entity.BaseEntity;
 import com.assu.server.domain.partner.entity.Partner;
@@ -12,8 +14,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +25,7 @@ import lombok.NoArgsConstructor;
 
 
 @Entity
+@Table(indexes = @Index(name = "idx_associate_certification_session_id", columnList = "session_id"))
 @Getter
 @NoArgsConstructor
 @Builder
@@ -33,6 +38,10 @@ public class AssociateCertification extends BaseEntity {
 	private Integer tableNumber;
 	private Boolean isCertified;
 	private Integer peopleNumber;
+
+	private Long sessionId;
+
+	private LocalDateTime usedAt;
 
 	@Enumerated(EnumType.STRING)
 	private SessionStatus status;

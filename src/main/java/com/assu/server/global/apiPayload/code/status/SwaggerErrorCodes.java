@@ -404,7 +404,8 @@ public enum SwaggerErrorCodes {
             ErrorStatus.NO_SUCH_CONTENT,
             ErrorStatus.NO_SUCH_STORE,
             ErrorStatus.NO_SUCH_STUDENT,
-            ErrorStatus.STAMP_ALREADY_APPLIED_TODAY
+            ErrorStatus.STAMP_ALREADY_APPLIED_TODAY,
+            ErrorStatus.USAGE_CERTIFICATION_REQUIRED
     )),
     PARTNERSHIP_CREATE_DRAFT(Set.of(
             ErrorStatus.NO_SUCH_ADMIN,
@@ -425,7 +426,11 @@ public enum SwaggerErrorCodes {
             ErrorStatus._FORBIDDEN,
             ErrorStatus._BAD_REQUEST,
             ErrorStatus.NO_SUCH_ADMIN,
-            ErrorStatus.NO_SUCH_PARTNER
+            ErrorStatus.NO_SUCH_PARTNER,
+            ErrorStatus.WITHDRAWN_PARTNER_PAPER,
+            ErrorStatus.PAPER_STATUS_CHANGE_FORBIDDEN,
+            ErrorStatus.PAPER_ALREADY_TERMINATED,
+            ErrorStatus.PAPER_WITHOUT_PARTNER
     )),
     PARTNERSHIP_GET_DETAIL(Set.of(
             ErrorStatus.NO_SUCH_PAPER,

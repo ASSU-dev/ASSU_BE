@@ -37,8 +37,10 @@ public record PartnershipFinalRequestDTO(
 	Long contentId,
 
 	Long discount, // 이거 사실 필요 없는건데 나중에 db 옮길때 한꺼번에 처리하려구요
-	@Schema(description = "함께 인증한 유저들의 아이디를 입력해주세요(없을 시 공란)")
-	List<Long>userIds
+	@Schema(description = "함께 인증한 유저들의 아이디를 입력해주세요(없을 시 공란). 서버의 인증 기록과 일치하는 유저만 기록됩니다.", example = "[1, 2]")
+	List<Long>userIds,
+	@Schema(description = "그룹 인증 세션 ID (선택). 전달하면 해당 세션의 인증 완료자 전원을 서버 기록 기준으로 기록하고 userIds는 무시합니다.", example = "123")
+	Long sessionId
 ) {
 	public PartnershipUsage toPartnershipUsage(Student student, Long paperId) {
 		return PartnershipUsage.builder()

@@ -70,6 +70,7 @@ public enum ErrorStatus implements BaseErrorCode {
     FORBIDDEN_USAGE(HttpStatus.FORBIDDEN, "USAGE4002", "본인의 제휴 사용 내역이 아닙니다."),
     ALREADY_REVIEWED_USAGE(HttpStatus.CONFLICT, "USAGE4003", "이미 리뷰를 작성한 제휴 사용 내역입니다."),
     USAGE_STORE_MISMATCH(HttpStatus.BAD_REQUEST, "USAGE4004", "리뷰 대상 가게에서 사용한 제휴 내역이 아닙니다."),
+    USAGE_CERTIFICATION_REQUIRED(HttpStatus.FORBIDDEN, "USAGE4005", "유효한 제휴 인증 기록이 없습니다. 인증 후 다시 시도해 주세요."),
     NO_PAPER_FOR_STORE(HttpStatus.NOT_FOUND, "ADMIN_4005", "존재하지 않는 paper ID입니다."),
     NO_AVAILABLE_PARTNER(HttpStatus.NOT_FOUND, "MEMBER_4009", "제휴업체를 찾을 수 없습니다."),
     NO_SUCH_STORE_WITH_THAT_PARTNER(HttpStatus.NOT_FOUND,"MEMBER_4006","해당 store ID에 해당하는 partner ID가 존재하지 않습니다."),
@@ -93,6 +94,9 @@ public enum ErrorStatus implements BaseErrorCode {
     NO_SUCH_CONTENT(HttpStatus.NOT_FOUND, "PAPER_4002", "제휴 내용을 찾을 수 없습니다."),
     ALREADY_APPROVED(HttpStatus.BAD_REQUEST, "PAPER_4003", "이미 승인된 제휴 입니다."),
     WITHDRAWN_PARTNER_PAPER(HttpStatus.BAD_REQUEST, "PAPER_4004", "탈퇴한 제휴업체의 제휴는 종료만 가능합니다."),
+    PAPER_STATUS_CHANGE_FORBIDDEN(HttpStatus.FORBIDDEN, "PAPER_4005", "해당 역할은 제휴를 이 상태로 변경할 수 없습니다."),
+    PAPER_ALREADY_TERMINATED(HttpStatus.CONFLICT, "PAPER_4006", "종료된 제휴는 상태를 변경할 수 없습니다."),
+    PAPER_WITHOUT_PARTNER(HttpStatus.BAD_REQUEST, "PAPER_4007", "제휴업체가 연결되지 않은 제휴는 상태를 변경할 수 없습니다."),
 
     // session 에러
     NO_SUCH_SESSION(HttpStatus.NOT_FOUND, "SESSION4001", "존재하지 않는 session ID입니다."),

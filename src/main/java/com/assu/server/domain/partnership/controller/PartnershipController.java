@@ -53,7 +53,11 @@ public class PartnershipController {
         "  - `partnershipContent` (String, required): 제휴 내용\n" +
         "  - `contentId` (Long, required): 제휴 컨텐츠 ID\n" +
         "  - `discount` (Long, optional): 할인 금액\n" +
-        "  - `userIds` (List<Long>, optional): 인증 대상 유저 ID 목록\n\n" +
+        "  - `userIds` (List<Long>, optional): 인증 대상 유저 ID 목록. 요청자와 같은 그룹 인증 세션에서 인증한 유저만 기록됩니다.\n" +
+        "  - `sessionId` (Long, optional): 그룹 인증 세션 ID. 전달하면 세션 인증 완료자 전원을 기록하고 `userIds`는 무시합니다.\n\n" +
+        "**검증:**\n" +
+        "  - 요청자는 최근 30분 안에 해당 매장에서 개인/그룹 인증을 완료해야 합니다. 없으면 403(USAGE4005).\n" +
+        "  - 인증 한 건당 한 번만 기록됩니다. 같은 인증으로 다시 요청하면 기록·스탬프·주문 알림 없이 성공 응답합니다.\n\n" +
         "**Response:**\n" +
         "  - 성공: 200 OK, `isSuccess=true`, `result=null`\n" +
         "  - 실패: 적절한 에러 코드 및 메시지"
@@ -209,6 +213,11 @@ public class PartnershipController {
                     "\n**Request Body:**\n" +
                     "  - `UpdateRequest` 객체 (JSON, required)\n" +
                     "  - `status` (String): 제안서에 적용할 상태\n" +
+                    "\n**상태 변경 규칙:**\n" +
+                    "  - SUSPEND: 제휴업체만, ACTIVE: 학생회만, INACTIVE: 양쪽 모두, BLANK: 변경 불가 (403, PAPER_4005)\n" +
+                    "  - INACTIVE(종료)된 제휴는 다른 상태로 바꿀 수 없음 (409, PAPER_4006)\n" +
+                    "  - 제휴업체가 없는 수기 제휴는 변경 불가 (400, PAPER_4007)\n" +
+                    "  - 현재 상태와 같은 상태를 요청하면 안내 메시지·알림 없이 성공 응답\n" +
                     "\n**Response:**\n" +
                     "  - 성공 시 200(OK)과 `UpdateResponse` 객체 반환.\n" +
                     "  - `partnershipId` (Long): 생성된 제안서 ID\n"+
