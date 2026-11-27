@@ -18,7 +18,7 @@ import com.assu.server.domain.common.entity.enums.ReportedStatus;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 import com.assu.server.infra.s3.AmazonS3Manager;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
     private final ReviewRepository reviewRepository;
@@ -134,20 +135,14 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStudentReview(Long memberId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Page<Review> reviews = reviewRepository.findByMemberId(memberId, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkPartnerReview(Long memberId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Partner partner = partnerRepository.findById(memberId)
@@ -158,11 +153,7 @@ public class ReviewServiceImpl implements ReviewService {
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
@@ -184,17 +175,15 @@ public class ReviewServiceImpl implements ReviewService {
                 .build();
     }
 
-    private void updateReviewImageUrls(Review review) {
-        for (ReviewPhoto reviewPhoto : review.getImageList()) {
-            if (reviewPhoto.getKeyName() != null) {
-                String freshUrl = amazonS3Manager.generatePresignedUrl(reviewPhoto.getKeyName());
-                reviewPhoto.updatePhotoUrl(freshUrl);
-            }
-        }
+    private List<String> resolveImageUrls(Review review) {
+        return review.getImageList().stream()
+                .map(photo -> photo.getKeyName() != null
+                        ? amazonS3Manager.generatePresignedUrl(photo.getKeyName())
+                        : photo.getPhotoUrl())
+                .toList();
     }
 
     @Override
-    @Transactional
     public Page<ReviewResponseDTO.CheckReviewResponseDTO> checkStoreReview(Long storeId, Pageable pageable) {
         pageable = toZeroIndexed(pageable);
         Store store = storeRepository.findById(storeId).orElseThrow(
@@ -203,22 +192,16 @@ public class ReviewServiceImpl implements ReviewService {
         Page<Review> reviews = reviewRepository.findByStoreIdAndStatusAndStudentStatus(
                 store.getId(), ReportedStatus.NORMAL, ReportedStatus.NORMAL, pageable);
 
-        for (Review review : reviews) {
-            updateReviewImageUrls(review);
-        }
-
-        return reviews.map(ReviewResponseDTO.CheckReviewResponseDTO::from);
+        return reviews.map(review -> ReviewResponseDTO.CheckReviewResponseDTO.from(review, resolveImageUrls(review)));
     }
 
     @Override
-    @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO standardScore(Long storeId) {
         Float score = reviewRepository.standardScoreWithStatus(storeId, ReportedStatus.NORMAL, ReportedStatus.NORMAL);
         return new ReviewResponseDTO.StandardScoreResponseDTO(score == null ? 0f : score);
     }
 
     @Override
-    @Transactional
     public ReviewResponseDTO.StandardScoreResponseDTO myStoreAverage(Long memberId) {
         Partner partner = partnerRepository.findById(memberId)
                 .orElseThrow(() -> new CustomReviewException(ErrorStatus.NO_SUCH_PARTNER));

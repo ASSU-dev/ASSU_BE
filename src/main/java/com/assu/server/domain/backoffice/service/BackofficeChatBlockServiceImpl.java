@@ -7,7 +7,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
