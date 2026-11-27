@@ -14,13 +14,16 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -28,8 +31,15 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -42,6 +52,28 @@ import java.util.concurrent.TimeUnit;
 public class JwtUtil {
 
     private static final String REVOKED_BEFORE_KEY_PREFIX = "revoked-before:";
+    private static final String REFRESH_GRACE_KEY_PREFIX = "refresh-grace:";
+    // 회전 직후 같은 RT로 들어온 재시도·동시 요청에 방금 발급한 토큰을 그대로 돌려주는 시간. 탈취된 RT 재사용 창을 줄이려 짧게 둔다
+    private static final Duration REFRESH_GRACE = Duration.ofSeconds(3);
+    private static final String GRACE_PENDING = "PENDING";
+    private static final int GRACE_POLL_ATTEMPTS = 20;
+    private static final long GRACE_POLL_INTERVAL_MILLIS = 50;
+    private static final String CLAIMED = "CLAIMED";
+    private static final String MISMATCH = "MISMATCH";
+    // RT 소비와 유예 자리 선점을 한 번에 해서, 회전 중인 요청이 있을 때만 다른 요청이 기다리게 한다
+    private static final RedisScript<String> CLAIM_REFRESH_SCRIPT = new DefaultRedisScript<>("""
+            local saved = redis.call('GET', KEYS[1])
+            if not saved then
+                return 'MISSING'
+            end
+            if saved ~= ARGV[1] then
+                return 'MISMATCH'
+            end
+            redis.call('DEL', KEYS[1])
+            redis.call('SET', KEYS[2], ARGV[2], 'PX', ARGV[3])
+            return 'CLAIMED'
+            """, String.class);
+    private static final int SCAN_BATCH_SIZE = 100;
     private static final String ISSUED_AT_MILLIS_CLAIM = "iatMillis";
 
     public static final String AUD_APP = "app";
@@ -62,22 +94,6 @@ public class JwtUtil {
     private final MemberRepository memberRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final MeterRegistry meterRegistry;
-
-    @PostConstruct
-    public void clearRedisOnStartup() {
-        if (redisTemplate == null || redisTemplate.getConnectionFactory() == null) {
-            return;
-        }
-        Set<String> keysToClear = redisTemplate.keys("*");
-        if (keysToClear == null || keysToClear.isEmpty()) {
-            return;
-        }
-        // 탈퇴 회원의 revoked-before 무효화 기록은 재시작 후에도 유지해야 하므로 flushAll 대신 선택 삭제한다
-        keysToClear.removeIf(key -> key.startsWith(REVOKED_BEFORE_KEY_PREFIX));
-        if (!keysToClear.isEmpty()) {
-            redisTemplate.delete(keysToClear);
-        }
-    }
 
     // ───────── 토큰 생성 공통 유틸 ─────────
     /**
@@ -354,27 +370,43 @@ public class JwtUtil {
     // ───────────────────────── Refresh Token ─────────────────────────
 
     /**
-     * 특정 회원의 모든 Refresh 토큰을 Redis에서 제거 (전역 로그아웃용).
+     * 특정 회원의 모든 Refresh 토큰과 회전 유예 기록을 Redis에서 제거 (전역 로그아웃용).
+     * KEYS는 실행되는 동안 Redis 전체를 멈추므로 SCAN으로 나눠 조회한다.
      * @param memberId 사용자 ID
      */
     public void removeAllRefreshTokens(Long memberId) {
-        String pattern = String.format("refresh:%d:*", memberId);
-        Set<String> refreshKeys = redisTemplate.keys(pattern);
-        if (refreshKeys != null && !refreshKeys.isEmpty()) {
-            redisTemplate.delete(refreshKeys);
+        deleteByPattern(String.format("refresh:%d:*", memberId));
+        deleteByPattern(String.format("%s%d:*", REFRESH_GRACE_KEY_PREFIX, memberId));
+    }
+
+    private void deleteByPattern(String pattern) {
+        ScanOptions options = ScanOptions.scanOptions().match(pattern).count(SCAN_BATCH_SIZE).build();
+        List<String> batch = new ArrayList<>();
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            if (cursor == null) {
+                return;
+            }
+            while (cursor.hasNext()) {
+                batch.add(cursor.next());
+                if (batch.size() >= SCAN_BATCH_SIZE) {
+                    redisTemplate.delete(batch);
+                    batch = new ArrayList<>();
+                }
+            }
+        }
+        if (!batch.isEmpty()) {
+            redisTemplate.delete(batch);
         }
     }
 
     /**
-     * Refresh 토큰 유효성 확인 및 회전.
-     * - 저장된 RT와 일치 여부 확인
-     * - 기존 RT 삭제 후 새 토큰 세트 발급
+     * Refresh 토큰 회전.
+     * - Lua 스크립트로 저장된 RT 대조·삭제와 유예 자리 선점을 원자적으로 해, 같은 RT로는 한 번만 회전된다.
+     * - 회전 직후 짧은 유예 기간 동안 같은 RT로 다시 들어온 요청(재시도·동시 요청)에는 방금 발급한 토큰을 그대로 돌려준다.
      */
     public TokensDTO rotateRefreshToken(String refreshToken) {
-        // 1) Refresh 토큰 서명/만료 검증
         validateRefreshToken(refreshToken);
 
-        // 2) Claims 추출
         Claims refreshClaims = validateTokenOnlySignature(refreshToken);
         Long memberId = ((Number) refreshClaims.get("userId")).longValue();
         String username = (String) refreshClaims.get("username");
@@ -385,23 +417,57 @@ public class JwtUtil {
 
         UserRole role = UserRole.valueOf(roleString);
 
-        // 3) Redis에 저장된 RT와 일치 확인
-        String refreshKey = String.format("refresh:%d:%s", memberId, refreshJti);
-        String savedRefreshToken = redisTemplate.opsForValue().get(refreshKey);
-        if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
-            throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
-        }
-
         // 탈퇴와 동시에 로그인해 남은 RT로 탈퇴 회원이 토큰을 계속 갱신하지 못하게 한다
         assertNotWithdrawn(memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER)));
 
-        // 4) 기존 RT 삭제 후 새 토큰 발급
-        redisTemplate.delete(refreshKey);
-        if (AUD_BACKOFFICE.equals(audience)) {
-            return issueBackofficeTokens(memberId, username, role, authRealm);
+        String refreshKey = String.format("refresh:%d:%s", memberId, refreshJti);
+        String graceKey = String.format("%s%d:%s", REFRESH_GRACE_KEY_PREFIX, memberId, refreshJti);
+        String claimResult = redisTemplate.execute(CLAIM_REFRESH_SCRIPT, List.of(refreshKey, graceKey),
+                refreshToken, GRACE_PENDING, String.valueOf(REFRESH_GRACE.toMillis()));
+
+        if (MISMATCH.equals(claimResult)) {
+            throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
         }
-        return issueTokens(memberId, username, role, authRealm);
+        if (!CLAIMED.equals(claimResult)) {
+            return awaitGraceTokens(graceKey)
+                    .orElseThrow(() -> new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL));
+        }
+
+        TokensDTO tokens = AUD_BACKOFFICE.equals(audience)
+                ? issueBackofficeTokens(memberId, username, role, authRealm)
+                : issueTokens(memberId, username, role, authRealm);
+        rememberGraceTokens(graceKey, tokens);
+        return tokens;
+    }
+
+    private void rememberGraceTokens(String graceKey, TokensDTO tokens) {
+        try {
+            redisTemplate.opsForValue().set(graceKey, tokens.accessToken() + " " + tokens.refreshToken(), REFRESH_GRACE);
+        } catch (DataAccessException exception) {
+            log.warn("Refresh 토큰 회전 유예 기록 저장 실패", exception);
+        }
+    }
+
+    // 다른 요청이 회전 중(PENDING)일 때만 발급이 끝나길 잠깐 기다리고, 유예 기록이 없으면 바로 거절한다
+    private Optional<TokensDTO> awaitGraceTokens(String graceKey) {
+        for (int attempt = 0; attempt < GRACE_POLL_ATTEMPTS; attempt++) {
+            String saved = redisTemplate.opsForValue().get(graceKey);
+            if (saved == null) {
+                return Optional.empty();
+            }
+            if (!GRACE_PENDING.equals(saved)) {
+                String[] parts = saved.split(" ", 2);
+                return Optional.of(TokensDTO.of(parts[0], parts[1]));
+            }
+            try {
+                Thread.sleep(GRACE_POLL_INTERVAL_MILLIS);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return Optional.empty();
     }
 
     // ───────────────────────── 회원 단위 Access 토큰 무효화 ─────────────────────────

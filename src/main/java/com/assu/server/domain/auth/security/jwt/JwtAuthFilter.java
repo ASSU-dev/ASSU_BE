@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -21,6 +20,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Objects;
 
 @RequiredArgsConstructor
 @Component
@@ -30,7 +30,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Value("${jwt.header}")
     private String jwtHeader;
     private final JwtUtil jwtUtil;
-    private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
@@ -135,12 +134,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             jwtUtil.validateRefreshToken(refreshToken);
             Claims refreshClaims = jwtUtil.validateTokenOnlySignature(refreshToken);
-            Long memberIdFromRefresh = ((Number) refreshClaims.get("userId")).longValue();
-            String refreshJti = refreshClaims.getId();
-            String refreshKey = String.format("refresh:%d:%s", memberIdFromRefresh, refreshJti);
-            Boolean refreshExists = redisTemplate.hasKey(refreshKey);
-            if (Boolean.FALSE.equals(refreshExists)) {
-                throw new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION);
+            // 다른 사람의 Access 토큰과 짝지어 탈취한 RT를 쓰지 못하게 한다
+            if (!Objects.equals(accessClaims.get("userId"), refreshClaims.get("userId"))) {
+                throw new CustomAuthException(ErrorStatus.REFRESH_TOKEN_NOT_EQUAL);
             }
 
             boolean backofficeRefresh = PATH.match("/auth/backoffice/tokens/refresh", requestUri);
