@@ -1,5 +1,6 @@
 package com.assu.server.domain.student.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,14 +20,14 @@ public interface PartnershipUsageRepository extends JpaRepository<PartnershipUsa
     void anonymizeStudentByStudentId(@Param("studentId") Long studentId);
 
 	@Query("SELECT pu FROM PartnershipUsage pu " +
-		"WHERE pu.student.id= :studentId " +
-		"AND YEAR(pu.date) = :year " +
-		"AND MONTH(pu.date) = :month " +
+		"WHERE pu.student.id = :studentId " +
+		"AND pu.date >= :from " +
+		"AND pu.date < :to " +
 		"ORDER BY pu.date DESC")
-	List<PartnershipUsage> findByYearAndMonth(
+	List<PartnershipUsage> findByStudentIdAndDateRange(
 		@Param("studentId") Long studentId,
-		@Param("year") int year,
-		@Param("month") int month
+		@Param("from") LocalDate from,
+		@Param("to") LocalDate to
 	);
 
 	Optional<PartnershipUsage> findById(Long id);

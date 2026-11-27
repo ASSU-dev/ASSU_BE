@@ -2,10 +2,14 @@ package com.assu.server.domain.student.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +46,7 @@ import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.infra.discord.DiscordNotifier;
 import com.assu.server.infra.s3.ImageCdnManager;
 import com.assu.server.infra.s3.ImageSize;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.support.TransactionTemplate;
 import jakarta.persistence.EntityManager;
 
@@ -253,11 +258,16 @@ class StudentServiceImplTest {
 	@DisplayName("all=false면 사용 가능한 제휴를 최대 2개까지만 반환한다")
 	void getUsablePartnership_NotAll_LimitsToTwo() {
 		// 1. Given (사용 가능한 제휴 3건)
-		List<UserPaper> userPapers = List.of(
-			usablePartnership(100L, 1000L, "안주"),
-			usablePartnership(101L, 1001L, "음료"),
-			usablePartnership(102L, 1002L, "주류"));
-		when(userPaperRepository.findActivePartnershipsByStudentId(STUDENT_ID, null, null)).thenReturn(userPapers);
+		UserPaper first = usablePartnership(102L, 1002L, "주류");
+		UserPaper firstExtra = UserPaper.builder()
+			.paper(first.getPaper())
+			.paperContent(PaperContent.builder().id(1003L).paper(first.getPaper()).benefit("안주").build())
+			.build();
+		UserPaper second = usablePartnership(101L, 1001L, "음료");
+		when(userPaperRepository.findActivePaperIdsByStudentId(eq(STUDENT_ID), isNull(), isNull(), any(Pageable.class)))
+			.thenReturn(List.of(102L, 101L));
+		when(userPaperRepository.findByStudentIdAndPaperIdIn(STUDENT_ID, List.of(102L, 101L)))
+			.thenReturn(List.of(first, firstExtra, second));
 
 		// 2. When
 		List<StudentResponseDTO.UsablePartnershipDTO> result =
@@ -265,6 +275,15 @@ class StudentServiceImplTest {
 
 		// 3. Then
 		assertEquals(2, result.size());
+		assertEquals(102L, result.get(0).getPaperId());
+		assertEquals(1, result.get(0).getExtraCount());
+		assertEquals("주류", result.get(0).getBenefit());
+		assertEquals(101L, result.get(1).getPaperId());
+		assertEquals(0, result.get(1).getExtraCount());
+		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+		verify(userPaperRepository).findActivePaperIdsByStudentId(eq(STUDENT_ID), isNull(), isNull(), pageableCaptor.capture());
+		assertEquals(2, pageableCaptor.getValue().getPageSize());
+		verify(userPaperRepository, never()).findActivePartnershipsByStudentId(any(), any(), any());
 	}
 
 	@Test
@@ -377,17 +396,29 @@ class StudentServiceImplTest {
 
 	// ===== getRecommendPartnership =====
 
+	private void givenCarouselStores(List<Store> stores) {
+		when(storeRepository.findDistinctActiveStoreIdsByStudentId(STUDENT_ID))
+			.thenReturn(stores.stream().map(Store::getId).toList());
+		when(storeRepository.findAllWithPartnerByIdIn(anyCollection())).thenAnswer(inv -> {
+			Collection<Long> ids = inv.getArgument(0);
+			return stores.stream().filter(s -> ids.contains(s.getId())).toList();
+		});
+	}
+
+	private List<Store> stores(int count) {
+		List<Store> stores = new ArrayList<>();
+		for (int i = 0; i < count; i++) {
+			stores.add(store((long) (100 + i)));
+		}
+		return stores;
+	}
+
 	@Test
 	@DisplayName("이용 가능한 제휴가 10개 이하면 전체를 반환한다")
 	void getRecommendPartnership_LessThan10_ReturnsAll() {
 		// given
-		List<UserPaper> userPapers = List.of(
-			usablePartnership(100L, 1000L, "안주"),
-			usablePartnership(101L, 1001L, "음료"),
-			usablePartnership(102L, 1002L, "주류"));
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
-			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		givenCarouselStores(stores(3));
+		when(paperContentRepository.findLatestByStoreIdIn(anyCollection())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -399,56 +430,52 @@ class StudentServiceImplTest {
 	@Test
 	@DisplayName("이용 가능한 제휴가 10개를 초과하면 10개만 반환한다")
 	void getRecommendPartnership_MoreThan10_Returns10() {
-		// given (20개 생성)
-		List<UserPaper> userPapers = new ArrayList<>();
-		for (int i = 0; i < 20; i++) {
-			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주"));
-		}
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
-			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		// given
+		givenCarouselStores(stores(20));
+		when(paperContentRepository.findLatestByStoreIdIn(anyCollection())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		assertEquals(10, result.size());
+		assertEquals(10, result.stream().map(StudentResponseDTO.RecommendCarouselDTO::storeId).distinct().count());
 	}
 
 	@Test
-	@DisplayName("이용 가능한 제휴가 없으면 빈 리스트를 반환한다")
+	@DisplayName("이용 가능한 제휴가 없으면 상세 조회 없이 빈 리스트를 반환한다")
 	void getRecommendPartnership_Empty_ReturnsEmptyList() {
 		// given
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of());
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		when(storeRepository.findDistinctActiveStoreIdsByStudentId(STUDENT_ID)).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		assertTrue(result.isEmpty());
+		verify(storeRepository, never()).findAllWithPartnerByIdIn(anyCollection());
+		verify(paperContentRepository, never()).findLatestByStoreIdIn(anyCollection());
 	}
 
 	@Test
-	@DisplayName("10개 초과 시 선택된 10개 업체 ID로만 콘텐츠를 조회한다")
+	@DisplayName("10개 초과 시 선택된 10개 업체 ID로만 업체와 콘텐츠를 조회한다")
 	void getRecommendPartnership_MoreThan10_QueriesOnlySelectedStoreIds() {
-		// given (20개 생성)
-		List<UserPaper> userPapers = new ArrayList<>();
-		for (int i = 0; i < 20; i++) {
-			userPapers.add(usablePartnership((long) (100 + i), (long) (1000 + i), "안주"));
-		}
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID))
-			.thenReturn(userPapers.stream().map(up -> up.getPaper().getStore()).toList());
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		// given
+		givenCarouselStores(stores(20));
+		when(paperContentRepository.findLatestByStoreIdIn(anyCollection())).thenReturn(List.of());
 
 		// when
 		studentService.getRecommendCarouselPartnership(STUDENT_ID);
 
 		// then
 		@SuppressWarnings("unchecked")
-		ArgumentCaptor<List<Long>> captor = ArgumentCaptor.forClass(List.class);
-		verify(paperContentRepository).findTopByStoreIdIn(captor.capture());
-		assertEquals(10, captor.getValue().size());
+		ArgumentCaptor<Collection<Long>> storeCaptor = ArgumentCaptor.forClass(Collection.class);
+		verify(storeRepository).findAllWithPartnerByIdIn(storeCaptor.capture());
+		assertEquals(10, storeCaptor.getValue().size());
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<Collection<Long>> contentCaptor = ArgumentCaptor.forClass(Collection.class);
+		verify(paperContentRepository).findLatestByStoreIdIn(contentCaptor.capture());
+		assertEquals(storeCaptor.getValue(), contentCaptor.getValue());
 	}
 
 	@Test
@@ -456,8 +483,8 @@ class StudentServiceImplTest {
 	void getRecommendCarouselPartnership_WithPartnerProfileUrl_ReturnsThumbnailUrl() {
 		// given
 		UserPaper up = usablePartnershipWithPartner(100L, 1000L, "partners/42/profile.jpg");
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(up.getPaper().getStore()));
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		givenCarouselStores(List.of(up.getPaper().getStore()));
+		when(paperContentRepository.findLatestByStoreIdIn(anyCollection())).thenReturn(List.of());
 		when(imageCdnManager.generateUrl("partners/42/profile.jpg", ImageSize.THUMBNAIL)).thenReturn("https://cdn.url");
 
 		// when
@@ -472,8 +499,8 @@ class StudentServiceImplTest {
 	void getRecommendCarouselPartnership_NoPartner_ReturnsNullProfileUrl() {
 		// given
 		UserPaper up = usablePartnership(100L, 1000L, "안주");
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(up.getPaper().getStore()));
-		when(paperContentRepository.findTopByStoreIdIn(anyList())).thenReturn(List.of());
+		givenCarouselStores(List.of(up.getPaper().getStore()));
+		when(paperContentRepository.findLatestByStoreIdIn(anyCollection())).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -491,8 +518,8 @@ class StudentServiceImplTest {
 		Paper paper = Paper.builder().id(100L).store(store).build();
 		PaperContent content = PaperContent.builder()
 			.id(1000L).paper(paper).benefit("안주").build();
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
-		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of(content));
+		givenCarouselStores(List.of(store));
+		when(paperContentRepository.findLatestByStoreIdIn(List.of(500L))).thenReturn(List.of(content));
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -509,8 +536,8 @@ class StudentServiceImplTest {
 	void getRecommendCarouselPartnership_NoContent_ReturnsNullBenefit() {
 		// given
 		Store store = store(500L);
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
-		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of());
+		givenCarouselStores(List.of(store));
+		when(paperContentRepository.findLatestByStoreIdIn(List.of(500L))).thenReturn(List.of());
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);
@@ -522,7 +549,7 @@ class StudentServiceImplTest {
 	}
 
 	@Test
-	@DisplayName("한 업체에 콘텐츠가 여러 개면 가장 먼저 조회된(최신) 콘텐츠를 사용한다")
+	@DisplayName("한 업체에 콘텐츠가 여러 개 조회되면 먼저 조회된 콘텐츠를 사용한다")
 	void getRecommendCarouselPartnership_MultipleContentsPerStore_UsesFirstContent() {
 		// given
 		Store store = store(500L);
@@ -531,8 +558,8 @@ class StudentServiceImplTest {
 			.id(1002L).paper(paper).benefit("최신").build();
 		PaperContent older = PaperContent.builder()
 			.id(1001L).paper(paper).benefit("이전").build();
-		when(storeRepository.findDistinctActiveStoresByStudentId(STUDENT_ID)).thenReturn(List.of(store));
-		when(paperContentRepository.findTopByStoreIdIn(List.of(500L))).thenReturn(List.of(latest, older));
+		givenCarouselStores(List.of(store));
+		when(paperContentRepository.findLatestByStoreIdIn(List.of(500L))).thenReturn(List.of(latest, older));
 
 		// when
 		List<StudentResponseDTO.RecommendCarouselDTO> result = studentService.getRecommendCarouselPartnership(STUDENT_ID);

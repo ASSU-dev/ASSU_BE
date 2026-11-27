@@ -58,10 +58,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             Pageable pageable
     ) {
         Page<Member> page = memberRepository.searchMemberSummaries(role, status, deleted, pageable);
-        Map<Long, Member> membersWithProfiles = loadProfilesForSummaries(page.getContent());
-        return PageResponseDTO.of(page.map(member -> BackofficeMemberSummaryDTO.from(
-                membersWithProfiles.getOrDefault(member.getId(), member)
-        )));
+        return PageResponseDTO.of(page.map(BackofficeMemberSummaryDTO::from));
     }
 
     @Override

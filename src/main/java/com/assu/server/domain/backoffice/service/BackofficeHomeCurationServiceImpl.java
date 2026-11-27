@@ -16,14 +16,18 @@ import com.assu.server.domain.student.repository.HomeCurationRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +41,8 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
     private final PaperContentRepository paperContentRepository;
 
     private static final String DEFAULT_TITLE = "{name}님을 위한 제휴";
+    private static final String DEFAULT_DISCOUNT_DESCRIPTION = "제휴 혜택 제공";
+    private static final int AUTO_RECOMMEND_STORE_COUNT = 5;
 
     @Override
     @Transactional(readOnly = true)
@@ -144,10 +150,7 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
     @Override
     @Transactional(readOnly = true)
     public BackofficeHomeAutoRecommendResponseDTO getAutoRecommendedCuration() {
-        List<Store> candidateStores = storeRepository.findAll().stream()
-                .sorted(Comparator.comparing(Store::getRate, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(5)
-                .toList();
+        List<Store> candidateStores = storeRepository.findTopRated(PageRequest.of(0, AUTO_RECOMMEND_STORE_COUNT));
 
         if (candidateStores.isEmpty()) {
             return BackofficeHomeAutoRecommendResponseDTO.of(
@@ -160,8 +163,10 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
             );
         }
 
+        Map<Long, String> discountByStoreId = resolveStoreDiscountDescriptions(
+                candidateStores.stream().map(Store::getId).toList());
         Store featuredStore = candidateStores.get(0);
-        String featuredDiscount = resolveStoreDiscountDescription(featuredStore.getId());
+        String featuredDiscount = discountByStoreId.get(featuredStore.getId());
         BackofficeHomeAutoRecommendResponseDTO.AutoFeaturedDTO featuredDTO = BackofficeHomeAutoRecommendResponseDTO.AutoFeaturedDTO.of(
                 featuredStore.getId(),
                 featuredStore.getName(),
@@ -175,7 +180,7 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
 
         for (int i = 0; i < remainingStores.size(); i++) {
             Store store = remainingStores.get(i);
-            String discount = resolveStoreDiscountDescription(store.getId());
+            String discount = discountByStoreId.get(store.getId());
             String category = store.getStoreCategory() != null ? store.getStoreCategory().name() : null;
 
             if (i < 2) {
@@ -206,12 +211,15 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
     }
 
     private BackofficeHomeCurationResponseDTO mapToBackofficeResponseDTO(HomeCuration curation, List<HomeCurationItem> items) {
+        Map<Long, String> discountByStoreId = resolveStoreDiscountDescriptions(
+                collectStoreIdsWithoutCustomDiscount(curation, items));
+
         BackofficeHomeCurationResponseDTO.FeaturedDTO featuredDTO = null;
         if (curation.getFeaturedStore() != null) {
             Store fs = curation.getFeaturedStore();
             String discount = curation.getFeaturedDiscountContent();
             if (discount == null || discount.isBlank()) {
-                discount = resolveStoreDiscountDescription(fs.getId());
+                discount = discountByStoreId.get(fs.getId());
             }
             featuredDTO = BackofficeHomeCurationResponseDTO.FeaturedDTO.of(
                     fs.getId(),
@@ -234,7 +242,7 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
                         Store s = item.getStore();
                         String discount = item.getCustomDiscountContent();
                         if (discount == null || discount.isBlank()) {
-                            discount = resolveStoreDiscountDescription(s.getId());
+                            discount = discountByStoreId.get(s.getId());
                         }
                         return BackofficeHomeCurationResponseDTO.StoreItemDTO.of(
                                 s.getId(),
@@ -257,15 +265,41 @@ public class BackofficeHomeCurationServiceImpl implements BackofficeHomeCuration
         );
     }
 
-    private String resolveStoreDiscountDescription(Long storeId) {
-        if (storeId == null) {
-            return "";
+    private Set<Long> collectStoreIdsWithoutCustomDiscount(HomeCuration curation, List<HomeCurationItem> items) {
+        Set<Long> storeIds = new HashSet<>();
+        Store featuredStore = curation.getFeaturedStore();
+        if (featuredStore != null && isBlank(curation.getFeaturedDiscountContent())) {
+            storeIds.add(featuredStore.getId());
         }
-        List<PaperContent> contents = paperContentRepository.findTopByStoreIdIn(List.of(storeId));
-        if (!contents.isEmpty()) {
-            PaperContent pc = contents.get(0);
-            return PaperContentResponseDTO.toContentResponse(pc).paperContent();
+        for (HomeCurationItem item : items) {
+            if (isBlank(item.getCustomDiscountContent())) {
+                storeIds.add(item.getStore().getId());
+            }
         }
-        return "제휴 혜택 제공";
+        return storeIds;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private Map<Long, String> resolveStoreDiscountDescriptions(Collection<Long> storeIds) {
+        if (storeIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, PaperContent> contentByStoreId = paperContentRepository.findLatestByStoreIdIn(storeIds).stream()
+                .collect(Collectors.toMap(
+                        content -> content.getPaper().getStore().getId(),
+                        Function.identity(),
+                        (first, ignored) -> first
+                ));
+        Map<Long, String> descriptions = new HashMap<>();
+        for (Long storeId : storeIds) {
+            PaperContent content = contentByStoreId.get(storeId);
+            descriptions.put(storeId, content != null
+                    ? PaperContentResponseDTO.toContentResponse(content).paperContent()
+                    : DEFAULT_DISCOUNT_DESCRIPTION);
+        }
+        return descriptions;
     }
 }

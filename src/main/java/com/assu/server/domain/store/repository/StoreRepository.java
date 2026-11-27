@@ -1,6 +1,7 @@
 package com.assu.server.domain.store.repository;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.partner.entity.Partner;
@@ -8,28 +9,42 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface StoreRepository extends JpaRepository<Store,Long> {
 
     @Query("""
         SELECT s FROM Store s
-        LEFT JOIN s.partner p
-        LEFT JOIN p.member m
+        LEFT JOIN FETCH s.partner p
+        LEFT JOIN FETCH p.member m
         WHERE m.deletedAt IS NULL
+        ORDER BY s.rate DESC NULLS LAST, s.id ASC
     """)
-    List<Store> findAllExcludingWithdrawnPartner();
+    List<Store> findTopRatedExcludingWithdrawnPartner(Pageable pageable);
 
     @Query("""
-        SELECT DISTINCT s FROM UserPaper up
+        SELECT s FROM Store s
+        ORDER BY s.rate DESC NULLS LAST, s.id ASC
+    """)
+    List<Store> findTopRated(Pageable pageable);
+
+    @Query("""
+        SELECT DISTINCT p.store.id FROM UserPaper up
         JOIN up.paper p
-        JOIN p.store s
-        LEFT JOIN FETCH s.partner partner
-        LEFT JOIN FETCH partner.member
         WHERE up.student.id = :studentId
+          AND p.store IS NOT NULL
           AND p.isActivated = com.assu.server.domain.common.enums.ActivationStatus.ACTIVE
     """)
-    List<Store> findDistinctActiveStoresByStudentId(@Param("studentId") Long studentId);
+    List<Long> findDistinctActiveStoreIdsByStudentId(@Param("studentId") Long studentId);
+
+    @Query("""
+        SELECT s FROM Store s
+        LEFT JOIN FETCH s.partner partner
+        LEFT JOIN FETCH partner.member
+        WHERE s.id IN :ids
+    """)
+    List<Store> findAllWithPartnerByIdIn(@Param("ids") Collection<Long> ids);
 
     Optional<Store> findByPartner(Partner partner);
 

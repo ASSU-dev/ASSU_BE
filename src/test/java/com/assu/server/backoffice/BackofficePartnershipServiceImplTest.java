@@ -78,7 +78,7 @@ class BackofficePartnershipServiceImplTest {
                 .build();
 
         Page<Paper> paperPage = new PageImpl<>(List.of(paper), pageable, 1);
-        when(paperRepository.findByAdmin_IdAndIsActivated(eq(adminId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
+        when(paperRepository.findWithStoreByAdminIdAndStatus(eq(adminId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(paperPage);
 
         Page<PaperContent> paperContentPage = new PageImpl<>(List.of());
@@ -115,7 +115,7 @@ class BackofficePartnershipServiceImplTest {
                 .build();
 
         Page<Paper> paperPage = new PageImpl<>(List.of(paper), pageable, 1);
-        when(paperRepository.findByStore_IdAndActivationStatus(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
+        when(paperRepository.findWithAdminByStoreIdAndStatus(eq(storeId), eq(ActivationStatus.ACTIVE), any(Pageable.class)))
                 .thenReturn(paperPage);
 
         Page<PaperContent> paperContentPage = new PageImpl<>(List.of());
@@ -151,7 +151,7 @@ class BackofficePartnershipServiceImplTest {
                 .build();
 
         Page<Paper> paperPage = new PageImpl<>(List.of(paper), pageable, 1);
-        when(paperRepository.findAll(any(Pageable.class))).thenReturn(paperPage);
+        when(paperRepository.findAllWithAdminAndStore(any(Pageable.class))).thenReturn(paperPage);
 
         Page<PaperContent> paperContentPage = new PageImpl<>(List.of());
         when(paperContentRepository.findAllByPaperIdIn(any(), any())).thenReturn(paperContentPage);

@@ -30,31 +30,22 @@ public class BackofficePartnershipServiceImpl implements BackofficePartnershipSe
 
     @Override
     public Page<WritePartnershipResponseDTO> getPartnershipsByAdmin(Long adminId, Pageable pageable) {
-        Page<Paper> paperPage = paperRepository.findByAdmin_IdAndIsActivated(adminId, ActivationStatus.ACTIVE, pageable);
-        List<Paper> papers = paperPage.getContent().stream()
-                .filter(p -> p.getStore() != null)
-                .toList();
-        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        Page<Paper> paperPage = paperRepository.findWithStoreByAdminIdAndStatus(adminId, ActivationStatus.ACTIVE, pageable);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(paperPage.getContent());
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
     @Override
     public Page<WritePartnershipResponseDTO> getPartnershipsByStore(Long storeId, Pageable pageable) {
-        Page<Paper> paperPage = paperRepository.findByStore_IdAndActivationStatus(storeId, ActivationStatus.ACTIVE, pageable);
-        List<Paper> papers = paperPage.getContent().stream()
-                .filter(p -> p.getAdmin() != null)
-                .toList();
-        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        Page<Paper> paperPage = paperRepository.findWithAdminByStoreIdAndStatus(storeId, ActivationStatus.ACTIVE, pageable);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(paperPage.getContent());
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
     @Override
     public Page<WritePartnershipResponseDTO> getPartnerships(Pageable pageable) {
-        Page<Paper> paperPage = paperRepository.findAll(pageable);
-        List<Paper> papers = paperPage.getContent().stream()
-                .filter(p -> p.getAdmin() != null && p.getStore() != null)
-                .toList();
-        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(papers);
+        Page<Paper> paperPage = paperRepository.findAllWithAdminAndStore(pageable);
+        List<WritePartnershipResponseDTO> dtos = buildPartnershipDTOs(paperPage.getContent());
         return new PageImpl<>(dtos, pageable, paperPage.getTotalElements());
     }
 
