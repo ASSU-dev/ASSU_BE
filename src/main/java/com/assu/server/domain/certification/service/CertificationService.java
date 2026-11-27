@@ -1,5 +1,7 @@
 package com.assu.server.domain.certification.service;
 
+import java.util.List;
+
 import com.assu.server.domain.certification.dto.CertificationGroupRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationPersonalRequestDTO;
 import com.assu.server.domain.certification.dto.CertificationProgressResponseDTO;
@@ -19,4 +21,6 @@ public interface CertificationService {
 	CertificationProgressResponseDTO handleCertification(GroupSessionRequest dto, Member member);
 
 	void certificatePersonal(CertificationPersonalRequestDTO dto, Member member);
+
+	List<Long> claimCertifiedParticipants(Long requesterId, Long storeId, Long sessionId, List<Long> requestedUserIds);
 }

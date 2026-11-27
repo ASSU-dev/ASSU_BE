@@ -34,6 +34,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.domain.common.entity.enums.Department;
 import com.assu.server.domain.common.entity.enums.Major;
 import com.assu.server.domain.common.entity.enums.University;
@@ -64,6 +65,9 @@ class CertificationServiceImplTest {
 
 	@Mock
 	private WebSocketBroadcaster webSocketBroadcaster;
+
+	@Mock
+	private StudentRepository studentRepository;
 
 	@Spy
 	private MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -120,7 +124,7 @@ class CertificationServiceImplTest {
 
 		// 3. Then (검증)
 		// - AssociateCertification 저장 확인
-		verify(associateCertificationRepository, times(1)).save(any());
+		verify(associateCertificationRepository, times(1)).saveAll(any());
 
 		// - Redis 세션 삭제 확인
 		verify(sessionManager, times(1)).removeSession(sessionId);
@@ -213,6 +217,10 @@ class CertificationServiceImplTest {
 		Store mockStore = Store.builder().id(storeId).build();
 		when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
 
+		Student participant1 = Student.builder().id(1L).build();
+		Student participant2 = Student.builder().id(2L).build();
+		when(studentRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(participant1, participant2));
+
 		// 2. When (실행)
 		certificationService.handleCertification(dto, mockMember);
 
@@ -221,17 +229,24 @@ class CertificationServiceImplTest {
 		// A. 세션 매니저의 removeSession이 호출되었는지 (세션 종료 확인)
 		verify(sessionManager, times(1)).removeSession(sessionId);
 
-		// B. AssociateCertification 저장 내용 검증 (ArgumentCaptor 활용)
-		ArgumentCaptor<AssociateCertification> captor = ArgumentCaptor.forClass(AssociateCertification.class);
-		verify(associateCertificationRepository).save(captor.capture());
+		// B. 참여자별 AssociateCertification 저장 내용 검증 (ArgumentCaptor 활용)
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<List<AssociateCertification>> captor = ArgumentCaptor.forClass(List.class);
+		verify(associateCertificationRepository).saveAll(captor.capture());
 
-		AssociateCertification savedEntity = captor.getValue();
+		List<AssociateCertification> savedEntities = captor.getValue();
+		assertEquals(2, savedEntities.size());
+		assertEquals(List.of(participant1, participant2),
+			savedEntities.stream().map(AssociateCertification::getStudent).toList());
 
-		// 엔티티 필드값 검증
-		assertEquals(SessionStatus.COMPLETED, savedEntity.getStatus()); // 상태가 COMPLETED인가?
-		assertTrue(savedEntity.getIsCertified()); // 인증 여부가 true인가?
-		assertEquals(targetPeople, savedEntity.getPeopleNumber()); // 정원 정보가 일치하는가?
-		assertEquals(mockStore, savedEntity.getStore()); // 연결된 상점 정보가 맞는가?
+		for (AssociateCertification savedEntity : savedEntities) {
+			assertEquals(SessionStatus.COMPLETED, savedEntity.getStatus());
+			assertTrue(savedEntity.getIsCertified());
+			assertEquals(targetPeople, savedEntity.getPeopleNumber());
+			assertEquals(mockStore, savedEntity.getStore());
+			assertEquals(sessionId, savedEntity.getSessionId());
+			assertNull(savedEntity.getUsedAt());
+		}
 	}
 
 	@Test
@@ -370,7 +385,7 @@ class CertificationServiceImplTest {
 		// then
 		assertEquals(ErrorStatus.SESSION_NOT_OPENED, exception.getCode());
 		assertEquals(1, count("certification.group.result", "failure", "full"));
-		verify(associateCertificationRepository, never()).save(any());
+		verify(associateCertificationRepository, never()).saveAll(any());
 		verify(webSocketBroadcaster, never()).sendAfterCommit(any(), any());
 	}
 
@@ -389,7 +404,7 @@ class CertificationServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
-		verify(associateCertificationRepository, never()).save(any());
+		verify(associateCertificationRepository, never()).saveAll(any());
 	}
 
 	@Test
@@ -409,7 +424,7 @@ class CertificationServiceImplTest {
 
 		// then
 		assertEquals(ErrorStatus.NO_SUCH_SESSION, exception.getCode());
-		verify(associateCertificationRepository, never()).save(any());
+		verify(associateCertificationRepository, never()).saveAll(any());
 		verify(webSocketBroadcaster, never()).sendAfterCommit(any(), any());
 		assertEquals(0, count("certification.group.result", "completed", "none"));
 	}

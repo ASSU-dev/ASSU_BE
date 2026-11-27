@@ -1,6 +1,11 @@
 package com.assu.server.domain.certification.service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import com.assu.server.global.util.WebSocketBroadcaster;
 import org.springframework.stereotype.Service;
@@ -25,6 +30,7 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
 import com.assu.server.domain.student.entity.Student;
+import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.GeneralException;
 
@@ -48,6 +54,10 @@ public class CertificationServiceImpl implements CertificationService {
 	// AdminService 참조
 	private final AdminService adminService;
 	private final WebSocketBroadcaster webSocketBroadcaster;
+	private final StudentRepository studentRepository;
+
+	// 인증 직후 혜택 화면에서 사용 기록을 남기므로, 그보다 오래된 인증은 사용 근거로 인정하지 않는다
+	private static final long USAGE_CLAIM_WINDOW_MINUTES = 30;
 
 
 
@@ -199,14 +209,18 @@ public class CertificationServiceImpl implements CertificationService {
 				throw new GeneralException(ErrorStatus.NO_SUCH_SESSION);
 			}
 
-			AssociateCertification certification = AssociateCertification.builder()
-				.store(store)
-				.peopleNumber(targetPeople)
-				.isCertified(true)
-				.status(SessionStatus.COMPLETED)
-				.build();
+			List<AssociateCertification> certifications = studentRepository.findAllById(currentCertifiedUserIds).stream()
+				.map(participant -> AssociateCertification.builder()
+					.store(store)
+					.student(participant)
+					.sessionId(sessionId)
+					.peopleNumber(targetPeople)
+					.isCertified(true)
+					.status(SessionStatus.COMPLETED)
+					.build())
+				.toList();
 
-			associateCertificationRepository.save(certification);
+			associateCertificationRepository.saveAll(certifications);
 
 			response = new CertificationProgressResponseDTO("completed", currentCount, "인증 완료", currentCertifiedUserIds);
 			webSocketBroadcaster.sendAfterCommit("/certification/progress/" + sessionId, response);
@@ -217,6 +231,75 @@ public class CertificationServiceImpl implements CertificationService {
 			countGroupSuccess("success");
 		}
 		return response;
+	}
+
+	@Override
+	@Transactional
+	public List<Long> claimCertifiedParticipants(Long requesterId, Long storeId, Long sessionId,
+		List<Long> requestedUserIds) {
+		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime since = now.minusMinutes(USAGE_CLAIM_WINDOW_MINUTES);
+
+		AssociateCertification anchor;
+		List<AssociateCertification> companions;
+		if (sessionId != null) {
+			List<AssociateCertification> sessionCertifications =
+				associateCertificationRepository.findRecentBySessionIdAndStoreId(sessionId, storeId, since);
+			anchor = sessionCertifications.stream()
+				.filter(certification -> certification.getStudent().getId().equals(requesterId))
+				.findFirst()
+				.orElseThrow(() -> new GeneralException(ErrorStatus.USAGE_CERTIFICATION_REQUIRED));
+			companions = sessionCertifications.stream()
+				.filter(certification -> !certification.getId().equals(anchor.getId()))
+				.toList();
+		} else {
+			List<AssociateCertification> requesterCertifications =
+				associateCertificationRepository.findRecentByStudentIdAndStoreId(requesterId, storeId, since);
+			if (requesterCertifications.isEmpty()) {
+				throw new GeneralException(ErrorStatus.USAGE_CERTIFICATION_REQUIRED);
+			}
+			Optional<AssociateCertification> unused = requesterCertifications.stream()
+				.filter(certification -> certification.getUsedAt() == null)
+				.findFirst();
+			if (unused.isEmpty()) {
+				return List.of();
+			}
+			anchor = unused.get();
+			companions = findRequestedCompanions(anchor, storeId, since, requestedUserIds);
+		}
+
+		if (anchor.getUsedAt() != null
+			|| associateCertificationRepository.markUsedIfUnused(anchor.getId(), now) == 0) {
+			return List.of();
+		}
+
+		List<Long> participantIds = new ArrayList<>();
+		participantIds.add(requesterId);
+		for (AssociateCertification companion : companions) {
+			if (companion.getUsedAt() == null
+				&& associateCertificationRepository.markUsedIfUnused(companion.getId(), now) == 1) {
+				participantIds.add(companion.getStudent().getId());
+			}
+		}
+
+		if (requestedUserIds != null && !participantIds.containsAll(requestedUserIds)) {
+			log.warn("제휴 사용 기록 요청의 userIds 중 인증 근거가 없는 사용자를 제외 - requesterId: {}, storeId: {}, requested: {}, accepted: {}",
+				requesterId, storeId, requestedUserIds, participantIds);
+		}
+		return participantIds;
+	}
+
+	private List<AssociateCertification> findRequestedCompanions(AssociateCertification anchor, Long storeId,
+		LocalDateTime since, List<Long> requestedUserIds) {
+		if (anchor.getSessionId() == null || requestedUserIds == null || requestedUserIds.isEmpty()) {
+			return List.of();
+		}
+		Set<Long> requested = new HashSet<>(requestedUserIds);
+		return associateCertificationRepository.findRecentBySessionIdAndStoreId(anchor.getSessionId(), storeId, since)
+			.stream()
+			.filter(certification -> !certification.getId().equals(anchor.getId()))
+			.filter(certification -> requested.contains(certification.getStudent().getId()))
+			.toList();
 	}
 
 	private void countGroupSuccess(String result){
