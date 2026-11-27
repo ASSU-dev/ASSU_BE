@@ -14,6 +14,7 @@ import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import com.assu.server.infra.discord.DiscordNotifier;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +34,13 @@ public class SuggestionServiceImpl implements SuggestionService {
     private final StudentRepository studentRepository;
     private final NotificationCommandService notificationCommandService;
     private final DiscordNotifier discordNotifier;
+    private final DuplicateRequestGuard duplicateRequestGuard;
 
     @Override
     @Transactional
     public WriteSuggestionResponseDTO writeSuggestion(WriteSuggestionRequestDTO request, Long userId) {
+        duplicateRequestGuard.acquire("suggestion-create", userId, DuplicateRequestGuard.DEFAULT_TTL,
+                request.adminId(), request.storeName(), request.benefit());
 
         Admin admin = adminRepository.findByIdAndMember_DeletedAtIsNull(request.adminId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));

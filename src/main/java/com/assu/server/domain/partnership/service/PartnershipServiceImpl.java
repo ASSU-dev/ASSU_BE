@@ -28,6 +28,7 @@ import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import com.assu.server.infra.s3.AmazonS3Manager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -59,6 +60,7 @@ public class PartnershipServiceImpl implements PartnershipService {
     private final PartnerRepository partnerRepository;
     private final StoreRepository storeRepository;
     private final AmazonS3Manager amazonS3Manager;
+    private final DuplicateRequestGuard duplicateRequestGuard;
 
     @Override
     @Transactional
@@ -240,6 +242,12 @@ public class PartnershipServiceImpl implements PartnershipService {
         if (request == null || adminId == null)
             throw new DatabaseException(ErrorStatus._BAD_REQUEST);
 
+        duplicateRequestGuard.acquire("partnership-manual", adminId, DuplicateRequestGuard.DEFAULT_TTL,
+                request.storeName(), request.storeDetailAddress(), request.selectedPlace().getPlaceId(),
+                request.selectedPlace().getRoadAddress(), request.selectedPlace().getAddress(),
+                request.partnershipPeriodStart(), request.partnershipPeriodEnd(), request.options(),
+                contractImage == null ? null : contractImage.getOriginalFilename() + ":" + contractImage.getSize());
+
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
 
@@ -298,10 +306,21 @@ public class PartnershipServiceImpl implements PartnershipService {
     @Override
     @Transactional
     public PartnershipDraftResponseDTO createDraftPartnership(PartnershipDraftRequestDTO request, Long adminId) {
+        duplicateRequestGuard.acquire("partnership-draft", adminId, DuplicateRequestGuard.DEFAULT_TTL,
+                request.partnerId());
+
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_ADMIN));
         Partner partner = partnerRepository.findByIdAndMember_DeletedAtIsNull(request.partnerId())
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_PARTNER));
+
+        // 제휴업체가 아직 작성하지 않은 초안(BLANK)이 있으면 새로 만들지 않고 그 초안을 돌려줘 알림·안내 메시지 중복을 막는다
+        Optional<Paper> pendingDraft = paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(
+                admin.getId(), partner.getId(), List.of(ActivationStatus.BLANK));
+        if (pendingDraft.isPresent()) {
+            return PartnershipDraftResponseDTO.of(pendingDraft.get());
+        }
+
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_STORE));
 

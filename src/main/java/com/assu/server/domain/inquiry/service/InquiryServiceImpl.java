@@ -12,6 +12,7 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -31,10 +32,14 @@ InquiryServiceImpl implements InquiryService {
     private final MemberRepository memberRepository;
     private final MeterRegistry meterRegistry;
     private final DiscordNotifier discordNotifier;
+    private final DuplicateRequestGuard duplicateRequestGuard;
 
     /** 문의 등록 */
     @Override
     public Long create(InquiryCreateRequestDTO inquiryCreateRequestDTO, Long memberId) {
+        duplicateRequestGuard.acquire("inquiry-create", memberId, DuplicateRequestGuard.DEFAULT_TTL,
+                inquiryCreateRequestDTO.title(), inquiryCreateRequestDTO.content(), inquiryCreateRequestDTO.email());
+
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 
