@@ -1,6 +1,6 @@
 package com.assu.server.domain.member.service;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
@@ -37,7 +37,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
         validateFile(image);
 
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         String keyName = amazonS3Manager.generateKeyName(
                 resolveProfileKeyPath(member), getFileExtension(image.getOriginalFilename()));
@@ -57,7 +57,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
 
     private String replaceProfileKey(Long memberId, String newKey) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
         String previousKey = member.getProfileUrl();
         member.setProfileUrl(newKey);
         return previousKey;
@@ -80,12 +80,12 @@ public class ProfileImageServiceImpl implements ProfileImageService{
     @Transactional(readOnly = true)
     public String getProfileImageUrl(Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         String key = member.getProfileUrl();
 
         if (key == null || key.isBlank()) {
-            throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
         }
 
         return amazonS3Manager.generatePresignedUrl(key);
@@ -96,12 +96,12 @@ public class ProfileImageServiceImpl implements ProfileImageService{
     public void deleteProfileImage(Long memberId) {
         // 1) 멤버 조회
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         // 2) 현재 프로필 이미지 확인
         String currentKey = member.getProfileUrl();
         if (currentKey == null || currentKey.isBlank()) {
-            throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
         }
 
         // 3) S3에서 파일 삭제
@@ -109,7 +109,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
             amazonS3Manager.deleteFile(currentKey);
         } catch (Exception e) {
             log.error("프로필 이미지 삭제 실패 memberId={}, key={}", memberId, currentKey, e);
-            throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_DELETE_FAILED);
+            throw new GeneralException(ErrorStatus.PROFILE_IMAGE_DELETE_FAILED);
         }
 
         imageCdnManager.invalidate(currentKey);
@@ -129,29 +129,29 @@ public class ProfileImageServiceImpl implements ProfileImageService{
 
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new CustomAuthException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.PROFILE_IMAGE_NOT_FOUND);
         }
 
         // 파일 크기 검증
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new CustomAuthException(ErrorStatus.FILE_SIZE_EXCEEDED);
+            throw new GeneralException(ErrorStatus.FILE_SIZE_EXCEEDED);
         }
 
         // 파일명 검증
         String filename = file.getOriginalFilename();
         if (filename == null || filename.contains("..")) {
-            throw new CustomAuthException(ErrorStatus.INVALID_FILE_NAME);
+            throw new GeneralException(ErrorStatus.INVALID_FILE_NAME);
         }
 
         // 확장자 검증
         String extension = getFileExtension(filename);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new CustomAuthException(ErrorStatus.INVALID_FILE_TYPE);
+            throw new GeneralException(ErrorStatus.INVALID_FILE_TYPE);
         }
 
         // Content-Type 검증
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
-            throw new CustomAuthException(ErrorStatus.INVALID_CONTENT_TYPE);
+            throw new GeneralException(ErrorStatus.INVALID_CONTENT_TYPE);
         }
     }
 

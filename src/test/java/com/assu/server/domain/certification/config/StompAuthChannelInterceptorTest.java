@@ -63,8 +63,8 @@ class StompAuthChannelInterceptorTest {
 
         // when & then
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.JWT_TOKEN_NOT_RECEIVED);
     }
 
@@ -79,8 +79,8 @@ class StompAuthChannelInterceptorTest {
 
         // when & then
         assertThatThrownBy(() -> interceptor.preSend(connectMessage(BEARER), channel))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.JWT_ACCESS_TOKEN_REVOKED);
         verify(jwtUtil, never()).getAuthentication(TOKEN);
     }
@@ -200,8 +200,8 @@ class StompAuthChannelInterceptorTest {
 
         // when & then
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus._UNAUTHORIZED);
         verifyNoInteractions(chatRepository);
     }

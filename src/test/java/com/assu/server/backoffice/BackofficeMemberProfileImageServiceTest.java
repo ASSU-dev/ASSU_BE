@@ -1,6 +1,6 @@
 package com.assu.server.backoffice;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeProfileImageResponseDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberServiceImpl;
@@ -90,8 +90,8 @@ class BackofficeMemberProfileImageServiceTest {
 
         // when & then
         assertThatThrownBy(() -> backofficeMemberService.updatePartnerProfileImage(PARTNER_ID, image()))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.NO_SUCH_PARTNER);
         verify(profileImageService, never()).updateProfileImage(PARTNER_ID, image());
     }
@@ -117,8 +117,8 @@ class BackofficeMemberProfileImageServiceTest {
 
         // when & then
         assertThatThrownBy(() -> backofficeMemberService.deletePartnerProfileImage(PARTNER_ID))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.NO_SUCH_PARTNER);
         verify(profileImageService, never()).deleteProfileImage(PARTNER_ID);
     }

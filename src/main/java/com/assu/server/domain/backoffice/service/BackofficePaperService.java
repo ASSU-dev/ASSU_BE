@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.backoffice.dto.BackofficePaperCreateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePaperContentCreateRequestDTO;
 import com.assu.server.domain.common.enums.ActivationStatus;
@@ -52,7 +52,7 @@ BackofficePaperService {
 
     public void approvePaper(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         if(paper.getIsActivated() == ActivationStatus.ACTIVE){
             throw new DatabaseException(ErrorStatus.ALREADY_APPROVED);
@@ -63,7 +63,7 @@ BackofficePaperService {
 
     public void rejectPaper(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         paper.changeStatus(ActivationStatus.INACTIVE);
         paperRepository.save(paper);
@@ -71,7 +71,7 @@ BackofficePaperService {
 
     public void expirePaper(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         paper.changeStatus(ActivationStatus.INACTIVE);
         paperRepository.save(paper);
@@ -98,7 +98,7 @@ BackofficePaperService {
 
     public WritePartnershipResponseDTO addPaperContents(Long paperId, BackofficePaperContentCreateRequestDTO req) {
         Paper paper = paperRepository.findById(paperId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 
         if (req.options() != null && !req.options().isEmpty()) {
             paperContentRepository.saveAll(req.options().stream().map(o -> o.toPaperContent(paper)).toList());

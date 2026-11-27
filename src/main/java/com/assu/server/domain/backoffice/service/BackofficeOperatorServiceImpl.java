@@ -1,7 +1,7 @@
 package com.assu.server.domain.backoffice.service;
 
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.backoffice.dto.BackofficeOperatorCreateRequestDTO;
@@ -32,7 +32,7 @@ public class BackofficeOperatorServiceImpl implements BackofficeOperatorService 
     @Override
     public BackofficeOperatorResponseDTO createOperator(BackofficeOperatorCreateRequestDTO request) {
         if (commonAuthRepository.existsByEmail(request.email())) {
-            throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
+            throw new GeneralException(ErrorStatus.EXISTED_EMAIL);
         }
 
         Member member = memberRepository.save(
@@ -70,6 +70,6 @@ public class BackofficeOperatorServiceImpl implements BackofficeOperatorService 
         return realmAuthAdapters.stream()
                 .filter(a -> a.supports(realm))
                 .findFirst()
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.AUTHORIZATION_EXCEPTION));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.AUTHORIZATION_EXCEPTION));
     }
 }

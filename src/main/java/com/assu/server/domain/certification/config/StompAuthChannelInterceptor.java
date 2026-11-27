@@ -1,6 +1,5 @@
 package com.assu.server.domain.certification.config;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
 import com.assu.server.domain.auth.security.jwt.JwtUtil;
 import com.assu.server.domain.chat.repository.ChatRepository;
 import com.assu.server.domain.common.enums.UserRole;
@@ -52,7 +51,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 		String authHeader = accessor.getFirstNativeHeader("Authorization");
 		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
 			log.warn("[STOMP CONNECT] Authorization 헤더 없음 또는 형식 불일치");
-			throw new CustomAuthException(ErrorStatus.JWT_TOKEN_NOT_RECEIVED);
+			throw new GeneralException(ErrorStatus.JWT_TOKEN_NOT_RECEIVED);
 		}
 
 		String token = jwtUtil.getTokenFromHeader(authHeader);
@@ -77,7 +76,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 		if (!(accessor.getUser() instanceof Authentication authentication)
 				|| !(authentication.getPrincipal() instanceof PrincipalDetails principal)) {
 			log.warn("[STOMP SUBSCRIBE] 인증 정보 없는 구독 거부 - destination={}", destination);
-			throw new CustomAuthException(ErrorStatus._UNAUTHORIZED);
+			throw new GeneralException(ErrorStatus._UNAUTHORIZED);
 		}
 		if (!canSubscribe(principal, destination)) {
 			log.warn("[STOMP SUBSCRIBE] 권한 없는 구독 거부 - memberId={}, destination={}", principal.getId(), destination);
