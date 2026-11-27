@@ -1,5 +1,7 @@
 package com.assu.server.domain.auth.service;
 
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.admin.repository.StudentAdminRepository;
 import com.assu.server.domain.appreview.repository.AppReviewRepository;
 import com.assu.server.domain.certification.repository.AssociateCertificationRepository;
@@ -70,7 +72,7 @@ public class MemberHardDeleteServiceImpl implements MemberHardDeleteService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean hardDeleteMember(Long memberId, LocalDateTime deletedBefore) {
         Member member = memberRepository.findWithLockById(memberId)
-                .orElseThrow(() -> new IllegalStateException("삭제 대상 회원을 찾을 수 없습니다. memberId=" + memberId));
+                .orElseThrow(() -> new GeneralException(ErrorStatus._INTERNAL_SERVER_ERROR, "삭제 대상 회원을 찾을 수 없습니다. memberId=" + memberId));
 
         // 대상 목록 조회 후 로그인·재가입으로 복구됐을 수 있으므로 락을 잡은 상태에서 다시 확인한다
         if (!member.isWithdrawn() || !member.getDeletedAt().isBefore(deletedBefore)) {

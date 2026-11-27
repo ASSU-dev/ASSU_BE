@@ -1,5 +1,8 @@
 package com.assu.server.domain.common.entity.enums;
 
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
+
 public enum Major {
     // 인문대학
     CHRISTIAN_STUDIES(Department.HUMANITIES, "기독교학과"),
@@ -94,7 +97,7 @@ public enum Major {
                 return m;
             }
         }
-        throw new IllegalArgumentException("해당하는 학과가 없습니다: " + rawStr);
+        throw new GeneralException(ErrorStatus.SSU_SAINT_UNSUPPORTED_MAJOR, "해당하는 학과가 없습니다: " + rawStr);
     }
 
     public static boolean existsByDisplayName(String rawStr) {

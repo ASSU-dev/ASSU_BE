@@ -1,5 +1,7 @@
 package com.assu.server.domain.auth.security.provider;
 
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.entity.enums.AuthRealm;
 import com.assu.server.domain.auth.security.adapter.RealmAuthAdapter;
 import com.assu.server.domain.auth.security.token.LoginUsernamePasswordAuthenticationToken;
@@ -29,14 +31,14 @@ public class RoutingAuthenticationProvider extends AbstractUserDetailsAuthentica
 
     private AuthRealm resolveRealm(Authentication auth) {
         if (auth instanceof LoginUsernamePasswordAuthenticationToken) return ((LoginUsernamePasswordAuthenticationToken) auth).getRealm();
-        throw new IllegalArgumentException("Unsupported authentication token: " + auth.getClass());
+        throw new GeneralException(ErrorStatus._INTERNAL_SERVER_ERROR, "Unsupported authentication token: " + auth.getClass());
     }
 
     private RealmAuthAdapter pickAdapter(AuthRealm realm) {
         return adapters.stream()
                 .filter(a -> a.supports(realm))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No adapter for realm: " + realm));
+                .orElseThrow(() -> new GeneralException(ErrorStatus._INTERNAL_SERVER_ERROR, "No adapter for realm: " + realm));
     }
 
     @Override

@@ -115,6 +115,9 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
     public ResponseEntity onThrowException(
             GeneralException generalException, HttpServletRequest request) {
         ErrorReasonDTO errorReasonHttpStatus = generalException.getErrorReasonHttpStatus();
+        if (errorReasonHttpStatus.getHttpStatus().is5xxServerError()) {
+            log.error("서버 오류 예외 발생 code={}", errorReasonHttpStatus.getCode(), generalException);
+        }
         return handleExceptionInternal(generalException, errorReasonHttpStatus, null, request);
     }
 

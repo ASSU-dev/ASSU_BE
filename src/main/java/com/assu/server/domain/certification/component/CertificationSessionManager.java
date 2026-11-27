@@ -1,5 +1,7 @@
 package com.assu.server.domain.certification.component;
 
+import com.assu.server.global.apiPayload.code.status.ErrorStatus;
+import com.assu.server.global.exception.GeneralException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +41,7 @@ public class CertificationSessionManager {
 
 	public Long openSession(Long storeId, Integer peopleNumber, Long ownerId, Long adminId, Long contentId) {
 		Long newSessionId = redisTemplate.opsForValue().increment(ID_COUNTER_KEY);
-		if (newSessionId == null) throw new RuntimeException("ID 생성 실패");
+		if (newSessionId == null) throw new GeneralException(ErrorStatus._INTERNAL_SERVER_ERROR, "인증 세션 ID 생성 실패");
 
 		String key = getKey(newSessionId);
 		String infoKey = getInfoKey(newSessionId);
@@ -75,7 +77,7 @@ public class CertificationSessionManager {
 		List<?> result = redisTemplate.execute(JOIN_SCRIPT, List.of(getKey(sessionId)),
 			String.valueOf(userId), String.valueOf(capacity));
 		if (result == null || result.isEmpty()) {
-			throw new IllegalStateException("인증 세션 참여 결과를 받지 못했습니다.");
+			throw new GeneralException(ErrorStatus._INTERNAL_SERVER_ERROR, "인증 세션 참여 결과를 받지 못했습니다.");
 		}
 
 		SessionJoinStatus status = SessionJoinStatus.valueOf(String.valueOf(result.get(0)));
