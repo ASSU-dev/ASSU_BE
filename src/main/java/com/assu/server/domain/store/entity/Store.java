@@ -55,15 +55,16 @@ public class Store extends BaseEntity {
 	public void linkPartner(Partner partner) {
 		this.partner = partner;
 	}
-	public void setGeo(Double lat, Double lng, Point point) {
-		this.latitude = lat;
-		this.longitude = lng;
-		this.point = point;
-	}
 	public void relocate(String address, String detailAddress, Double lat, Double lng, Point point) {
 		this.address = address;
 		this.detailAddress = detailAddress;
-		setGeo(lat, lng, point);
+		updateGeo(lat, lng, point);
+	}
+
+	private void updateGeo(Double lat, Double lng, Point point) {
+		this.latitude = lat;
+		this.longitude = lng;
+		this.point = point;
 	}
 
 }

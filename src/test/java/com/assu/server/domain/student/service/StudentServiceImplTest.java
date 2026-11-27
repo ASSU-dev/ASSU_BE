@@ -151,7 +151,7 @@ class StudentServiceImplTest {
 	void addStamp_AlreadyStampedToday_ThrowsException() {
 		// 1. Given
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
-		student.setStamp();
+		student.addStamp();
 		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When
@@ -183,7 +183,7 @@ class StudentServiceImplTest {
 	void addStampIfNotStampedToday_AlreadyStampedToday_SkipsWithoutException() {
 		// 1. Given
 		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).stamp(3).build();
-		student.setStamp();
+		student.addStamp();
 		when(studentRepository.findByIdForUpdate(STUDENT_ID)).thenReturn(Optional.of(student));
 
 		// 2. When

@@ -53,7 +53,7 @@ public class BackofficeOperatorServiceImpl implements BackofficeOperatorService 
                         .name(request.name())
                         .build()
         );
-        member.setProfile(backofficeUser);
+        member.linkProfile(backofficeUser);
 
         return BackofficeOperatorResponseDTO.from(member, backofficeUser);
     }

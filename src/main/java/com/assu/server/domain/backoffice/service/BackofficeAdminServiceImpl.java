@@ -118,7 +118,7 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 				.longitude(lng)
 				.build()
 		);
-		member.setProfile(admin);
+		member.linkProfile(admin);
 
 		return new BackofficeAdminCreateResponseDTO(
 			member.getId(),

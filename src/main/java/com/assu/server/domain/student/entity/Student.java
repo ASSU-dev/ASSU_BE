@@ -59,7 +59,7 @@ public class Student {
         return lastStampedAt != null && lastStampedAt.toLocalDate().isEqual(LocalDate.now(KST));
     }
 
-    public void setStamp() {
+    public void addStamp() {
         this.stamp++;
         this.lastStampedAt = LocalDateTime.now(KST);
     }

@@ -49,12 +49,6 @@ public class AssociateCertification extends BaseEntity {
 	@JoinColumn(name = "student_id")
 	private Student student;
 
-	public void setStatus(SessionStatus status) {
-		this.status = status;
-	}
-	public void setIsCertified(Boolean isCertified) {
-		this.isCertified = isCertified;
-	}
 
 
 }

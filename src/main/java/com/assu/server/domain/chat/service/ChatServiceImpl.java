@@ -246,9 +246,9 @@ public class ChatServiceImpl implements ChatService {
                 chattingRoom.getPartner().getMember().getId().equals(member.getId());
 
         if (isAdmin) {
-            chattingRoom.setAdmin(null);
+            chattingRoom.removeAdmin();
         } else if (isPartner) {
-            chattingRoom.setPartner(null);
+            chattingRoom.removePartner();
         } else if (hasAlreadyLeft(chattingRoom, member)) {
             return new ChatResponseDTO.LeaveChattingRoomResponseDTO(roomId, true, false);
         } else {

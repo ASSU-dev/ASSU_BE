@@ -117,7 +117,7 @@ public class SignUpServiceImpl implements SignUpService {
                 .university(University.SSU) // Todo: 추후 다른 대학도 추가할 시 로직 변경 필요
                 .stamp(0)
                 .build());
-        member.setProfile(student);
+        member.linkProfile(student);
 
         // 6) 가입 시점 사용 가능 제휴 동기화 (자정 배치와 별개로 즉시 반영)
         // 커밋 전 Student는 REQUIRES_NEW 트랜잭션에서 조회되지 않으므로 커밋 이후 실행
@@ -226,7 +226,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
-        member.setProfile(partner);
+        member.linkProfile(partner);
 
         linkStore(partner, info.name(), address, info.detailAddress(), lat, lng, point);
 
@@ -371,7 +371,7 @@ public class SignUpServiceImpl implements SignUpService {
                             .latitude(lat)
                             .longitude(lng)
                             .build());
-            member.setProfile(partner);
+            member.linkProfile(partner);
 
             linkStore(partner, req.name(), roadAddress, null, lat, lng, point);
 
@@ -436,7 +436,7 @@ public class SignUpServiceImpl implements SignUpService {
                         .latitude(lat)
                         .longitude(lng)
                         .build());
-        member.setProfile(admin);
+        member.linkProfile(admin);
 
         TransactionCallbacks.runAfterCommit(() -> discordNotifier.send("🔔 새 학생회 가입 승인 요청이 있습니다. 백오피스에서 확인해 주세요."));
 

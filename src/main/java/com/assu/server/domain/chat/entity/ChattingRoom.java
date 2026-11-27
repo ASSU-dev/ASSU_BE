@@ -57,12 +57,12 @@ public class ChattingRoom extends BaseEntity {
         this.memberCount = memberCount;
     }
 
-    public void setAdmin(Admin admin) {
-        this.admin = admin;
+    public void removeAdmin() {
+        this.admin = null;
     }
 
-    public void setPartner(Partner partner) {
-        this.partner = partner;
+    public void removePartner() {
+        this.partner = null;
     }
 
     public static ChattingRoom of(Admin admin, Partner partner) {

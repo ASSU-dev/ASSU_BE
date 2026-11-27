@@ -111,7 +111,7 @@ public class Member extends BaseEntity {
         }
     }
 
-    public void setProfile(Object profile) {
+    public void linkProfile(Object profile) {
         if (profile instanceof Student s) {
             this.studentProfile = s;
         } else if (profile instanceof Partner p) {

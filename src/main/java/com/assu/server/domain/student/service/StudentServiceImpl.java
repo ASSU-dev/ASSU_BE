@@ -308,7 +308,7 @@ public class StudentServiceImpl implements StudentService {
 	}
 
 	private StudentResponseDTO.CheckStampResponseDTO applyStamp(Student student) {
-		student.setStamp();
+		student.addStamp();
 		String responseMessage = "스탬프가 적립되었습니다.";
 
 		if (student.getStamp() >= 10) {
