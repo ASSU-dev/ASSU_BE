@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.admin.entity.Admin;
@@ -32,6 +33,9 @@ import com.assu.server.domain.suggestion.entity.Suggestion;
 import com.assu.server.domain.suggestion.repository.SuggestionRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
+import com.assu.server.support.InMemoryDuplicateRequestGuard;
 import com.assu.server.infra.discord.DiscordNotifier;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,6 +58,9 @@ class SuggestionServiceImplTest {
 
 	@Mock
 	private DiscordNotifier discordNotifier;
+
+	@Spy
+	private DuplicateRequestGuard duplicateRequestGuard = InMemoryDuplicateRequestGuard.create();
 
 	private static final Long STUDENT_ID = 1L;
 	private static final Long ADMIN_ID = 10L;
@@ -102,6 +109,28 @@ class SuggestionServiceImplTest {
 		assertEquals(admin, captor.getValue().getAdmin());
 		assertEquals(student, captor.getValue().getStudent());
 
+		verify(notificationCommandService, times(1)).sendPartnerSuggestion(eq(ADMIN_ID), any());
+		verify(discordNotifier, times(1)).send(anyString());
+	}
+
+	@Test
+	void writeSuggestion_whenSameSuggestionSubmittedTwice_thenSavesAndNotifiesOnlyOnce() {
+		// given
+		WriteSuggestionRequestDTO request =
+			new WriteSuggestionRequestDTO(ADMIN_ID, "스타벅스 숭실대점", "아메리카노 10% 할인");
+		Admin admin = Admin.builder().id(ADMIN_ID).name("총학생회").isPhoneVerified(false).build();
+		Student student = Student.builder().id(STUDENT_ID).university(University.SSU).build();
+		when(adminRepository.findByIdAndMember_DeletedAtIsNull(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+		suggestionService.writeSuggestion(request, STUDENT_ID);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> suggestionService.writeSuggestion(request, STUDENT_ID));
+
+		// then
+		assertEquals(ErrorStatus.DUPLICATE_REQUEST, exception.getCode());
+		verify(suggestionRepository, times(1)).save(any());
 		verify(notificationCommandService, times(1)).sendPartnerSuggestion(eq(ADMIN_ID), any());
 		verify(discordNotifier, times(1)).send(anyString());
 	}

@@ -30,6 +30,8 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
+import com.assu.server.support.InMemoryDuplicateRequestGuard;
 import com.assu.server.infra.discord.DiscordNotifier;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -51,6 +53,9 @@ class InquiryServiceImplTest {
 
 	@Mock
 	private DiscordNotifier discordNotifier;
+
+	@Spy
+	private DuplicateRequestGuard duplicateRequestGuard = InMemoryDuplicateRequestGuard.create();
 
 	private static final Long MEMBER_ID = 1L;
 
@@ -93,6 +98,24 @@ class InquiryServiceImplTest {
 		assertEquals("assu@gmail.com", saved.getEmail());
 		assertEquals(Inquiry.Status.WAITING, saved.getStatus());
 		assertEquals(member, saved.getMember());
+	}
+
+	@Test
+	void create_whenSameInquirySubmittedTwice_thenSavesAndNotifiesOnlyOnce() {
+		// given
+		InquiryCreateRequestDTO request =
+			new InquiryCreateRequestDTO("상호명 변경 요청", "상호명을 변경하고 싶습니다.", "assu@gmail.com");
+		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(mock(Member.class)));
+		inquiryService.create(request, MEMBER_ID);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> inquiryService.create(request, MEMBER_ID));
+
+		// then
+		assertEquals(ErrorStatus.DUPLICATE_REQUEST, exception.getCode());
+		verify(inquiryRepository, times(1)).save(any());
+		verify(discordNotifier, times(1)).send(any());
 	}
 
 	@Test

@@ -32,6 +32,8 @@ import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftRequestDTO;
+import com.assu.server.domain.partnership.dto.PartnershipDraftResponseDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
@@ -51,7 +53,9 @@ import com.assu.server.domain.student.service.StudentService;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import com.assu.server.infra.s3.AmazonS3Manager;
+import com.assu.server.support.InMemoryDuplicateRequestGuard;
 
 @ExtendWith(MockitoExtension.class)
 class PartnershipServiceImplTest {
@@ -100,6 +104,8 @@ class PartnershipServiceImplTest {
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
 
+	private final DuplicateRequestGuard duplicateRequestGuard = InMemoryDuplicateRequestGuard.create();
+
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
 	private static final Long PAPER_ID = 100L;
@@ -111,7 +117,7 @@ class PartnershipServiceImplTest {
 			partnershipUsageRepository, studentRepository, studentService, contentRepository,
 			notificationService, chatService, chatRepository,
 			paperRepository, paperContentRepository, goodsRepository,
-			adminRepository, partnerRepository, storeRepository, amazonS3Manager);
+			adminRepository, partnerRepository, storeRepository, amazonS3Manager, duplicateRequestGuard);
 	}
 
 	private Admin admin() {
@@ -262,6 +268,62 @@ class PartnershipServiceImplTest {
 		// 3. Then
 		assertEquals("ACTIVE", response.prevStatus());
 		assertEquals("ACTIVE", response.newStatus());
+		verify(chatService, never()).sendGuideMessage(any());
+		verify(notificationService, never()).sendChat(any(), any(), any(), any());
+	}
+
+	// ===== createDraftPartnership =====
+
+	private void givenDraftTargets(Admin admin, Partner partner) {
+		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin));
+		when(partnerRepository.findByIdAndMember_DeletedAtIsNull(PARTNER_ID)).thenReturn(Optional.of(partner));
+	}
+
+	@Test
+	void createDraftPartnership_whenSameDraftRequestedTwice_thenCreatesAndNotifiesOnlyOnce() {
+		// given
+		Admin admin = admin();
+		Partner partner = partner();
+		givenDraftTargets(admin, partner);
+		when(paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(
+			ADMIN_ID, PARTNER_ID, List.of(ActivationStatus.BLANK))).thenReturn(Optional.empty());
+		when(storeRepository.findByPartner(partner)).thenReturn(Optional.of(Store.builder().id(500L).build()));
+		ChattingRoom room = ChattingRoom.builder().id(1L).admin(admin).partner(partner).build();
+		when(chatRepository.findChattingRoomByAdminIdAndPartnerId(ADMIN_ID, PARTNER_ID)).thenReturn(room);
+		PartnershipDraftRequestDTO request = new PartnershipDraftRequestDTO(PARTNER_ID);
+		partnershipService.createDraftPartnership(request, ADMIN_ID);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.createDraftPartnership(request, ADMIN_ID));
+
+		// then
+		assertEquals(ErrorStatus.DUPLICATE_REQUEST, exception.getCode());
+		verify(paperRepository, times(1)).save(any(Paper.class));
+		verify(notificationService, times(1)).sendPartnerProposal(eq(PARTNER_ID), any(), anyString());
+		verify(chatService, times(1)).sendGuideMessage(any());
+		verify(notificationService, times(1)).sendChat(eq(PARTNER_ID), eq(1L), anyString(), anyString());
+	}
+
+	@Test
+	void createDraftPartnership_whenBlankDraftAlreadyExists_thenReturnsExistingWithoutNotifying() {
+		// given
+		Admin admin = admin();
+		Partner partner = partner();
+		givenDraftTargets(admin, partner);
+		Paper existingDraft = Paper.builder()
+			.id(PAPER_ID).admin(admin).partner(partner).isActivated(ActivationStatus.BLANK).build();
+		when(paperRepository.findTopByAdmin_IdAndPartner_IdAndIsActivatedInOrderByIdDesc(
+			ADMIN_ID, PARTNER_ID, List.of(ActivationStatus.BLANK))).thenReturn(Optional.of(existingDraft));
+
+		// when
+		PartnershipDraftResponseDTO response =
+			partnershipService.createDraftPartnership(new PartnershipDraftRequestDTO(PARTNER_ID), ADMIN_ID);
+
+		// then
+		assertEquals(PAPER_ID, response.paperId());
+		verify(paperRepository, never()).save(any(Paper.class));
+		verify(notificationService, never()).sendPartnerProposal(any(), any(), any());
 		verify(chatService, never()).sendGuideMessage(any());
 		verify(notificationService, never()).sendChat(any(), any(), any(), any());
 	}

@@ -17,6 +17,7 @@ import com.assu.server.domain.notification.service.NotificationBackofficeService
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
 import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -34,14 +36,21 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BackofficeNotificationServiceImpl implements BackofficeNotificationService {
 
+    // 전체 발송은 응답이 늦어 운영자가 다시 누르기 쉬우므로 일반 요청보다 길게 막는다
+    private static final Duration PUSH_DUPLICATE_TTL = Duration.ofSeconds(60);
+
     private final NotificationBackofficeService notificationBackofficeService;
     private final NotificationOutboxRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final MemberRepository memberRepository;
     private final BackofficePushLogRepository pushLogRepository;
+    private final DuplicateRequestGuard duplicateRequestGuard;
 
     @Override
     public void sendPush(BackofficePushSendRequestDTO request, Long sentByMemberId) {
+        duplicateRequestGuard.acquire("backoffice-push", sentByMemberId, PUSH_DUPLICATE_TTL,
+                request.targetType(), request.receiverId(), request.title(), request.body(), request.deepLink());
+
         List<Long> recipientIds = resolveRecipientIds(request);
 
         for (Long id : recipientIds) {

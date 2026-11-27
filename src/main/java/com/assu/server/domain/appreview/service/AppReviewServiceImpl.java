@@ -7,6 +7,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.util.DuplicateRequestGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +19,13 @@ public class AppReviewServiceImpl implements AppReviewService {
 
     private final AppReviewRepository appReviewRepository;
     private final MemberRepository memberRepository;
+    private final DuplicateRequestGuard duplicateRequestGuard;
 
     @Override
     public void create(AppReviewRequestDTO request, Long memberId) {
+        duplicateRequestGuard.acquire("app-review-create", memberId, DuplicateRequestGuard.DEFAULT_TTL,
+                request.rate(), request.content());
+
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new DatabaseException(ErrorStatus.NO_SUCH_MEMBER));
 

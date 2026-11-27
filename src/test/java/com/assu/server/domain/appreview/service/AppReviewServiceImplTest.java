@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.assu.server.domain.appreview.dto.AppReviewRequestDTO;
@@ -21,6 +22,9 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;
 import com.assu.server.global.exception.DatabaseException;
+import com.assu.server.global.exception.GeneralException;
+import com.assu.server.global.util.DuplicateRequestGuard;
+import com.assu.server.support.InMemoryDuplicateRequestGuard;
 
 @ExtendWith(MockitoExtension.class)
 class AppReviewServiceImplTest {
@@ -33,6 +37,9 @@ class AppReviewServiceImplTest {
 
 	@Mock
 	private MemberRepository memberRepository;
+
+	@Spy
+	private DuplicateRequestGuard duplicateRequestGuard = InMemoryDuplicateRequestGuard.create();
 
 	@Test
 	@DisplayName("존재하지 않는 멤버가 앱 리뷰를 작성하면 NO_SUCH_MEMBER 예외가 발생한다")
@@ -71,5 +78,22 @@ class AppReviewServiceImplTest {
 		assertEquals(member, saved.getMember());
 		assertEquals(4, saved.getRate());
 		assertEquals("제휴 정보가 한눈에 보여서 편해요", saved.getContent());
+	}
+
+	@Test
+	void create_whenSameReviewSubmittedTwice_thenSavesOnlyOnce() {
+		// given
+		Long memberId = 1L;
+		AppReviewRequestDTO request = new AppReviewRequestDTO(5, "너무 좋아용~");
+		when(memberRepository.findById(memberId)).thenReturn(Optional.of(mock(Member.class)));
+		appReviewService.create(request, memberId);
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> appReviewService.create(request, memberId));
+
+		// then
+		assertEquals(ErrorStatus.DUPLICATE_REQUEST, exception.getCode());
+		verify(appReviewRepository, times(1)).save(any());
 	}
 }
