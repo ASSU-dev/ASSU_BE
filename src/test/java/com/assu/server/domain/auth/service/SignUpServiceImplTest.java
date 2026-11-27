@@ -476,7 +476,7 @@ class SignUpServiceImplTest {
 
 		// 3. Then
 		verify(withdrawalService, times(1)).restoreMember(member);
-		verify(member, never()).setIsActivated(any());
+		verify(member, never()).changeActivationStatus(any());
 		verify(commonAuth, times(1)).updatePassword("hashed");
 		verify(partner, times(1)).updateBusinessInfo(
 			eq("숭실카페"), eq(PHONE), eq("서울특별시 동작구 상도로 369"), eq("101호"),

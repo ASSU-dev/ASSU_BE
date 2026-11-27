@@ -27,8 +27,15 @@ public class DeviceToken extends BaseEntity {
     @Column(nullable=false, length=200)
     private String token;
 
-    @Setter
     @NotNull
     @Column(nullable=false)
     private boolean active;
+
+    public void activate() {
+        this.active = true;
+    }
+
+    public void deactivate() {
+        this.active = false;
+    }
 }

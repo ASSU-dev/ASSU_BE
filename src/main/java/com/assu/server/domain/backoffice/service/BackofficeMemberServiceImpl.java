@@ -80,18 +80,16 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         assertApprovalTarget(member);
         assertApprovable(member);
 
-        member.setIsActivated(ActivationStatus.ACTIVE);
+        member.changeActivationStatus(ActivationStatus.ACTIVE);
         LocalDateTime now = LocalDateTime.now();
 
         if (member.getRole() == UserRole.PARTNER) {
             Partner partner = member.getPartnerProfile();
-            partner.setIsLicenseVerified(true);
-            partner.setLicenseVerifiedAt(now);
+            partner.verifyLicense(now);
             activatePartnerStore(partner);
         } else {
             Admin admin = member.getAdminProfile();
-            admin.setIsSignVerified(true);
-            admin.setSignVerifiedAt(now);
+            admin.verifySign(now);
         }
 
         String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
@@ -106,7 +104,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         assertApprovalTarget(member);
         assertPendingApproval(member);
 
-        member.setIsActivated(ActivationStatus.INACTIVE);
+        member.changeActivationStatus(ActivationStatus.INACTIVE);
 
         String roleLabel = member.getRole() == UserRole.PARTNER ? "제휴업체" : "학생회";
         runAfterCommit(() -> discordNotifier.send("❌ " + roleLabel + " 회원가입이 거절되었습니다."));
@@ -161,8 +159,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             throw new CustomAuthException(ErrorStatus.LICENSE_NOT_FOUND);
         }
 
-        partner.setIsLicenseVerified(true);
-        partner.setLicenseVerifiedAt(LocalDateTime.now());
+        partner.verifyLicense(LocalDateTime.now());
         return BackofficeMemberSummaryDTO.from(member);
     }
 
@@ -337,7 +334,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
                     log.error("파트너 승인 실패: 연결된 스토어가 없습니다. partnerId={}", partner.getId());
                     return new CustomAuthException(ErrorStatus.PARTNER_STORE_NOT_FOUND);
                 });
-        store.setIsActivate(ActivationStatus.ACTIVE);
+        store.changeStatus(ActivationStatus.ACTIVE);
         log.info("파트너 스토어 활성화: partnerId={}, storeId={}", partner.getId(), store.getId());
     }
 }

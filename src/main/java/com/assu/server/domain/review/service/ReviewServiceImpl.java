@@ -237,7 +237,7 @@ public class ReviewServiceImpl implements ReviewService {
         int rounded = (avg == null) ? 0 : (int) (Math.round(avg * 10f) / 10f);
 
         storeRepository.findById(storeId).ifPresent(s -> {
-            s.setRate(rounded);
+            s.updateRate(rounded);
             storeRepository.save(s);
         });
     }

@@ -16,7 +16,6 @@ import java.time.LocalDateTime;
         }
 )
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -43,4 +42,8 @@ public class SSUAuth extends BaseEntity {
     @Column(name = "authenticated_at")
     @NotNull
     private LocalDateTime authenticatedAt;
+
+    public void recordAuthentication(LocalDateTime authenticatedAt) {
+        this.authenticatedAt = authenticatedAt;
+    }
 }

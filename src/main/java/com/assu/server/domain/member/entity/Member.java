@@ -20,7 +20,6 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
 @DynamicUpdate
 @DynamicInsert
 @NoArgsConstructor
@@ -121,5 +120,29 @@ public class Member extends BaseEntity {
         } else if (profile instanceof BackofficeUser b) {
             this.backofficeProfile = b;
         }
+    }
+
+    public void linkCommonAuth(CommonAuth commonAuth) {
+        this.commonAuth = commonAuth;
+    }
+
+    public void changeActivationStatus(ActivationStatus activationStatus) {
+        this.isActivated = activationStatus;
+    }
+
+    public void changeProfileUrl(String profileUrl) {
+        this.profileUrl = profileUrl;
+    }
+
+    public void clearProfileUrl() {
+        this.profileUrl = null;
+    }
+
+    public void blockChat() {
+        this.chatBlocked = true;
+    }
+
+    public void unblockChat() {
+        this.chatBlocked = false;
     }
 }

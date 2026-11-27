@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Setter
 public class Admin {
 
     @Id
@@ -87,5 +86,31 @@ public class Admin {
         this.point = point;
         this.latitude = latitude;
         this.longitude = longitude;
+    }
+
+    public void verifySign(LocalDateTime verifiedAt) {
+        this.isSignVerified = true;
+        this.signVerifiedAt = verifiedAt;
+    }
+
+    public void changePhoneNum(String phoneNum) {
+        this.phoneNum = phoneNum;
+        this.isPhoneVerified = phoneNum != null;
+    }
+
+    public void updateProfile(String name, University university, Department department, Major major,
+                                  String officeAddress, String detailAddress) {
+        if (name != null && !name.isBlank()) this.name = name;
+        if (university != null) this.university = university;
+        if (department != null) this.department = department;
+        if (major != null) this.major = major;
+        if (officeAddress != null) this.officeAddress = officeAddress;
+        if (detailAddress != null) this.detailAddress = detailAddress;
+    }
+
+    public void relocate(double latitude, double longitude, Point point) {
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.point = point;
     }
 }

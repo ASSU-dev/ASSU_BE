@@ -204,7 +204,7 @@ class BackofficeSecurityIntegrationTest {
     void backofficeTokenCanRestoreDeletedMember() throws Exception {
         Member backofficeMember = createBackofficeMember("operator2@test.com", "Operator2");
         Member partnerMember = createPartnerMember("partner3@test.com", ActivationStatus.ACTIVE);
-        partnerMember.setDeletedAt(LocalDateTime.now());
+        partnerMember.withdraw();
         memberRepository.save(partnerMember);
 
         String accessToken = jwtUtil.issueBackofficeTokens(
@@ -284,7 +284,7 @@ class BackofficeSecurityIntegrationTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-        member.setPartnerProfile(partner);
+        member.linkProfile(partner);
 
         storeRepository.save(Store.builder()
                 .partner(partner)
@@ -326,7 +326,7 @@ class BackofficeSecurityIntegrationTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-        member.setPartnerProfile(partner);
+        member.linkProfile(partner);
         memberRepository.save(member);
     }
 
@@ -368,7 +368,7 @@ class BackofficeSecurityIntegrationTest {
                 .lastLoginAt(LocalDateTime.now())
                 .build());
 
-        member.setStudentProfile(Student.builder()
+        member.linkProfile(Student.builder()
                 .member(member)
                 .name("Test Student")
                 .build());
@@ -391,7 +391,7 @@ class BackofficeSecurityIntegrationTest {
                 .lastLoginAt(LocalDateTime.now())
                 .build());
 
-        member.setAdminProfile(Admin.builder()
+        member.linkProfile(Admin.builder()
                 .member(member)
                 .name("Test Admin")
                 .isPhoneVerified(false)

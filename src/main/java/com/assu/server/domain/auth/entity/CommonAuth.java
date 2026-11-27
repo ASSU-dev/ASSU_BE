@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
         }
 )
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -48,5 +47,13 @@ public class CommonAuth extends BaseEntity {
 
     public void updatePassword(String hashedPassword) {
         this.hashedPassword = hashedPassword;
+    }
+
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
+    public void recordLogin(LocalDateTime loggedInAt) {
+        this.lastLoginAt = loggedInAt;
     }
 }

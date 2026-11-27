@@ -263,7 +263,7 @@ public class PartnershipServiceImpl implements PartnershipService {
             store = storeRepository.save(store);
             created = true;
         } else if (store.getIsActivate() == ActivationStatus.INACTIVE) {
-            store.setIsActivate(ActivationStatus.SUSPEND);
+            store.changeStatus(ActivationStatus.SUSPEND);
             reactivated = true;
         }
 

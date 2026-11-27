@@ -66,7 +66,7 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
                 .getMember();
 
         CommonAuth commonAuth = member.getCommonAuth();
-        commonAuth.setLastLoginAt(LocalDateTime.now());
+        commonAuth.recordLogin(LocalDateTime.now());
         commonAuthRepository.save(commonAuth);
 
         if (member.isWithdrawn()) {
@@ -89,7 +89,7 @@ public class CommonAuthAdapter implements RealmAuthAdapter {
                 .lastLoginAt(LocalDateTime.now())
                 .build();
         commonAuthRepository.save(commonAuth);
-        member.setCommonAuth(commonAuth);
+        member.linkCommonAuth(commonAuth);
     }
 
     @Override

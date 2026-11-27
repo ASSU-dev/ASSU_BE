@@ -23,10 +23,8 @@ public class Paper extends BaseEntity {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Setter
 	private LocalDate partnershipPeriodStart;
 
-	@Setter
 	private LocalDate partnershipPeriodEnd;
 
     @Enumerated(EnumType.STRING)
@@ -69,5 +67,10 @@ public class Paper extends BaseEntity {
 
 	private static boolean isWithdrawn(Partner owner) {
 		return owner != null && owner.getMember() != null && owner.getMember().isWithdrawn();
+	}
+
+	public void changePartnershipPeriod(LocalDate start, LocalDate end) {
+		this.partnershipPeriodStart = start;
+		this.partnershipPeriodEnd = end;
 	}
 }

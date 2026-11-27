@@ -26,14 +26,11 @@ public class Store extends BaseEntity {
 	@JoinColumn(name = "partner_id")
 	private Partner partner;
 
-	@Setter
 	private Integer rate;
 
-	@Setter
 	@Enumerated(EnumType.STRING)
 	private ActivationStatus isActivate;
 
-	@Setter
 	private String name;
 
 	private String address;
@@ -67,4 +64,15 @@ public class Store extends BaseEntity {
 		this.point = point;
 	}
 
+	public void rename(String name) {
+		this.name = name;
+	}
+
+	public void changeStatus(ActivationStatus status) {
+		this.isActivate = status;
+	}
+
+	public void updateRate(int rate) {
+		this.rate = rate;
+	}
 }

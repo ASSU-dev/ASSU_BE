@@ -198,7 +198,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                         .enabled(true)
                         .build());
 
-        setting.setEnabled(!setting.getEnabled());
+        setting.toggle();
         notificationSettingRepository.save(setting);
         return setting.getEnabled();
     }
@@ -212,7 +212,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                         .enabled(true)
                         .build());
 
-        setting.setEnabled(enabled);
+        setting.changeEnabled(enabled);
         notificationSettingRepository.save(setting);
     }
 

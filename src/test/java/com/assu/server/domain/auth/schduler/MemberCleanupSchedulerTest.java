@@ -165,7 +165,7 @@ class MemberCleanupSchedulerTest {
         Student student = studentRepository.save(Student.builder()
                 .member(member)
                 .build());
-        member.setStudentProfile(student);
+        member.linkProfile(student);
 
         return memberRepository.save(member);
     }
@@ -189,7 +189,7 @@ class MemberCleanupSchedulerTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-        member.setPartnerProfile(partner);
+        member.linkProfile(partner);
 
         storeRepository.save(Store.builder()
                 .partner(partner)

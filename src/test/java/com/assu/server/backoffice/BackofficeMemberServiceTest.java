@@ -270,7 +270,7 @@ class BackofficeMemberServiceTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-        member.setPartnerProfile(partner);
+        member.linkProfile(partner);
 
         createStore(partner);
 

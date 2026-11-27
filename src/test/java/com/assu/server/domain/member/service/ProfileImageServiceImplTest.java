@@ -173,7 +173,7 @@ class ProfileImageServiceImplTest {
 		assertEquals("members/1/profile/new-key.png", result);
 		verify(amazonS3Manager, times(1)).deleteFile("members/1/profile/old.png");
 		verify(imageCdnManager, times(1)).invalidate("members/1/profile/old.png");
-		verify(member, times(1)).setProfileUrl("members/1/profile/new-key.png");
+		verify(member, times(1)).changeProfileUrl("members/1/profile/new-key.png");
 	}
 
 	@Test
@@ -193,7 +193,7 @@ class ProfileImageServiceImplTest {
 		// 3. Then
 		assertEquals("public/store-profiles/new-key.png", result);
 		verify(amazonS3Manager, times(1)).uploadFile(eq("public/store-profiles/new-key.png"), any());
-		verify(member, times(1)).setProfileUrl("public/store-profiles/new-key.png");
+		verify(member, times(1)).changeProfileUrl("public/store-profiles/new-key.png");
 	}
 
 	@Test
@@ -270,7 +270,7 @@ class ProfileImageServiceImplTest {
 
 		// 3. Then
 		assertEquals(ErrorStatus.PROFILE_IMAGE_DELETE_FAILED, exception.getCode());
-		verify(member, never()).setProfileUrl(any());
+		verify(member, never()).clearProfileUrl();
 	}
 
 	@Test
@@ -287,6 +287,6 @@ class ProfileImageServiceImplTest {
 		// 3. Then
 		verify(amazonS3Manager, times(1)).deleteFile("members/1/profile/key.png");
 		verify(imageCdnManager, times(1)).invalidate("members/1/profile/key.png");
-		verify(member, times(1)).setProfileUrl(null);
+		verify(member, times(1)).clearProfileUrl();
 	}
 }

@@ -316,7 +316,7 @@ public class SignUpServiceImpl implements SignUpService {
         if (storeOpt.isPresent()) {
             Store store = storeOpt.get();
             store.linkPartner(partner);
-            store.setName(name);
+            store.rename(name);
             store.relocate(address, detailAddress, lat, lng, point);
             storeRepository.save(store);
         } else {

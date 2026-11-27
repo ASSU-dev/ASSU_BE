@@ -59,7 +59,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
         String previousKey = member.getProfileUrl();
-        member.setProfileUrl(newKey);
+        member.changeProfileUrl(newKey);
         return previousKey;
     }
 
@@ -115,7 +115,7 @@ public class ProfileImageServiceImpl implements ProfileImageService{
         imageCdnManager.invalidate(currentKey);
 
         // 4) DB에서 프로필 URL 제거 (null로 설정)
-        member.setProfileUrl(null);
+        member.clearProfileUrl();
     }
 
     // 제휴업체 사진만 CDN 공개 경로에 저장한다

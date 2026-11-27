@@ -6,7 +6,6 @@ import lombok.*;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
@@ -29,4 +28,12 @@ public class NotificationSetting {
 
     @Column(nullable = false)
     private Boolean enabled;
+
+    public void changeEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void toggle() {
+        this.enabled = !this.enabled;
+    }
 }

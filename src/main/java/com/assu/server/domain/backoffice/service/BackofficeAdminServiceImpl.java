@@ -87,7 +87,7 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 			.lastLoginAt(LocalDateTime.now())
 			.build();
 		commonAuthRepository.save(commonAuth);
-		member.setCommonAuth(commonAuth);
+		member.linkCommonAuth(commonAuth);
 
 		// 5) officeAddress 기본값 처리
 		String address = req.officeAddress();
@@ -140,13 +140,13 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 			if (commonAuthRepository.existsByEmail(req.email())) {
 				throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
 			}
-			commonAuth.setEmail(req.email());
+			commonAuth.changeEmail(req.email());
 		}
 
 		// 2) 비밀번호 변경 처리
 		if (req.password() != null && !req.password().isBlank()) {
 			String hashed = passwordEncoder.encode(req.password());
-			commonAuth.setHashedPassword(hashed);
+			commonAuth.updatePassword(hashed);
 		}
 
 		// 3) 휴대폰 번호 변경 처리
@@ -156,42 +156,22 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 					|| adminRepository.existsByPhoneNum(req.phoneNumber())) {
 					throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
 				}
-				admin.setPhoneNum(req.phoneNumber());
-				admin.setIsPhoneVerified(true);
+				admin.changePhoneNum(req.phoneNumber());
 			} else {
 				// 빈값으로 수정 시 null 및 미인증 처리
-				admin.setPhoneNum(null);
-				admin.setIsPhoneVerified(false);
+				admin.changePhoneNum(null);
 			}
 		}
 
 		// 4) 기타 프로필 정보 변경 처리
-		if (req.name() != null && !req.name().isBlank()) {
-			admin.setName(req.name());
-		}
-		if (req.university() != null) {
-			admin.setUniversity(req.university());
-		}
-		if (req.department() != null) {
-			admin.setDepartment(req.department());
-		}
-		if (req.major() != null) {
-			admin.setMajor(req.major());
-		}
-		if (req.officeAddress() != null) {
-			admin.setOfficeAddress(req.officeAddress());
-		}
-		if (req.detailAddress() != null) {
-			admin.setDetailAddress(req.detailAddress());
-		}
+		admin.updateProfile(req.name(), req.university(), req.department(), req.major(),
+			req.officeAddress(), req.detailAddress());
 
 		// 5) 위도/경도 변경 처리
 		if (req.latitude() != null || req.longitude() != null) {
 			Double lat = req.latitude() != null ? req.latitude() : admin.getLatitude();
 			Double lng = req.longitude() != null ? req.longitude() : admin.getLongitude();
-			admin.setLatitude(lat);
-			admin.setLongitude(lng);
-			admin.setPoint(toPoint(lat, lng));
+			admin.relocate(lat, lng, toPoint(lat, lng));
 		}
 
 		commonAuthRepository.save(commonAuth);

@@ -67,7 +67,7 @@ public class BackofficeChatBlockServiceImpl implements BackofficeChatBlockServic
             throw new GeneralException(ErrorStatus.ALREADY_CHAT_BLOCKED);
         }
 
-        member.setChatBlocked(true);
+        member.blockChat();
 
         return BackofficeChatBlockDTO.MemberChatBlockResponseDTO.of(memberId, true);
     }
@@ -82,7 +82,7 @@ public class BackofficeChatBlockServiceImpl implements BackofficeChatBlockServic
             throw new GeneralException(ErrorStatus.NOT_CHAT_BLOCKED);
         }
 
-        member.setChatBlocked(false);
+        member.unblockChat();
 
         return BackofficeChatBlockDTO.MemberChatBlockResponseDTO.of(memberId, false);
     }

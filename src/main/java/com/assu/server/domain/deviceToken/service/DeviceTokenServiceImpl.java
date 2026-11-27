@@ -36,7 +36,7 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
 
         if (sameTokenOpt.isPresent()) {
             DeviceToken exist = sameTokenOpt.get();
-            exist.setActive(true);
+            exist.activate();
             return exist.getId();
         }
 
@@ -45,7 +45,7 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
                 deviceTokenRepository.findAllByMemberIdAndActiveTrue(memberId);
 
         for (DeviceToken deviceToken : activeTokens) {
-                deviceToken.setActive(false);
+                deviceToken.deactivate();
         }
 
         // 3) 신규 토큰 저장
@@ -67,7 +67,7 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
                     if (!deviceToken.getMember().getId().equals(memberId)) {
                         throw new DatabaseException(ErrorStatus.DEVICE_TOKEN_NOT_OWNED);
                     }
-                    deviceToken.setActive(false);
+                    deviceToken.deactivate();
                     incrementAfterCommit(meterRegistry.counter("device.token.deleted"));
                 }, () -> {
                     throw new DatabaseException(ErrorStatus.DEVICE_TOKEN_NOT_FOUND);
@@ -90,6 +90,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
     @Override
     public void deactivateTokens(List<String> invalidTokens) {
         List<DeviceToken> invalidEntities = deviceTokenRepository.findAllByTokenIn(invalidTokens);
-        invalidEntities.forEach(dt -> dt.setActive(false));
+        invalidEntities.forEach(DeviceToken::deactivate);
     }
 }

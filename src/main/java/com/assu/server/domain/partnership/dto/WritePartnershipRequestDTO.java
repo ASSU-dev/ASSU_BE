@@ -25,8 +25,7 @@ public record WritePartnershipRequestDTO(
         @NotNull List<@Valid PartnershipOptionRequestDTO> options
 ) {
     public void updatePaper(Paper paper) {
-        paper.setPartnershipPeriodStart(partnershipPeriodStart());
-        paper.setPartnershipPeriodEnd(partnershipPeriodEnd());
+        paper.changePartnershipPeriod(partnershipPeriodStart(), partnershipPeriodEnd());
         paper.changeStatus(ActivationStatus.SUSPEND);
     }
 

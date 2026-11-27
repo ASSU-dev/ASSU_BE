@@ -63,7 +63,7 @@ class LoginServiceSuspendTest {
                 .hashedPassword(passwordEncoder.encode("password123"))
                 .lastLoginAt(LocalDateTime.now())
                 .build());
-        member.setCommonAuth(commonAuth);
+        member.linkCommonAuth(commonAuth);
 
         Partner partner = partnerRepository.save(Partner.builder()
                 .member(member)
@@ -76,7 +76,7 @@ class LoginServiceSuspendTest {
                 .latitude(37.0)
                 .longitude(127.0)
                 .build());
-        member.setPartnerProfile(partner);
+        member.linkProfile(partner);
         memberRepository.save(member);
 
         assertThatThrownBy(() -> loginService.loginCommon(

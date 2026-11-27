@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@Setter
 public class Partner {
 
     @Id
@@ -69,4 +68,8 @@ public class Partner {
         this.longitude = longitude;
     }
 
+    public void verifyLicense(LocalDateTime verifiedAt) {
+        this.isLicenseVerified = true;
+        this.licenseVerifiedAt = verifiedAt;
+    }
 }
