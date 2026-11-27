@@ -1,0 +1,1 @@
+org.springframework.modulith.core.ApplicationModuleDetectionStrategy=com.assu.server.architecture.DomainModuleDetectionStrategy

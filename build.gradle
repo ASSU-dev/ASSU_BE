@@ -106,7 +106,9 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	// architecture test
-	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
+	testImplementation 'org.springframework.modulith:spring-modulith-core'
+	testImplementation 'org.springframework.modulith:spring-modulith-docs'
 
 	// h2 db (test)
 	runtimeOnly 'com.h2database:h2'
@@ -150,8 +152,15 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 }
 
+dependencyManagement {
+	imports {
+		mavenBom 'org.springframework.modulith:spring-modulith-bom:1.4.14'
+	}
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
+	systemProperties System.getProperties().findAll { it.key.toString().startsWith('archunit.') }
 }
 
 tasks.register('copyPrivateConfig', Copy) {
