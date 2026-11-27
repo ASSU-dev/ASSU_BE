@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -27,11 +28,13 @@ import com.assu.server.domain.chat.service.ChatService;
 import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.common.enums.ActivationStatus;
 import com.assu.server.domain.common.enums.UserRole;
+import com.assu.server.domain.map.dto.SelectedPlacePayload;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.partner.entity.Partner;
 import com.assu.server.domain.partner.repository.PartnerRepository;
 import com.assu.server.domain.partnership.dto.AdminPartnershipCheckResponseDTO;
+import com.assu.server.domain.partnership.dto.ManualPartnershipRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipFinalRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateRequestDTO;
 import com.assu.server.domain.partnership.dto.PartnershipStatusUpdateResponseDTO;
@@ -43,6 +46,7 @@ import com.assu.server.domain.partnership.repository.PaperContentRepository;
 import com.assu.server.domain.partnership.repository.PaperRepository;
 import com.assu.server.domain.store.entity.Store;
 import com.assu.server.domain.store.repository.StoreRepository;
+import com.assu.server.domain.store.service.StoreRegistrationLock;
 import com.assu.server.domain.student.entity.PartnershipUsage;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.PartnershipUsageRepository;
@@ -100,6 +104,9 @@ class PartnershipServiceImplTest {
 	@Mock
 	private AmazonS3Manager amazonS3Manager;
 
+	@Mock
+	private StoreRegistrationLock storeRegistrationLock;
+
 	private static final Long ADMIN_ID = 10L;
 	private static final Long PARTNER_ID = 20L;
 	private static final Long PAPER_ID = 100L;
@@ -111,7 +118,7 @@ class PartnershipServiceImplTest {
 			partnershipUsageRepository, studentRepository, studentService, contentRepository,
 			notificationService, chatService, chatRepository,
 			paperRepository, paperContentRepository, goodsRepository,
-			adminRepository, partnerRepository, storeRepository, amazonS3Manager);
+			adminRepository, partnerRepository, storeRepository, amazonS3Manager, storeRegistrationLock);
 	}
 
 	private Admin admin() {
@@ -451,5 +458,53 @@ class PartnershipServiceImplTest {
 		verify(paperRepository, times(1)).delete(paper);
 		// partner가 있는 제휴이므로 매장은 삭제되지 않음
 		verify(storeRepository, never()).delete(any(Store.class));
+	}
+
+	// ===== createManualPartnership =====
+
+	private ManualPartnershipRequestDTO manualRequest() {
+		SelectedPlacePayload place = SelectedPlacePayload.builder()
+			.roadAddress("서울특별시 동작구 상도로 369")
+			.address("서울특별시 동작구 상도동 1")
+			.build();
+		return new ManualPartnershipRequestDTO("역전할머니맥주", place, "2층",
+			LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31), List.of());
+	}
+
+	@Test
+	@DisplayName("같은 가게 등록 락을 얻지 못하면 STORE_REGISTRATION_IN_PROGRESS 예외가 발생하고 가게를 조회하거나 생성하지 않는다")
+	void createManualPartnership_whenStoreLockNotAcquired_thenThrowsWithoutCreatingStore() {
+		// given
+		doThrow(new GeneralException(ErrorStatus.STORE_REGISTRATION_IN_PROGRESS))
+			.when(storeRegistrationLock).acquire("역전할머니맥주", "서울특별시 동작구 상도로 369", "2층");
+
+		// when
+		GeneralException exception = assertThrows(GeneralException.class,
+			() -> partnershipService.createManualPartnership(manualRequest(), ADMIN_ID, null));
+
+		// then
+		assertEquals(ErrorStatus.STORE_REGISTRATION_IN_PROGRESS, exception.getCode());
+		verifyNoInteractions(adminRepository, storeRepository, paperRepository);
+	}
+
+	@Test
+	@DisplayName("수동 제휴 등록 시 어떤 DB 조회보다 먼저 가게 등록 락을 획득한 뒤 가게를 조회·생성한다")
+	void createManualPartnership_whenStoreAbsent_thenAcquiresLockBeforeAnyLookupAndCreatesStore() {
+		// given
+		when(adminRepository.findById(ADMIN_ID)).thenReturn(Optional.of(admin()));
+		when(storeRepository.findByNameAndAddressAndDetailAddress("역전할머니맥주", "서울특별시 동작구 상도로 369", "2층"))
+			.thenReturn(Optional.empty());
+		when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> invocation.getArgument(0));
+		when(paperRepository.save(any(Paper.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		// when
+		partnershipService.createManualPartnership(manualRequest(), ADMIN_ID, null);
+
+		// then
+		InOrder inOrder = inOrder(storeRegistrationLock, adminRepository, storeRepository);
+		inOrder.verify(storeRegistrationLock).acquire("역전할머니맥주", "서울특별시 동작구 상도로 369", "2층");
+		inOrder.verify(adminRepository).findById(ADMIN_ID);
+		inOrder.verify(storeRepository).findByNameAndAddressAndDetailAddress("역전할머니맥주", "서울특별시 동작구 상도로 369", "2층");
+		inOrder.verify(storeRepository).save(any(Store.class));
 	}
 }
