@@ -1,7 +1,7 @@
 package com.assu.server.domain.notification.repository;
 
 import com.assu.server.domain.notification.entity.NotificationSetting;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

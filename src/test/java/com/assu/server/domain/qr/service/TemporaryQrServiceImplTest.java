@@ -18,7 +18,7 @@ import com.assu.server.domain.common.entity.enums.University;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.qr.dto.TemporaryQrRequestDTO;
 import com.assu.server.domain.qr.entity.Qr;
-import com.assu.server.domain.qr.entity.SortByMethod;
+import com.assu.server.domain.qr.entity.enums.SortByMethod;
 import com.assu.server.domain.qr.repository.TemporaryQrRepository;
 import com.assu.server.domain.student.entity.Student;
 import com.assu.server.domain.student.repository.StudentRepository;

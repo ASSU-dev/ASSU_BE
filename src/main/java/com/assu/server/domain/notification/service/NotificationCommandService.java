@@ -1,7 +1,7 @@
 package com.assu.server.domain.notification.service;
 
 import com.assu.server.domain.notification.entity.Notification;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 
 import java.nio.file.AccessDeniedException;
 import java.util.Map;

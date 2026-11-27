@@ -1,7 +1,7 @@
 package com.assu.server.domain.qr.dto;
 
 import com.assu.server.domain.qr.entity.Qr;
-import com.assu.server.domain.qr.entity.SortByMethod;
+import com.assu.server.domain.qr.entity.enums.SortByMethod;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;

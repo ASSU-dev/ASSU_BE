@@ -1,4 +1,4 @@
-package com.assu.server.domain.notification.entity;
+package com.assu.server.domain.notification.entity.enums;
 
 public enum NotificationType {
     CHAT("chat"),

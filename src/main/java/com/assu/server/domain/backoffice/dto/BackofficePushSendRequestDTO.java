@@ -1,6 +1,6 @@
 package com.assu.server.domain.backoffice.dto;
 
-import com.assu.server.domain.backoffice.entity.PushTargetType;
+import com.assu.server.domain.backoffice.entity.enums.PushTargetType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

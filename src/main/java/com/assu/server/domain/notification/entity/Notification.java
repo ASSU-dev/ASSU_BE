@@ -1,4 +1,6 @@
 package com.assu.server.domain.notification.entity;
+
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.common.entity.BaseEntity;
 
 import com.assu.server.domain.member.entity.Member;

@@ -1,6 +1,6 @@
 package com.assu.server.domain.qr.dto;
 
-import com.assu.server.domain.qr.entity.SortByMethod;
+import com.assu.server.domain.qr.entity.enums.SortByMethod;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 public record TemporaryQrResponseDTO(

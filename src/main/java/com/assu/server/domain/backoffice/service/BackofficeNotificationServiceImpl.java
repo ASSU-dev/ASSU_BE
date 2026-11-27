@@ -4,7 +4,7 @@ import com.assu.server.domain.backoffice.dto.BackofficeOutboxResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePushLogResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePushSendRequestDTO;
 import com.assu.server.domain.backoffice.entity.BackofficePushLog;
-import com.assu.server.domain.backoffice.entity.PushTargetType;
+import com.assu.server.domain.backoffice.entity.enums.PushTargetType;
 import com.assu.server.domain.backoffice.repository.BackofficePushLogRepository;
 import com.assu.server.domain.common.dto.PageResponseDTO;
 import com.assu.server.domain.common.enums.UserRole;

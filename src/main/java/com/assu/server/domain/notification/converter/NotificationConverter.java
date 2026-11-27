@@ -2,7 +2,7 @@ package com.assu.server.domain.notification.converter;
 
 import com.assu.server.domain.notification.dto.NotificationResponseDTO;
 import com.assu.server.domain.notification.entity.Notification;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 
 import java.time.Duration;
 import java.time.LocalDateTime;

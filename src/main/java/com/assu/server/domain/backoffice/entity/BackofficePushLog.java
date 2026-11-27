@@ -1,5 +1,7 @@
 package com.assu.server.domain.backoffice.entity;
 
+import com.assu.server.domain.backoffice.entity.enums.PushTargetType;
+
 import jakarta.persistence.*;
 import lombok.*;
 

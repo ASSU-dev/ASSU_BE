@@ -6,7 +6,7 @@ import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.entity.Notification;
 import com.assu.server.domain.notification.entity.NotificationOutbox;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
 import com.assu.server.domain.notification.repository.NotificationRepository;
 import com.assu.server.support.CommonMockConfig;

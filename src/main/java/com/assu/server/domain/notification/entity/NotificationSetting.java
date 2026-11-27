@@ -25,7 +25,7 @@ public class NotificationSetting {
     // CHAT, PARTNER_SUGGESTION, PARTNER_PROPOSAL ...
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private com.assu.server.domain.notification.entity.NotificationType type;
+    private com.assu.server.domain.notification.entity.enums.NotificationType type;
 
     @Column(nullable = false)
     private Boolean enabled;

@@ -3,6 +3,7 @@ package com.assu.server.domain.notification.service;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.entity.*;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
 import com.assu.server.domain.notification.repository.NotificationRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;

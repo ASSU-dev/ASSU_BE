@@ -1,5 +1,7 @@
 package com.assu.server.domain.qr.entity;
 
+import com.assu.server.domain.qr.entity.enums.SortByMethod;
+
 import com.assu.server.domain.common.entity.BaseEntity;
 
 import jakarta.persistence.Entity;

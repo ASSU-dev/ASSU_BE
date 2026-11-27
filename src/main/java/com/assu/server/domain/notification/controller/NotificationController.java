@@ -1,7 +1,7 @@
 package com.assu.server.domain.notification.controller;
 
 import com.assu.server.domain.notification.dto.NotificationSettingsResponseDTO;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.notification.service.NotificationCommandService;
 import com.assu.server.domain.notification.service.NotificationQueryService;
 import com.assu.server.global.apiPayload.BaseResponse;

@@ -7,7 +7,7 @@ import com.assu.server.domain.notification.converter.NotificationConverter;
 import com.assu.server.domain.notification.dto.NotificationResponseDTO;
 import com.assu.server.domain.notification.dto.NotificationSettingsResponseDTO;
 import com.assu.server.domain.notification.entity.Notification;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.notification.repository.NotificationRepository;
 import com.assu.server.domain.notification.repository.NotificationSettingRepository;
 import com.assu.server.global.apiPayload.code.status.ErrorStatus;

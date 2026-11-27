@@ -23,7 +23,7 @@ import com.assu.server.domain.member.repository.MemberRepository;
 import com.assu.server.domain.notification.entity.Notification;
 import com.assu.server.domain.notification.entity.NotificationOutbox;
 import com.assu.server.domain.notification.entity.NotificationSetting;
-import com.assu.server.domain.notification.entity.NotificationType;
+import com.assu.server.domain.notification.entity.enums.NotificationType;
 import com.assu.server.domain.notification.entity.OutboxCreatedEvent;
 import com.assu.server.domain.notification.repository.NotificationOutboxRepository;
 import com.assu.server.domain.notification.repository.NotificationRepository;
