@@ -23,7 +23,7 @@ Use Java 17 with 4-space indentation. Do not use wildcard imports.
 
 - **DTO**: always use `record`. Class name follows `~~DTO`. Include `@Schema(description, example)` on every field.
 - **Converter**: no separate Converter class. Put static factory methods directly in the DTO record.
-- **Service**: annotate the implementation class with `@Transactional`. Use `readOnly = true` for read-only services.
+- **Service**: by default annotate the implementation class with `@Transactional(readOnly = true)` and add `@Transactional` only on write methods. Services that control transaction boundaries themselves (`TransactionTemplate`, `REQUIRES_NEW`, `SUPPORTS`, external calls outside the transaction) declare it per method without a class-level annotation. Services that do not touch the DB (Redis or external API only) declare none. Use only Spring's `@Transactional` (not `jakarta.transaction.Transactional`), and only on public methods in the service layer.
 - **Enum**: place domain-specific enums in `<domain>/entity/enums/` package.
 - **Field naming**: names must reveal intent. e.g., `hashedPassword` not `password`.
 - **No unused code**: remove all unused imports, log statements, methods, and files.

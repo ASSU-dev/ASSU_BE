@@ -193,9 +193,11 @@ public record StoreResponseDTO(
 
 ### Service & Transaction
 
-- `@Transactional`은 **서비스 구현 클래스 레벨**에 선언.
-- 읽기 전용 서비스는 클래스에 `@Transactional(readOnly = true)`.
-- 쓰기 작업이 포함된 개별 메서드에만 `@Transactional` 별도 선언.
+- 기본은 **서비스 구현 클래스 레벨**에 `@Transactional(readOnly = true)`, 쓰기 메서드에만 `@Transactional` 별도 선언.
+- 트랜잭션 경계를 직접 제어하는 서비스(`TransactionTemplate`, `REQUIRES_NEW`, `SUPPORTS`, 외부 호출을 트랜잭션 밖으로 분리)는 클래스 레벨을 두지 않고 메서드 단위로 선언한다. 클래스 레벨 readOnly가 있으면 바깥 트랜잭션에 합류해 의도가 깨진다.
+- DB를 쓰지 않는 서비스(Redis·외부 API만 사용)는 선언하지 않는다.
+- `org.springframework.transaction.annotation.Transactional`만 사용 (`jakarta.transaction.Transactional` 금지).
+- `@Transactional`은 service 계층에만, public 메서드에만 선언 (private 메서드는 프록시가 적용되지 않아 무시됨).
 
 ```java
 @Service
