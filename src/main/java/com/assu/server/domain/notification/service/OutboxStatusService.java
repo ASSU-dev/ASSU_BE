@@ -26,8 +26,10 @@ public class OutboxStatusService {
     public static final int MAX_RETRY = 3;
     private static final Duration BASE_RETRY_DELAY = Duration.ofSeconds(30);
     private static final Duration SENDING_LEASE = Duration.ofMinutes(5);
-    // 큐에 넣은 뒤 이 시간 안에 소비되지 않으면(브로커 유실, 소비 실패) 재시도 대상으로 본다
-    private static final Duration DISPATCH_TIMEOUT = Duration.ofMinutes(5);
+    // 대량 발송으로 큐가 밀려도 정상 소비 전에 재발행되지 않도록 큐 적체 시간보다 넉넉하게 둔다
+    private static final Duration DISPATCH_TIMEOUT = Duration.ofMinutes(30);
+    // 기한이 이보다 오래 지난 DISPATCHED는 배포 전부터 멈춰 있던 행으로 보고, 오래된 알림이 뒤늦게 나가지 않도록 자동 재시도하지 않는다
+    private static final Duration DISPATCH_STALE_HORIZON = Duration.ofHours(1);
 
     private final NotificationOutboxRepository repo;
     private final MeterRegistry meterRegistry;
@@ -92,7 +94,8 @@ public class OutboxStatusService {
 
     @Transactional(readOnly = true)
     public List<Long> findRetryTargetIds(int limit) {
-        return repo.findRetryTargetIds(LocalDateTime.now(), PageRequest.of(0, limit));
+        LocalDateTime now = LocalDateTime.now();
+        return repo.findRetryTargetIds(now, now.minus(DISPATCH_STALE_HORIZON), PageRequest.of(0, limit));
     }
 
     // 재시도 선점. retryCount 조건부 UPDATE라 여러 파드가 동시에 시도해도 한 파드만 성공한다.
@@ -104,7 +107,7 @@ public class OutboxStatusService {
         LocalDateTime now = LocalDateTime.now();
         int retryCount = outbox.getRetryCount();
         if (retryCount >= MAX_RETRY) {
-            if (repo.giveUpById(id, now) > 0) {
+            if (repo.giveUpById(id, now, now.minus(DISPATCH_STALE_HORIZON)) > 0) {
                 meterRegistry.counter("notification.outbox.retry", "result", "exhausted").increment();
                 log.warn("[OutboxStatus] retry exhausted outboxId={} retryCount={}", id, retryCount);
             }
@@ -112,7 +115,8 @@ public class OutboxStatusService {
         }
 
         OutboxCreatedEvent event = toEvent(outbox);
-        int claimed = repo.claimForRetry(id, retryCount, now, now.plus(retryDelay(retryCount + 1)));
+        int claimed = repo.claimForRetry(id, retryCount, now, now.plus(retryDelay(retryCount + 1)),
+                now.minus(DISPATCH_STALE_HORIZON));
         if (claimed == 0) return Optional.empty();
 
         meterRegistry.counter("notification.outbox.retry", "result", "claimed").increment();

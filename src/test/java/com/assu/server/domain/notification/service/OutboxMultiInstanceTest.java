@@ -75,10 +75,10 @@ class OutboxMultiInstanceTest {
         // given: 두 파드가 retryCount=0을 읽고, 한 파드가 먼저 선점
         Long outboxId = saveOutbox(NotificationOutbox.Status.PENDING, 0, LocalDateTime.now().minusSeconds(1));
         LocalDateTime now = LocalDateTime.now();
-        int first = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, now, now.minusSeconds(1)));
+        int first = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, now, now.minusSeconds(1), now.minusHours(1)));
 
         // when: 다른 파드가 읽어둔 retryCount=0으로 선점 시도 (next_attempt_at 조건은 통과하도록 과거 시각)
-        int second = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, LocalDateTime.now(), now.minusSeconds(1)));
+        int second = inTx(() -> outboxRepository.claimForRetry(outboxId, 0, LocalDateTime.now(), now.minusSeconds(1), now.minusHours(1)));
 
         // then
         assertThat(first).isEqualTo(1);
@@ -122,10 +122,11 @@ class OutboxMultiInstanceTest {
         Long stuck = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().minusSeconds(1));
         Long inFlight = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().plusMinutes(5));
         Long legacy = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, null);
+        Long staleSinceLongAgo = saveOutbox(NotificationOutbox.Status.DISPATCHED, 0, LocalDateTime.now().minusDays(3));
 
         List<Long> targets = outboxStatusService.findRetryTargetIds(100);
 
-        assertThat(targets).contains(stuck).doesNotContain(inFlight, legacy);
+        assertThat(targets).contains(stuck).doesNotContain(inFlight, legacy, staleSinceLongAgo);
         assertThat(outboxStatusService.claimForRetry(stuck)).isPresent();
         NotificationOutbox claimed = outboxRepository.findById(stuck).orElseThrow();
         assertThat(claimed.getStatus()).isEqualTo(NotificationOutbox.Status.PENDING);
@@ -140,7 +141,7 @@ class OutboxMultiInstanceTest {
 
         NotificationOutbox outbox = outboxRepository.findById(outboxId).orElseThrow();
         assertThat(outbox.getStatus()).isEqualTo(NotificationOutbox.Status.DISPATCHED);
-        assertThat(outbox.getNextAttemptAt()).isAfter(LocalDateTime.now().plusMinutes(4));
+        assertThat(outbox.getNextAttemptAt()).isAfter(LocalDateTime.now().plusMinutes(29));
         assertThat(outboxStatusService.findRetryTargetIds(100)).doesNotContain(outboxId);
     }
 

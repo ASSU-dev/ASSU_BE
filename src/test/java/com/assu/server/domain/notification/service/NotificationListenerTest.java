@@ -6,6 +6,7 @@ import com.rabbitmq.client.Channel;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -63,14 +65,20 @@ class NotificationListenerTest {
     }
 
     @Test
-    void onMessage_whenMarkSentKeepsFailingAfterDelivery_thenAcksWithoutMarkingFailed() throws Exception {
+    void onMessage_whenMarkSentKeepsFailingAfterDelivery_thenAcksAndRetriesInBackground() throws Exception {
+        ReflectionTestUtils.setField(listener, "deferredMarkSentDelayMillis", 10L);
         when(fcmClient.sendToMemberId(anyLong(), any(), any(), any()))
                 .thenReturn(new FcmClient.FcmResult(1, 0, 0, List.of()));
-        doThrow(new IllegalStateException("db down")).when(outboxStatus).markSent(OUTBOX_ID);
+        doThrow(new IllegalStateException("db down"))
+                .doThrow(new IllegalStateException("db down"))
+                .doThrow(new IllegalStateException("db down"))
+                .doThrow(new IllegalStateException("db down"))
+                .doNothing()
+                .when(outboxStatus).markSent(OUTBOX_ID);
 
         listener.onMessage(message(), channel, TAG);
 
-        verify(outboxStatus, times(3)).markSent(OUTBOX_ID);
+        verify(outboxStatus, timeout(2000).times(5)).markSent(OUTBOX_ID);
         verify(outboxStatus, never()).markFailed(OUTBOX_ID);
         verify(outboxStatus, never()).scheduleRetry(OUTBOX_ID);
         verify(channel).basicAck(TAG, false);
@@ -86,6 +94,16 @@ class NotificationListenerTest {
 
         verify(outboxStatus, times(2)).markSent(OUTBOX_ID);
         verify(outboxStatus, never()).markFailed(OUTBOX_ID);
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void onMessage_whenClaimFails_thenAcksWithoutSending() throws Exception {
+        when(outboxStatus.claimForSending(OUTBOX_ID)).thenThrow(new IllegalStateException("db down"));
+
+        listener.onMessage(message(), channel, TAG);
+
+        verify(fcmClient, never()).sendToMemberId(anyLong(), any(), any(), any());
         verify(channel).basicAck(TAG, false);
     }
 
