@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.assu.server.domain.admin.entity.Admin;
 import com.assu.server.domain.admin.repository.AdminRepository;
 import com.assu.server.domain.auth.entity.CommonAuth;
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.repository.CommonAuthRepository;
 import com.assu.server.domain.backoffice.dto.BackofficeAdminCreateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeAdminCreateResponseDTO;
@@ -57,14 +57,14 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 	public BackofficeAdminCreateResponseDTO createAdmin(BackofficeAdminCreateRequestDTO req) {
 		// 1) 이메일 중복 체크
 		if (commonAuthRepository.existsByEmail(req.email())) {
-			throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
+			throw new GeneralException(ErrorStatus.EXISTED_EMAIL);
 		}
 
 		// 2) 휴대폰 번호 중복 체크 (전화번호가 기입된 경우만)
 		if (req.phoneNumber() != null && !req.phoneNumber().isBlank()) {
 			if (partnerRepository.existsByPhoneNum(req.phoneNumber())
 				|| adminRepository.existsByPhoneNum(req.phoneNumber())) {
-				throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
+				throw new GeneralException(ErrorStatus.EXISTED_PHONE);
 			}
 		}
 
@@ -131,14 +131,14 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 	@Override
 	public BackofficeAdminUpdateResponseDTO updateAdmin(Long adminId, BackofficeAdminUpdateRequestDTO req) {
 		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+			.orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 		Member member = admin.getMember();
 		CommonAuth commonAuth = member.getCommonAuth();
 
 		// 1) 이메일 변경 처리
 		if (req.email() != null && !req.email().isBlank() && !req.email().equals(commonAuth.getEmail())) {
 			if (commonAuthRepository.existsByEmail(req.email())) {
-				throw new CustomAuthException(ErrorStatus.EXISTED_EMAIL);
+				throw new GeneralException(ErrorStatus.EXISTED_EMAIL);
 			}
 			commonAuth.setEmail(req.email());
 		}
@@ -154,7 +154,7 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 			if (!req.phoneNumber().isBlank()) {
 				if (partnerRepository.existsByPhoneNum(req.phoneNumber())
 					|| adminRepository.existsByPhoneNum(req.phoneNumber())) {
-					throw new CustomAuthException(ErrorStatus.EXISTED_PHONE);
+					throw new GeneralException(ErrorStatus.EXISTED_PHONE);
 				}
 				admin.setPhoneNum(req.phoneNumber());
 				admin.setIsPhoneVerified(true);
@@ -214,7 +214,7 @@ public class BackofficeAdminServiceImpl implements BackofficeAdminService {
 	@Override
 	public void deleteAdmin(Long adminId) {
 		Member member = memberRepository.findById(adminId)
-			.orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+			.orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
 		memberRepository.delete(member);
 	}
 

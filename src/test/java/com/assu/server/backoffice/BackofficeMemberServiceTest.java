@@ -1,6 +1,6 @@
 package com.assu.server.backoffice;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberSummaryDTO;
 import com.assu.server.domain.backoffice.service.BackofficeMemberService;
@@ -95,8 +95,8 @@ class BackofficeMemberServiceTest {
                 .build());
 
         assertThatThrownBy(() -> backofficeMemberService.forceWithdrawMember(member.getId()))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.CANNOT_WITHDRAW_BACKOFFICE_MEMBER);
     }
 
@@ -132,8 +132,8 @@ class BackofficeMemberServiceTest {
         Member member = createPartnerMember(ActivationStatus.ACTIVE);
 
         assertThatThrownBy(() -> backofficeMemberService.approveMember(member.getId()))
-                .isInstanceOf(CustomAuthException.class)
-                .extracting(ex -> ((CustomAuthException) ex).getCode())
+                .isInstanceOf(GeneralException.class)
+                .extracting(ex -> ((GeneralException) ex).getCode())
                 .isEqualTo(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
     }
 

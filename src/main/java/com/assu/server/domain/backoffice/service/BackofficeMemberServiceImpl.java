@@ -1,7 +1,7 @@
 package com.assu.server.domain.backoffice.service;
 
 import com.assu.server.domain.admin.entity.Admin;
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.auth.service.WithdrawalService;
 import com.assu.server.domain.backoffice.dto.BackofficeDocumentUrlResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeMemberDetailDTO;
@@ -117,9 +117,9 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     @Override
     public void forceWithdrawMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
         if (member.getRole() == UserRole.BACKOFFICE) {
-            throw new CustomAuthException(ErrorStatus.CANNOT_WITHDRAW_BACKOFFICE_MEMBER);
+            throw new GeneralException(ErrorStatus.CANNOT_WITHDRAW_BACKOFFICE_MEMBER);
         }
         withdrawalService.withdrawMember(member);
     }
@@ -127,11 +127,11 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     @Override
     public BackofficeMemberSummaryDTO restoreMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
         assertNotBackofficeOperator(member);
 
         if (!member.isWithdrawn()) {
-            throw new CustomAuthException(ErrorStatus.MEMBER_NOT_DELETED);
+            throw new GeneralException(ErrorStatus.MEMBER_NOT_DELETED);
         }
 
         withdrawalService.restoreMember(member);
@@ -143,11 +143,11 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     public BackofficeDocumentUrlResponseDTO getPartnerLicenseUrl(Long memberId) {
         Partner partner = findPartner(memberId);
         if (partner.getLicenseUrl() == null || partner.getLicenseUrl().isBlank()) {
-            throw new CustomAuthException(ErrorStatus.LICENSE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.LICENSE_NOT_FOUND);
         }
         String url = amazonS3Manager.generatePresignedUrl(partner.getLicenseUrl());
         if (url == null || url.isBlank()) {
-            throw new CustomAuthException(ErrorStatus.LICENSE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.LICENSE_NOT_FOUND);
         }
         return BackofficeDocumentUrlResponseDTO.of(url);
     }
@@ -158,7 +158,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         Partner partner = findPartnerProfile(member);
 
         if (partner.getLicenseUrl() == null || partner.getLicenseUrl().isBlank()) {
-            throw new CustomAuthException(ErrorStatus.LICENSE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.LICENSE_NOT_FOUND);
         }
 
         partner.setIsLicenseVerified(true);
@@ -171,11 +171,11 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
     public BackofficeDocumentUrlResponseDTO getAdminSignImageUrl(Long memberId) {
         Admin admin = findAdmin(memberId);
         if (admin.getSignImageUrl() == null || admin.getSignImageUrl().isBlank()) {
-            throw new CustomAuthException(ErrorStatus.SIGN_IMAGE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.SIGN_IMAGE_NOT_FOUND);
         }
         String url = amazonS3Manager.generatePresignedUrl(admin.getSignImageUrl());
         if (url == null || url.isBlank()) {
-            throw new CustomAuthException(ErrorStatus.SIGN_IMAGE_NOT_FOUND);
+            throw new GeneralException(ErrorStatus.SIGN_IMAGE_NOT_FOUND);
         }
         return BackofficeDocumentUrlResponseDTO.of(url);
     }
@@ -195,17 +195,17 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
 
     private Member findMemberWithRoleProfile(Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
         assertNotBackofficeOperator(member);
 
         return switch (member.getRole()) {
             case STUDENT -> memberRepository.findStudentWithProfileById(memberId)
-                    .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                    .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
             case ADMIN -> memberRepository.findAdminWithProfileById(memberId)
-                    .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
+                    .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
             case PARTNER -> memberRepository.findPartnerWithProfileById(memberId)
-                    .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER));
-            case BACKOFFICE -> throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+                    .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_MEMBER));
+            case BACKOFFICE -> throw new GeneralException(ErrorStatus.NO_SUCH_MEMBER);
         };
     }
 
@@ -256,7 +256,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
             case STUDENT -> BackofficeMemberDetailDTO.fromStudent(member);
             case ADMIN -> BackofficeMemberDetailDTO.fromAdmin(member);
             case PARTNER -> BackofficeMemberDetailDTO.fromPartner(member, resolveProfileImageUrl(member));
-            case BACKOFFICE -> throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+            case BACKOFFICE -> throw new GeneralException(ErrorStatus.NO_SUCH_MEMBER);
         };
     }
 
@@ -270,51 +270,51 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
 
     private Partner findPartner(Long memberId) {
         Member member = memberRepository.findPartnerWithProfileById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_PARTNER));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_PARTNER));
         return findPartnerProfile(member);
     }
 
     private Partner findPartnerProfile(Member member) {
         if (member.getRole() != UserRole.PARTNER || member.getPartnerProfile() == null) {
-            throw new CustomAuthException(ErrorStatus.NO_SUCH_PARTNER);
+            throw new GeneralException(ErrorStatus.NO_SUCH_PARTNER);
         }
         return member.getPartnerProfile();
     }
 
     private Admin findAdmin(Long memberId) {
         Member member = memberRepository.findAdminWithProfileById(memberId)
-                .orElseThrow(() -> new CustomAuthException(ErrorStatus.NO_SUCH_ADMIN));
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NO_SUCH_ADMIN));
         if (member.getAdminProfile() == null) {
-            throw new CustomAuthException(ErrorStatus.NO_SUCH_ADMIN);
+            throw new GeneralException(ErrorStatus.NO_SUCH_ADMIN);
         }
         return member.getAdminProfile();
     }
 
     private void assertNotBackofficeOperator(Member member) {
         if (member.getRole() == UserRole.BACKOFFICE) {
-            throw new CustomAuthException(ErrorStatus.NO_SUCH_MEMBER);
+            throw new GeneralException(ErrorStatus.NO_SUCH_MEMBER);
         }
     }
 
     private void assertApprovalTarget(Member member) {
         if (member.getRole() != UserRole.ADMIN && member.getRole() != UserRole.PARTNER) {
-            throw new CustomAuthException(ErrorStatus.MEMBER_APPROVAL_NOT_SUPPORTED);
+            throw new GeneralException(ErrorStatus.MEMBER_APPROVAL_NOT_SUPPORTED);
         }
         if (member.isWithdrawn()) {
-            throw new CustomAuthException(ErrorStatus.MEMBER_ALREADY_WITHDRAWN);
+            throw new GeneralException(ErrorStatus.MEMBER_ALREADY_WITHDRAWN);
         }
     }
 
     private void assertPendingApproval(Member member) {
         if (member.getIsActivated() != ActivationStatus.SUSPEND) {
-            throw new CustomAuthException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
+            throw new GeneralException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
         }
     }
 
     // 승인은 대기(SUSPEND)뿐 아니라 거절(INACTIVE)된 회원의 재승인도 허용한다
     private void assertApprovable(Member member) {
         if (member.getIsActivated() == ActivationStatus.ACTIVE) {
-            throw new CustomAuthException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
+            throw new GeneralException(ErrorStatus.MEMBER_NOT_PENDING_APPROVAL);
         }
     }
 
@@ -335,7 +335,7 @@ public class BackofficeMemberServiceImpl implements BackofficeMemberService {
         Store store = storeRepository.findByPartner(partner)
                 .orElseThrow(() -> {
                     log.error("파트너 승인 실패: 연결된 스토어가 없습니다. partnerId={}", partner.getId());
-                    return new CustomAuthException(ErrorStatus.PARTNER_STORE_NOT_FOUND);
+                    return new GeneralException(ErrorStatus.PARTNER_STORE_NOT_FOUND);
                 });
         store.setIsActivate(ActivationStatus.ACTIVE);
         log.info("파트너 스토어 활성화: partnerId={}, storeId={}", partner.getId(), store.getId());

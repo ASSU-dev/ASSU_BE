@@ -19,7 +19,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.assu.server.domain.auth.exception.CustomAuthException;
+import com.assu.server.global.exception.GeneralException;
 import com.assu.server.domain.common.enums.UserRole;
 import com.assu.server.domain.member.entity.Member;
 import com.assu.server.domain.member.repository.MemberRepository;
@@ -71,7 +71,7 @@ class ProfileImageServiceImplTest {
 		MockMultipartFile emptyFile = new MockMultipartFile("image", "profile.png", "image/png", new byte[0]);
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, emptyFile));
 
 		// 3. Then
@@ -86,7 +86,7 @@ class ProfileImageServiceImplTest {
 			"image", "profile.png", "image/png", new byte[5 * 1024 * 1024 + 1]);
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, largeFile));
 
 		// 3. Then
@@ -101,7 +101,7 @@ class ProfileImageServiceImplTest {
 			"image", "../../etc/passwd.png", "image/png", new byte[]{1});
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, badFile));
 
 		// 3. Then
@@ -116,7 +116,7 @@ class ProfileImageServiceImplTest {
 			"image", "malware.exe", "image/png", new byte[]{1});
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, exeFile));
 
 		// 3. Then
@@ -131,7 +131,7 @@ class ProfileImageServiceImplTest {
 			"image", "profile.png", "application/pdf", new byte[]{1});
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, fakeImage));
 
 		// 3. Then
@@ -145,7 +145,7 @@ class ProfileImageServiceImplTest {
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.empty());
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.updateProfileImage(MEMBER_ID, validImage()));
 
 		// 3. Then
@@ -229,7 +229,7 @@ class ProfileImageServiceImplTest {
 		when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.getProfileImageUrl(MEMBER_ID));
 
 		// 3. Then
@@ -265,7 +265,7 @@ class ProfileImageServiceImplTest {
 		doThrow(new RuntimeException("S3 오류")).when(amazonS3Manager).deleteFile("members/1/profile/key.png");
 
 		// 2. When
-		CustomAuthException exception = assertThrows(CustomAuthException.class,
+		GeneralException exception = assertThrows(GeneralException.class,
 			() -> profileImageService.deleteProfileImage(MEMBER_ID));
 
 		// 3. Then
