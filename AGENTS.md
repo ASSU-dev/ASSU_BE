@@ -28,7 +28,7 @@ Use Java 17 with 4-space indentation. Do not use wildcard imports.
 - **Field naming**: names must reveal intent. e.g., `hashedPassword` not `password`.
 - **No unused code**: remove all unused imports, log statements, methods, and files.
 - **No unnecessary comments**: only add a comment when the WHY is non-obvious.
-- **@BackofficeAudited**: apply only to CUD (Create/Update/Delete) handler methods in backoffice controllers. Not for GET.
+- **@BackofficeAudited**: apply to CUD (Create/Update/Delete) handler methods in backoffice controllers (default type `WRITE`). GET handlers that read sensitive data use `type = BackofficeAuditType.READ` with an action ending in `_READ`. ArchUnit enforces GET ↔ `READ`.
 
 ## Commit Convention
 

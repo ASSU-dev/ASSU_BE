@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
+import com.assu.server.domain.backoffice.entity.enums.BackofficeAuditType;
 import com.assu.server.domain.backoffice.dto.BackofficeCurationTitleUpdateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeHomeAutoRecommendResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeHomeCurationResponseDTO;
@@ -33,7 +34,7 @@ public class BackofficeHomeCurationController {
 
     private final BackofficeHomeCurationService backofficeHomeCurationService;
 
-    @BackofficeAudited(action = "HOME_CURATION_READ")
+    @BackofficeAudited(action = "HOME_CURATION_READ", type = BackofficeAuditType.READ)
     @Operation(
             summary = "홈 화면 큐레이션 현재 설정 조회 API (백오피스용)",
             description = "현재 백오피스에 등록되어 학생 홈에 노출 중인 큐레이션 설정(제목, 상단 추천 업체, 2개 그룹 x 각 2개 업체)을 가져옵니다.\n\n" +
@@ -81,7 +82,7 @@ public class BackofficeHomeCurationController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficeHomeCurationService.updateCurationTitle(request));
     }
 
-    @BackofficeAudited(action = "HOME_CURATION_AUTO_RECOMMEND_READ")
+    @BackofficeAudited(action = "HOME_CURATION_AUTO_RECOMMEND_READ", type = BackofficeAuditType.READ)
     @Operation(
             summary = "추천 업체 자동 추출 API (백오피스 서브 기능 버튼용)",
             description = "평점 및 활성 매장 기반으로 상단 추천 1곳 + 2개 그룹(각 2곳)을 자동 선별합니다. 백오피스 UI의 [자동 추천 불러오기] 버튼 클릭 시 호출하여 폼에 자동 입력해 주는 용도입니다.\n\n" +

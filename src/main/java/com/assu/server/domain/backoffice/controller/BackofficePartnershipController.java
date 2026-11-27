@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
+import com.assu.server.domain.backoffice.entity.enums.BackofficeAuditType;
 import com.assu.server.domain.backoffice.service.BackofficePartnershipService;
 import com.assu.server.domain.partnership.dto.WritePartnershipResponseDTO;
 import com.assu.server.global.apiPayload.BaseResponse;
@@ -31,7 +32,7 @@ public class BackofficePartnershipController {
 
     private final BackofficePartnershipService backofficePartnershipService;
 
-    @BackofficeAudited(action = "PARTNERSHIP_ALL_READ")
+    @BackofficeAudited(action = "PARTNERSHIP_ALL_READ", type = BackofficeAuditType.READ)
     @Operation(
             summary = "모든 제휴 목록 조회 API (백오피스용)",
             description = "시스템에 등록된 모든 제휴 목록을 페이징 조회합니다.\n\n" +
@@ -59,7 +60,7 @@ public class BackofficePartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnerships(pageable));
     }
 
-    @BackofficeAudited(action = "PARTNERSHIP_BY_ADMIN_READ", targetId = "#adminId")
+    @BackofficeAudited(action = "PARTNERSHIP_BY_ADMIN_READ", targetId = "#adminId", type = BackofficeAuditType.READ)
     @Operation(
             summary = "학생회별 제휴 목록 조회 API (백오피스용)",
             description = "특정 학생회 ID(adminId) 기준 맺어진 활성화된 제휴 목록을 조회합니다.\n\n" +
@@ -90,7 +91,7 @@ public class BackofficePartnershipController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficePartnershipService.getPartnershipsByAdmin(adminId, pageable));
     }
 
-    @BackofficeAudited(action = "PARTNERSHIP_BY_STORE_READ", targetId = "#storeId")
+    @BackofficeAudited(action = "PARTNERSHIP_BY_STORE_READ", targetId = "#storeId", type = BackofficeAuditType.READ)
     @Operation(
             summary = "가게별 제휴 목록 조회 API (백오피스용)",
             description = "특정 가게 ID(storeId) 기준 맺어진 활성화된 제휴 목록을 조회합니다.\n\n" +

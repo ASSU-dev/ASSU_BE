@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
+import com.assu.server.domain.backoffice.entity.enums.BackofficeAuditType;
 import com.assu.server.domain.backoffice.dto.BackofficePaperContentCreateRequestDTO;
 import com.assu.server.domain.backoffice.dto.BackofficePaperCreateRequestDTO;
 import com.assu.server.domain.backoffice.service.BackofficePaperService;
@@ -39,7 +40,7 @@ public class BackofficePaperController {
 
     private final BackofficePaperService backofficePaperService;
 
-    @BackofficeAudited(action = "PAPER_ALL_READ")
+    @BackofficeAudited(action = "PAPER_ALL_READ", type = BackofficeAuditType.READ)
     @Operation(
             summary = "모든 제휴 계약서 목록 조회 API (백오피스용)",
             description = "시스템에 등록된 모든 제휴 계약서 목록을 페이징 조회합니다.\n\n" +

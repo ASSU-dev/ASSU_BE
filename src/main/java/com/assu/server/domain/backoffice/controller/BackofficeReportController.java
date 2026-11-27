@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.assu.server.domain.backoffice.annotation.BackofficeAudited;
+import com.assu.server.domain.backoffice.entity.enums.BackofficeAuditType;
 import com.assu.server.domain.backoffice.dto.BackofficeReportDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeReportResponseDTO;
 import com.assu.server.domain.backoffice.dto.BackofficeReportStatusUpdateRequestDTO;
@@ -34,7 +35,7 @@ public class BackofficeReportController {
 
     private final BackofficeReportService backofficeReportService;
 
-    @BackofficeAudited(action = "REPORT_ALL_READ")
+    @BackofficeAudited(action = "REPORT_ALL_READ", type = BackofficeAuditType.READ)
     @Operation(summary = "모든 신고 목록 조회 API (백오피스용)", description = "시스템에 접수된 모든 신고 목록을 페이징 조회합니다.")
     @GetMapping("/reports")
     public BaseResponse<Page<BackofficeReportResponseDTO>> getReports(
@@ -43,7 +44,7 @@ public class BackofficeReportController {
         return BaseResponse.onSuccess(SuccessStatus._OK, backofficeReportService.getReports(pageable));
     }
 
-    @BackofficeAudited(action = "REPORT_DETAIL_READ", targetId = "#reportId")
+    @BackofficeAudited(action = "REPORT_DETAIL_READ", targetId = "#reportId", type = BackofficeAuditType.READ)
     @ApiErrorCodeExamples(SwaggerErrorCodes.BACKOFFICE_REPORT_DETAIL)
     @Operation(summary = "신고 상세 조회 API (백오피스용)", description = "특정 신고 ID 기준 상세 내용을 조회합니다.")
     @GetMapping("/reports/{reportId}")

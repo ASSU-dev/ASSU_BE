@@ -265,7 +265,7 @@ PR 리뷰 시 아래 우선순위로 검토한다.
 - 모든 DTO 필드에 `@Schema(description, example)` 작성
 - 미사용 import/로그 없음
 - enum이 `entity/enums/` 패키지에 위치
-- `@BackofficeAudited`가 CUD 핸들러에만 적용 (GET 제외)
+- `@BackofficeAudited`는 CUD 핸들러에 기본값(`WRITE`)으로, 민감 데이터 조회 GET에는 `type = BackofficeAuditType.READ`로 적용
 
 ### 위험 신호 (반드시 지적)
 
@@ -377,11 +377,14 @@ PR 리뷰 시 아래 우선순위로 검토한다.
 
 ### @BackofficeAudited
 
-백오피스 **CUD(Create/Update/Delete)** 핸들러에만 적용. GET 조회에는 불필요.
+백오피스 **CUD(Create/Update/Delete)** 핸들러에 적용. 신고·제휴 목록처럼 민감 데이터를 조회하는 GET은 `type = BackofficeAuditType.READ`로 조회 기록을 남긴다 (action은 `~_READ`). ArchUnit이 GET ↔ `READ` 일치를 검사한다.
 
 ```java
 @BackofficeAudited(action = "MEMBER_APPROVE", targetId = "#memberId")
 public void approveMember(Long memberId) { ... }
+
+@BackofficeAudited(action = "REPORT_DETAIL_READ", targetId = "#reportId", type = BackofficeAuditType.READ)
+public ReportDetailDTO getReportDetail(Long reportId) { ... }
 ```
 
 `targetId`는 SpEL 표현식으로 메서드 파라미터 참조 가능.
